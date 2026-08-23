@@ -1,4 +1,4 @@
-﻿# Attendance Bunk Planner
+# Attendance Bunk Planner
 
 Attendance Bunk Planner helps college students calculate how many future periods they can bunk while still finishing the semester at their target attendance.
 
@@ -89,11 +89,13 @@ Never commit `.env.local` or share your database password.
 
 ## Deploy to Vercel
 
+## Deploy to Vercel
+
 1. Push this repository to GitHub.
 2. Import it at https://vercel.com.
 3. Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` under **Project Settings -> Environment Variables** for Production, Preview, and Development.
 4. Deploy the project.
-5. Run all three migrations in the production Supabase project.
+5. Run all four migrations in the production Supabase project.
 6. In Supabase **Authentication -> URL Configuration**, set the Site URL to your Vercel URL and add `https://your-domain.vercel.app/**` as a redirect URL.
 7. Create or grant the production admin user, then test `/`, `/admin/login`, and `/admin`.
 
