@@ -3,8 +3,8 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Attendance Bunk Planner",
-  description: "Plan your attendance and make smarter bunking decisions.",
+  title: "BUNK//PLANNER — Attendance Bunk Calculator",
+  description: "A retro attendance planner for making smarter bunking decisions.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
