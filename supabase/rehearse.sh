@@ -20,10 +20,13 @@ grant usage on schema auth to public;
 grant execute on function auth.uid() to public;
 SQL
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+migrations_dir="$script_dir/migrations"
 shopt -s nullglob
-migrations=(/migrations/*.sql)
+# Glob in sorted order so 001, 002, ... apply in filename order.
+migrations=("$migrations_dir"/*.sql)
 if [ "${#migrations[@]}" -eq 0 ]; then
-  echo "No migrations found in /migrations" >&2
+  echo "No migrations found in $migrations_dir" >&2
   exit 1
 fi
 
