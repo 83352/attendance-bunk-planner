@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://dontbunk.vercel.app"),
-  title: "dontbunk — Attendance Bunk Calculator",
+  title: "dontbunk — Can I bunk today?",
   description: "Can I bunk today? Check your safe bunk count in seconds.",
   openGraph: {
     title: "Can I bunk today?",
