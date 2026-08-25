@@ -173,7 +173,8 @@ label > span { position: absolute; z-index: 2; right: 12px; bottom: 13px; color:
 .date-input-wrapper input { border-top-right-radius: 0; border-bottom-right-radius: 0; border-right: 0; }
 .calendar-toggle { display: grid; place-items: center; width: 38px; border: 1px solid var(--line); border-left: 0; border-radius: 0 11px 11px 0; background: #fbfefd; color: var(--muted); cursor: pointer; transition: background .15s, color .15s; }
 .calendar-toggle:hover { background: var(--mint); color: var(--ink); }
-.calendar-popup { position: absolute; top: 100%; left: 0; z-index: 50; margin-top: 6px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: 0 8px 24px rgba(19,35,43,.12); animation: rise .2s ease both; min-width: 250px; }
+.calendar-popup { position: absolute; top: 100%; left: 0; z-index: 50; margin-top: 6px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: #ffffff; box-shadow: 0 8px 24px rgba(19,35,43,.15), 0 0 0 1px rgba(19,35,43,.06); animation: calendar-pop .15s ease both; min-width: 250px; }
+@keyframes calendar-pop { from { transform: translateY(-4px) scale(.97); } to { transform: translateY(0) scale(1); } }
 .calendar-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .calendar-nav button { width: 28px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--ink); cursor: pointer; font-size: 16px; font-weight: 700; }
 .calendar-nav button:hover { background: var(--paper); }
