@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useState } from 'react';
+import { useActionState, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ScheduleConfig, TimetablePeriod, Weekday } from '@/domain/schedule/types';
 import { buildCalendar } from '@/domain/schedule/calendar';
@@ -47,7 +47,75 @@ export function ConfigEditor({ initialConfig, sections, selectedSectionId, initi
 
 function DateInput({ value, onChange, ariaLabel }: DateInputProps) {
   const [text, setText] = useState(formatDisplayDate(value));
-  return <input inputMode="numeric" placeholder="dd/mm/yyyy" aria-label={ariaLabel} value={text} onChange={(event) => setText(event.target.value)} onBlur={() => { const parsed = parseDisplayDate(text); if (parsed) { setText(formatDisplayDate(parsed)); onChange(parsed); } }} />;
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const parsed = parseDisplayDate(text);
+  const viewing = parsed ? new Date(`${parsed}T00:00:00`) : new Date();
+  const [viewYear, setViewYear] = useState(viewing.getFullYear());
+  const [viewMonth, setViewMonth] = useState(viewing.getMonth());
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(event: MouseEvent) { if (containerRef.current && !containerRef.current.contains(event.target as Node)) setOpen(false); }
+    function handleKey(event: KeyboardEvent) { if (event.key === 'Escape') setOpen(false); }
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => { document.removeEventListener('mousedown', handleClick); document.removeEventListener('keydown', handleKey); };
+  }, [open]);
+
+  function navigateMonth(delta: number) {
+    const d = new Date(viewYear, viewMonth + delta, 1);
+    setViewYear(d.getFullYear());
+    setViewMonth(d.getMonth());
+  }
+
+  function pickDate(day: number) {
+    const iso = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    setText(formatDisplayDate(iso));
+    onChange(iso);
+    setOpen(false);
+  }
+
+  function toggleCalendar() {
+    if (!open) {
+      const p = parseDisplayDate(text);
+      const d = p ? new Date(`${p}T00:00:00`) : new Date();
+      setViewYear(d.getFullYear());
+      setViewMonth(d.getMonth());
+    }
+    setOpen(!open);
+  }
+
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const blanks = (firstDay + 6) % 7; // Monday-start
+  const selectedIso = parsed ?? '';
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  return <div className="date-input-wrapper" ref={containerRef}>
+    <input inputMode="numeric" placeholder="dd/mm/yyyy" aria-label={ariaLabel} value={text} onChange={(event) => setText(event.target.value)} onBlur={() => { const p = parseDisplayDate(text); if (p) { setText(formatDisplayDate(p)); onChange(p); } }} />
+    <button type="button" className="calendar-toggle" aria-label="Open calendar" onClick={toggleCalendar}>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M1 7h14" stroke="currentColor" strokeWidth="1.5"/><path d="M5 1v4M11 1v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+    </button>
+    {open && <div className="calendar-popup">
+      <div className="calendar-nav">
+        <button type="button" onClick={() => navigateMonth(-1)} aria-label="Previous month">‹</button>
+        <span>{monthNames[viewMonth]} {viewYear}</span>
+        <button type="button" onClick={() => navigateMonth(1)} aria-label="Next month">›</button>
+      </div>
+      <div className="calendar-grid">
+        {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((d) => <span key={d} className="calendar-weekday">{d}</span>)}
+        {Array.from({ length: blanks }).map((_, i) => <span key={`b${i}`} />)}
+        {Array.from({ length: daysInMonth }, (_, i) => {
+          const day = i + 1;
+          const iso = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const isSelected = iso === selectedIso;
+          const isToday = iso === new Date().toISOString().slice(0, 10);
+          return <button type="button" key={day} className={`calendar-day${isSelected ? ' selected' : ''}${isToday ? ' today' : ''}`} onClick={() => pickDate(day)}>{day}</button>;
+        })}
+      </div>
+    </div>}
+  </div>;
 }
 
 function formatDisplayDate(value: string): string {
