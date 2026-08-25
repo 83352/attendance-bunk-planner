@@ -142,7 +142,9 @@ function Results({ result, endDate }: { result: AttendanceResult; endDate: strin
         <div className="recovery">
           <div><p className="eyebrow">Recovery mode</p><h3>Build your attendance back, one day at a time.</h3></div>
           <RecoveryCard recovery={result.recoveryTo75} label="To reach 75%" />
-          <RecoveryCard recovery={result.recoveryToTarget} label={`To reach ${percentage(result.targetPercentage)}`} />
+          {result.targetPercentage !== 75 && (
+            <RecoveryCard recovery={result.recoveryToTarget} label={`To reach ${percentage(result.targetPercentage)}`} />
+          )}
         </div>
       )}
       <p className="semester-note">Planning through <strong>{formatter.format(new Date(`${endDate}T00:00:00`))}</strong>. Today is excluded until reliable attendance is available.</p>

@@ -133,7 +133,7 @@ h1 { margin: 0; font: 900 28px/.95 Impact, "Arial Narrow", Arial, sans-serif; le
 label { position: relative; display: grid; gap: 7px; color: var(--ink); font-size: 10px; font-weight: 900; line-height: 1.1; }
 label::after { content: ""; display: block; position: absolute; z-index: 0; left: -3px; right: -3px; bottom: -4px; height: 3px; background: repeating-linear-gradient(90deg, var(--red) 0 4px, transparent 4px 11px); opacity: .95; }
 input { position: relative; z-index: 1; width: 100%; min-height: 54px; padding: 8px 38px 8px 13px; border: 3px solid var(--black); border-radius: 0; background: var(--surface); color: var(--ink); font: 900 30px/.95 Arial, Helvetica, sans-serif; outline: none; box-shadow: 2px 2px 0 var(--black); }
-input::placeholder { color: var(--grey); opacity: 1; font-weight: 700; }
+input::placeholder { color: var(--grey); opacity: 1; font: 700 13px/1.3 "Courier New", monospace; letter-spacing: 0; }
 input:focus { border-color: var(--orange); outline: 2px solid var(--lime); outline-offset: 2px; }
 label > span { position: absolute; z-index: 2; right: 12px; bottom: 13px; color: var(--grey); font: 700 13px/1 "Courier New", monospace; }
 .calculate { width: 100%; min-height: 48px; padding: 12px 12px 11px; border: 3px solid var(--black); border-radius: 0; background: var(--orange); color: #fff; cursor: pointer; box-shadow: 4px 4px 0 var(--black); font: 900 13px/1 Impact, "Arial Narrow", Arial, sans-serif; letter-spacing: .7px; text-align: center; text-transform: uppercase; transition: transform .16s ease-out, box-shadow .16s ease-out, background .16s ease-out; }
