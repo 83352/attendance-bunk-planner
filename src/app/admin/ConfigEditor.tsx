@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ScheduleConfig, TimetablePeriod, Weekday } from '@/domain/schedule/types';
 import { buildCalendar, currentIstDate, periodsForDate } from '@/domain/schedule/calendar';
-import { saveSemesterConfig } from './actions';
+import { deleteSection, renameSection, saveSemesterConfig } from './actions';
 
 const days: [Weekday, string][] = [[1, 'Monday'], [2, 'Tuesday'], [3, 'Wednesday'], [4, 'Thursday'], [5, 'Friday']];
 type SectionOption = { id: string; name: string };
@@ -43,6 +43,7 @@ export function ConfigEditor({ initialConfig, sections, selectedSectionId, initi
     <ConfigList title="Universal special Saturdays" actionLabel="+ Saturday" onAdd={addSaturday}><p className="field-help">These working Saturdays apply to every section.</p>{config.specialSaturdays.map((special, index) => <div className="config-row" key={index}><DateInput ariaLabel="Special Saturday date" value={special.date} onChange={(value) => update({ specialSaturdays: config.specialSaturdays.map((item, itemIndex) => itemIndex === index ? { ...item, date: value } : item) })} /><select aria-label="Copied weekday" value={special.copiedWeekday} onChange={(event) => update({ specialSaturdays: config.specialSaturdays.map((item, itemIndex) => itemIndex === index ? { ...item, copiedWeekday: Number(event.target.value) as Weekday } : item) })}><option value="1">Monday timetable</option><option value="2">Tuesday timetable</option><option value="3">Wednesday timetable</option><option value="4">Thursday timetable</option><option value="5">Friday timetable</option></select><button className="remove-button" type="button" aria-label="Remove special Saturday" onClick={() => removeSaturday(index)}>×</button></div>)}</ConfigList>
     {state.error && <p className="error" role="alert">{state.error}</p>}{state.success && <p className="success" role="status">{state.success}</p>}
     <SemesterCalendar config={config} />
+    <SectionManager sections={sections} selectedSectionId={selectedSectionId} />
   </form>;
 }
 
@@ -137,6 +138,40 @@ function parseDisplayDate(value: string): string | null {
 
 function ConfigList({ title, actionLabel, onAdd, children }: { title: string; actionLabel: string; onAdd: () => void; children: React.ReactNode }) {
   return <section className="config-section"><div className="admin-heading"><div><p className="eyebrow">Calendar exceptions</p><h2>{title}</h2></div><button type="button" onClick={onAdd}>{actionLabel}</button></div>{children}</section>;
+}
+
+function SectionManager({ sections, selectedSectionId }: { sections: SectionOption[]; selectedSectionId: string }) {
+  const router = useRouter();
+  const [renameState, renameAction, renamePending] = useActionState(renameSection, {});
+  const [deleteState, deleteAction, deletePending] = useActionState(deleteSection, {});
+  useEffect(() => { router.refresh(); }, [router, renameState.success, deleteState.success]);
+  if (sections.length === 0) return null;
+
+  return <section className="config-section">
+    <div className="admin-heading"><div><p className="eyebrow">Section management</p><h2>Rename or remove</h2></div></div>
+    <form className="section-manager" action={renameAction}>
+      <label>
+        Rename section
+        <select name="sectionId" defaultValue={selectedSectionId || ''} required>
+          {sections.map((section) => <option key={section.id} value={section.id}>{section.name}</option>)}
+        </select>
+      </label>
+      <label>
+        New name
+        <input name="newName" required maxLength={80} placeholder="e.g. CSE 6" />
+      </label>
+      <button type="submit" disabled={renamePending}>{renamePending ? 'Renaming...' : 'Rename'}</button>
+      {renameState.error && <p className="error" role="alert">{renameState.error}</p>}
+    </form>
+    <form className="section-manager" action={deleteAction} onSubmit={(event) => {
+      if (!confirm('Delete this section? Its timetable, exams and semester dates are removed permanently. Holidays shared by all sections are kept.')) event.preventDefault();
+    }}>
+      <input type="hidden" name="sectionId" value={selectedSectionId || ''} />
+      <p className="field-help">Deletes “{sections.find((section) => section.id === selectedSectionId)?.name ?? selectedSectionId}” — the section currently open above. This cannot be undone.</p>
+      <button type="submit" className="remove-button" disabled={deletePending || !selectedSectionId}>{deletePending ? 'Deleting...' : 'Delete current section'}</button>
+      {deleteState.error && <p className="error" role="alert">{deleteState.error}</p>}
+    </form>
+  </section>;
 }
 
 function dateInRange(date: string, start: string, end: string): boolean {

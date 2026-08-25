@@ -1,11 +1,28 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "BUNK//PLANNER — Attendance Bunk Calculator",
-  description: "A retro attendance planner for making smarter bunking decisions.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://dontbunk.vercel.app"),
+  title: "dontbunk — Attendance Bunk Calculator",
+  description: "Can I bunk today? Check your safe bunk count in seconds.",
+  openGraph: {
+    title: "Can I bunk today?",
+    description: "Check your safe bunk count in seconds.",
+    images: ["/og-card.png"],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Can I bunk today?",
+    description: "Check your safe bunk count in seconds.",
+    images: ["/og-card.png"],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#111111",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

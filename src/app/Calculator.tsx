@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { calculateAttendance } from '@/domain/attendance/engine';
 import type { AttendanceResult } from '@/domain/attendance/types';
 import type { ScheduleConfig } from '@/domain/schedule/types';
@@ -9,6 +9,11 @@ import Link from 'next/link';
 
 const formatter = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 const percentage = (value: number) => `${value.toFixed(2)}%`;
+
+function parsePercentage(value: string): number | null {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 && parsed <= 100 ? parsed : null;
+}
 
 type SectionOption = { id: string; name: string };
 
@@ -23,23 +28,16 @@ export function Calculator({ config, sectionName, sections, selectedSectionId }:
   const router = useRouter();
   const [current, setCurrent] = useState('78');
   const [target, setTarget] = useState('75');
-  const [result, setResult] = useState<AttendanceResult | null>(null);
-  const [error, setError] = useState('');
 
-  function calculate() {
-    const currentValue = Number(current);
-    const targetValue = Number(target);
-    if (!Number.isFinite(currentValue) || currentValue < 0 || currentValue > 100) {
-      setError('Enter a current attendance between 0 and 100.');
-      return;
-    }
-    if (!Number.isFinite(targetValue) || targetValue < 0 || targetValue > 100) {
-      setError('Enter a target attendance between 0 and 100.');
-      return;
-    }
-    setError('');
-    setResult(calculateAttendance({ config, now: new Date(), currentPercentage: currentValue, targetPercentage: targetValue }));
-  }
+  // Recalculate on every keystroke. Invalid input keeps the last good result
+  // on screen and surfaces an inline hint instead of wiping the answer.
+  const { result, error } = useMemo(() => {
+    const currentPercentage = parsePercentage(current);
+    if (currentPercentage === null) return { result: null, error: current.trim() === '' ? '' : 'Enter a current attendance between 0 and 100.' };
+    const targetPercentage = parsePercentage(target);
+    if (targetPercentage === null) return { result: null, error: target.trim() === '' ? '' : 'Enter a target attendance between 0 and 100.' };
+    return { result: calculateAttendance({ config, now: new Date(), currentPercentage, targetPercentage }), error: '' };
+  }, [config, current, target]);
 
   return (
     <>
@@ -82,10 +80,6 @@ export function Calculator({ config, sectionName, sections, selectedSectionId }:
             </label>
           </div>
           {error && <p className="error" role="alert">{error}</p>}
-
-          <button className="calculate" type="button" onClick={calculate}>
-            Can I bunk? <span aria-hidden="true">↗</span>
-          </button>
         </section>
 
         {result ? <Results result={result} endDate={config.semesterEnd} /> : <p className="quiet-note">Your timetable and semester calendar are already loaded.</p>}

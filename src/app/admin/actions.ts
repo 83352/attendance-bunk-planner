@@ -49,3 +49,48 @@ export async function saveSemesterConfig(_: SaveConfigState, formData: FormData)
   revalidatePath('/admin');
   return { success: 'Configuration saved.' };
 }
+
+export async function renameSection(_: SaveConfigState, formData: FormData): Promise<SaveConfigState> {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { error: 'Supabase is not configured.' };
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Your session has expired. Sign in again.' };
+  const { data: profile } = await supabase.from('admin_profiles').select('role').eq('user_id', user.id).single();
+  if (!profile || profile.role !== 'admin') return { error: 'You are not authorized to change configuration.' };
+
+  const sectionId = String(formData.get('sectionId') ?? '');
+  const newName = String(formData.get('newName') ?? '').trim();
+  if (!sectionId) return { error: 'Choose a section to rename.' };
+  if (!newName) return { error: 'Enter a new section name.' };
+
+  const { error } = await supabase.from('sections').update({ name: newName }).eq('id', sectionId);
+  if (error) {
+    if (error.code === '23505') return { error: 'A section with that name already exists.' };
+    return { error: `Could not rename the section. ${error.message}` };
+  }
+
+  revalidatePath('/');
+  revalidatePath('/admin');
+  return { success: 'Section renamed.' };
+}
+
+export async function deleteSection(_: SaveConfigState, formData: FormData): Promise<SaveConfigState> {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { error: 'Supabase is not configured.' };
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Your session has expired. Sign in again.' };
+  const { data: profile } = await supabase.from('admin_profiles').select('role').eq('user_id', user.id).single();
+  if (!profile || profile.role !== 'admin') return { error: 'You are not authorized to change configuration.' };
+
+  const sectionId = String(formData.get('sectionId') ?? '');
+  if (!sectionId) return { error: 'Choose a section to delete.' };
+
+  // Deleting a section cascades to its semesters and every schedule row.
+  // Universal holidays and special Saturdays are intentionally kept.
+  const { error } = await supabase.from('sections').delete().eq('id', sectionId);
+  if (error) return { error: `Could not delete the section. ${error.message}` };
+
+  revalidatePath('/');
+  revalidatePath('/admin');
+  return { success: 'Section deleted.' };
+}

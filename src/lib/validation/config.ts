@@ -21,4 +21,20 @@ export const semesterConfigSchema = z.object({
   holidays: z.array(holidaySchema),
   specialSaturdays: z.array(specialSaturdaySchema),
   exams: z.array(examSchema).max(2),
-}).refine((config) => config.semesterStart <= config.semesterEnd, 'Semester end must be on or after its start.');
+}).refine((config) => config.semesterStart <= config.semesterEnd, 'Semester end must be on or after its start.')
+  .refine(
+    (config) => config.exams.every((exam) => exam.start >= config.semesterStart && exam.end <= config.semesterEnd),
+    'Exam dates must be inside the semester.',
+  )
+  .refine(
+    (config) => config.holidays.every((holiday) => holiday.start >= config.semesterStart && holiday.end <= config.semesterEnd),
+    'Holiday dates must be inside the semester.',
+  )
+  .refine(
+    (config) => config.specialSaturdays.length === new Set(config.specialSaturdays.map((special) => special.date)).size,
+    'Each special Saturday can only be listed once.',
+  )
+  .refine(
+    (config) => config.specialSaturdays.every((special) => special.date >= config.semesterStart && special.date <= config.semesterEnd),
+    'Special Saturday dates must be inside the semester.',
+  );
