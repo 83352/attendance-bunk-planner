@@ -169,6 +169,9 @@ label > span { position: absolute; z-index: 2; right: 12px; bottom: 13px; color:
 .semester-note { margin: 20px 0 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
 
 .admin-shell { width: min(100%, 760px); min-height: 100vh; margin: 0 auto; padding: 26px 20px 56px; }
+.admin-topbar { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+.admin-topbar .theme-toggle { position: static; transform: none; color: var(--muted); }
+.admin-topbar .theme-toggle:hover { background: var(--lime); color: #111111; border-color: var(--lime); }
 .admin-shell h1 { margin-bottom: 14px; font-size: 40px; }
 .admin-shell > p:not(.eyebrow) { max-width: 620px; color: var(--muted); font: 13px/1.55 "Courier New", monospace; }
 .admin-form { display: grid; gap: 18px; max-width: 420px; margin-top: 28px; }
