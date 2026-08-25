@@ -22,12 +22,16 @@ type CalculatorProps = {
 
 export function Calculator({ config, sectionName, sections, selectedSectionId }: CalculatorProps) {
   const router = useRouter();
-  const [current, setCurrent] = useState('78');
+  const [current, setCurrent] = useState('');
   const [target, setTarget] = useState('75');
   const [result, setResult] = useState<AttendanceResult | null>(null);
   const [error, setError] = useState('');
 
   function calculate() {
+    if (current.trim() === '') {
+      setError('Enter your attendance to find out.');
+      return;
+    }
     const currentValue = Number(current);
     const targetValue = Number(target);
     if (!Number.isFinite(currentValue) || currentValue < 0 || currentValue > 100) {
@@ -74,7 +78,7 @@ export function Calculator({ config, sectionName, sections, selectedSectionId }:
           <div className="inputs">
             <label>
               Current attendance %
-              <input inputMode="decimal" value={current} onChange={(event) => setCurrent(event.target.value)} aria-label="Current attendance percentage" />
+              <input inputMode="decimal" value={current} placeholder="Enter your attendance..." onChange={(event) => setCurrent(event.target.value)} aria-label="Current attendance percentage" />
               <span>%</span>
             </label>
             <label>
@@ -98,14 +102,32 @@ export function Calculator({ config, sectionName, sections, selectedSectionId }:
   );
 }
 
+const DANGER_ATTENDANCE_RATIO = 0.9;
+
 function Results({ result, endDate }: { result: AttendanceResult; endDate: string }) {
+  const { recoveryTo75 } = result;
+  const unreachable = recoveryTo75.reachable === false;
+  const brutal = recoveryTo75.reachable
+    && recoveryTo75.periodsRequired !== null
+    && result.remainingPeriods > 0
+    && recoveryTo75.periodsRequired / result.remainingPeriods > DANGER_ATTENDANCE_RATIO;
+  const isDanger = unreachable || brutal;
   return (
     <section className="results" aria-live="polite">
-      <div className="result-hero">
+      <div className={`result-hero${isDanger ? ' danger' : ''}`}>
         <p className="eyebrow">Your semester runway</p>
         <div className="bunk-number">{result.maximumBunks}</div>
-        <h2>periods you can bunk</h2>
-        <p>and still finish at <strong>{percentage(result.targetPercentage)}</strong></p>
+        {isDanger ? (
+          <>
+            <h2>{unreachable ? 'recovery is out of reach' : "you're in deep trouble"}</h2>
+            <p>even attending everything leaves you at <strong>{percentage(recoveryTo75.bestAchievablePercentage)}</strong> vs the 75% bar</p>
+          </>
+        ) : (
+          <>
+            <h2>periods you can bunk</h2>
+            <p>and still finish at <strong>{percentage(result.targetPercentage)}</strong></p>
+          </>
+        )}
       </div>
       <div className="result-grid">
         <article><span>Mathematical pace</span><strong>{result.periodsPerWeek.toFixed(2)} <small>periods / week</small></strong></article>
