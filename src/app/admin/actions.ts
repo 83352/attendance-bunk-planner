@@ -20,6 +20,10 @@ export async function saveSemesterConfig(_: SaveConfigState, formData: FormData)
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Configuration is invalid.' };
   const sectionName = String(formData.get('sectionName') ?? '').trim();
   if (!sectionName) return { error: 'Section name is required.' };
+  const updatedAtRaw = String(formData.get('updatedAt') ?? '');
+  const parsedUpdatedAt = updatedAtRaw === '' ? null : new Date(updatedAtRaw);
+  if (parsedUpdatedAt !== null && Number.isNaN(parsedUpdatedAt.getTime())) return { error: 'The configuration lock timestamp is invalid. Reload the page and try again.' };
+  const updatedAt = parsedUpdatedAt !== null && !Number.isNaN(parsedUpdatedAt.getTime()) ? parsedUpdatedAt : null;
   const config = parsed.data;
 
   const examDays = config.exams.flatMap((exam) => (exam.dailyPeriods ?? []).map((day) => ({ examName: exam.name, date: day.date, periodsPerDay: day.periodsPerDay })));
@@ -36,11 +40,15 @@ export async function saveSemesterConfig(_: SaveConfigState, formData: FormData)
     p_exam_days: examDays,
     p_holidays: config.holidays,
     p_special_saturdays: config.specialSaturdays,
+    p_expected_updated_at: updatedAt === null ? null : updatedAt.toISOString(),
   });
 
   if (error) {
     const missingRpc = error.message.includes('schema cache') || error.message.includes('function public.save_semester_config');
-    if (missingRpc) return { error: 'Atomic save is not installed yet. Run migration 005_atomic_save.sql in Supabase, then try again.' };
+    if (missingRpc) return { error: 'Atomic save is not installed yet. Run migrations 005_atomic_save.sql and 007_optimistic_locking.sql in Supabase, then try again.' };
+    if (error.code === '40001' || error.message.includes('changed by someone else')) {
+      return { error: 'This schedule was saved from somewhere else while you were editing. Reload the page to get the latest version, then apply your changes again.' };
+    }
     if (error.code === '42501' || error.message.includes('administrator')) return { error: 'You are not authorized to change configuration.' };
     return { error: `Could not save the configuration. ${error.message}` };
   }

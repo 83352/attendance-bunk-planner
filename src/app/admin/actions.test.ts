@@ -97,6 +97,31 @@ describe('saveSemesterConfig', () => {
     expect(result.error).toMatch(/not authorized/i);
   });
 
+  it('passes a null lock timestamp when the section was never saved', async () => {
+    rpc.mockResolvedValueOnce({ error: null });
+    await saveSemesterConfig({}, validFormData({ updatedAt: '' }));
+    expect(rpc.mock.calls[0][1].p_expected_updated_at).toBeNull();
+  });
+
+  it('forwards the loaded updated_at timestamp as the optimistic-lock token', async () => {
+    rpc.mockResolvedValueOnce({ error: null });
+    await saveSemesterConfig({}, validFormData({ updatedAt: '2026-08-20T10:00:00.000Z' }));
+    expect(rpc.mock.calls[0][1].p_expected_updated_at).toBe('2026-08-20T10:00:00.000Z');
+  });
+
+  it('rejects a malformed lock timestamp before calling the database', async () => {
+    const result = await saveSemesterConfig({}, validFormData({ updatedAt: 'not-a-date' }));
+    expect(result.error).toMatch(/lock timestamp is invalid/i);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('maps optimistic-lock conflicts to the reload message', async () => {
+    rpc.mockResolvedValueOnce({ error: { message: 'The configuration was changed by someone else after you loaded it. Reload and try again.', code: '40001' } });
+    const result = await saveSemesterConfig({}, validFormData({ updatedAt: '2026-08-20T10:00:00.000Z' }));
+    expect(result.error).toMatch(/saved from somewhere else/i);
+    expect(result.success).toBeUndefined();
+  });
+
   it('saves via one atomic rpc call and reports success', async () => {
     rpc.mockResolvedValueOnce({ error: null });
     const result = await saveSemesterConfig({}, validFormData());
