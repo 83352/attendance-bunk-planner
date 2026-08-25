@@ -16,23 +16,20 @@ async function loadSectionConfig(supabase: NonNullable<Awaited<ReturnType<typeof
     supabase.from('exam_periods').select('name, start_date, end_date, periods_per_day').eq('semester_id', semester.id),
     supabase.from('exam_period_days').select('exam_name, date, periods_per_day').eq('semester_id', semester.id),
   ]);
-  const configuredExams = exams && exams.length > 0
-    ? exams.map((exam) => ({ name: exam.name, start: exam.start_date, end: exam.end_date, periodsPerDay: exam.periods_per_day, dailyPeriods: (examDays ?? []).filter((day) => day.exam_name === exam.name).map((day) => ({ date: day.date, periodsPerDay: day.periods_per_day })) }))
-    : defaultConfig.exams;
   return {
     semesterStart: semester.start_date,
     semesterEnd: semester.end_date,
-    timetable: (timetable && timetable.length > 0 ? timetable : defaultConfig.timetable).map((period) => ({ weekday: period.weekday, sequence: period.sequence, start: 'start_time' in period ? String(period.start_time).slice(0, 5) : period.start, end: 'end_time' in period ? String(period.end_time).slice(0, 5) : period.end })),
+    timetable: (timetable ?? []).map((period) => ({ weekday: period.weekday, sequence: period.sequence, start: String(period.start_time).slice(0, 5), end: String(period.end_time).slice(0, 5) })),
     holidays: (holidays ?? []).map((holiday) => ({ name: holiday.name, start: holiday.start_date, end: holiday.end_date })),
     specialSaturdays: (specialSaturdays ?? []).map((special) => ({ date: special.date, copiedWeekday: special.copied_weekday })),
-    exams: configuredExams,
+    exams: (exams ?? []).map((exam) => ({ name: exam.name, start: exam.start_date, end: exam.end_date, periodsPerDay: exam.periods_per_day, dailyPeriods: (examDays ?? []).filter((day) => day.exam_name === exam.name).map((day) => ({ date: day.date, periodsPerDay: day.periods_per_day })) })),
   };
 }
 
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   const supabase = await createSupabaseServerClient();
   if (!supabase) {
-    return <main className="admin-shell"><p className="eyebrow">First-time setup</p><h1>Connect Supabase in 5 minutes.</h1><p>Supabase is the secure online database that stores your timetable. Follow these steps once on your computer.</p><ol className="setup-steps"><li><strong>Create a project.</strong><span>Go to <a href="https://supabase.com" target="_blank" rel="noreferrer">supabase.com</a>, sign in, choose New project, and wait for it to finish.</span></li><li><strong>Copy two values.</strong><span>Open Project Settings → API. Copy the Project URL and the anon public key.</span></li><li><strong>Paste them into the right file.</strong><span>Open <code>.env.local</code> in this project. The filename must be exactly <code>.env.local</code>, not <code>.end.local</code>.</span><pre>NEXT_PUBLIC_SUPABASE_URL=your-project-url{`\n`}NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-public-key</pre></li><li><strong>Create the tables.</strong><span>In Supabase, open SQL Editor → New query. Run <code>001_initial_schema.sql</code>, then <code>002_exam_day_overrides.sql</code>, then <code>003_universal_calendar.sql</code>, in that order.</span></li><li><strong>Restart this website.</strong><span>Stop the terminal with Ctrl+C, then run <code>npm run dev</code> again. Return to this page and sign in at <a href="/admin/login">/admin/login</a>.</span></li></ol><p className="setup-warning"><strong>Keep private:</strong> never share your database password or commit <code>.env.local</code> to Git.</p></main>;
+    return <main className="admin-shell"><p className="eyebrow">First-time setup</p><h1>Connect Supabase in 5 minutes.</h1><p>Supabase is the secure online database that stores your timetable. Follow these steps once on your computer.</p><ol className="setup-steps"><li><strong>Create a project.</strong><span>Go to <a href="https://supabase.com" target="_blank" rel="noreferrer">supabase.com</a>, sign in, choose New project, and wait for it to finish.</span></li><li><strong>Copy two values.</strong><span>Open Project Settings → API. Copy the Project URL and the anon public key.</span></li><li><strong>Paste them into the right file.</strong><span>Open <code>.env.local</code> in this project. The filename must be exactly <code>.env.local</code>, not <code>.end.local</code>.</span><pre>NEXT_PUBLIC_SUPABASE_URL=your-project-url{`\n`}NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-public-key</pre></li><li><strong>Create the tables.</strong><span>In Supabase, open SQL Editor → New query. Run <code>001_initial_schema.sql</code>, then <code>002</code>, <code>003</code>, <code>004_security_hardening.sql</code>, <code>005_atomic_save.sql</code> and <code>006_drop_legacy_calendar_tables.sql</code>, in that order.</span></li><li><strong>Restart this website.</strong><span>Stop the terminal with Ctrl+C, then run <code>npm run dev</code> again. Return to this page and sign in at <a href="/admin/login">/admin/login</a>.</span></li></ol><p className="setup-warning"><strong>Keep private:</strong> never share your database password or commit <code>.env.local</code> to Git.</p></main>;
   }
 
   const { data: { user } } = await supabase.auth.getUser();

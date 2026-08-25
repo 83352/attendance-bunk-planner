@@ -8,7 +8,7 @@ import type {
 
 const EPSILON = 1e-10;
 
-export function estimateAttendedPeriods(currentPercentage: number, heldPeriods: number): number {
+function estimateAttendedPeriods(currentPercentage: number, heldPeriods: number): number {
   return (currentPercentage / 100) * heldPeriods;
 }
 
@@ -39,12 +39,12 @@ function recoveryFor(
   }
 
   if (target >= 1 - EPSILON) {
-    const exact = attended >= held - EPSILON ? 0 : Number.POSITIVE_INFINITY;
+    const reachable = attended >= held - EPSILON;
     return {
       targetPercentage,
-      periodsRequired: Number.isFinite(exact) ? exact : 0,
-      reachable: Number.isFinite(exact),
-      minimumCollegeDays: Number.isFinite(exact) ? 0 : null,
+      periodsRequired: reachable ? 0 : null,
+      reachable,
+      minimumCollegeDays: reachable ? 0 : null,
       bestAchievablePercentage: bestAchievable,
     };
   }

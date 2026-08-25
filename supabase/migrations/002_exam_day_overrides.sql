@@ -1,3 +1,6 @@
+-- The table and its policies already exist from 001_initial_schema.sql; this
+-- migration is kept for historical ordering only. Everything is idempotent so
+-- it also works when applied to a database that never ran 001.
 create table if not exists public.exam_period_days (
   id uuid primary key default gen_random_uuid(),
   semester_id uuid not null references public.semesters(id) on delete cascade,
@@ -8,6 +11,9 @@ create table if not exists public.exam_period_days (
 );
 
 alter table public.exam_period_days enable row level security;
+
+drop policy if exists "Public can read exam day overrides" on public.exam_period_days;
+drop policy if exists "Admins can modify exam day overrides" on public.exam_period_days;
 
 create policy "Public can read exam day overrides" on public.exam_period_days for select using (true);
 create policy "Admins can modify exam day overrides" on public.exam_period_days for all using (public.is_admin()) with check (public.is_admin());

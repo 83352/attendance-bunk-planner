@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ScheduleConfig, TimetablePeriod, Weekday } from '@/domain/schedule/types';
-import { buildCalendar, periodsForDate } from '@/domain/schedule/calendar';
+import { buildCalendar, currentIstDate, periodsForDate } from '@/domain/schedule/calendar';
 import { saveSemesterConfig } from './actions';
 
 const days: [Weekday, string][] = [[1, 'Monday'], [2, 'Tuesday'], [3, 'Wednesday'], [4, 'Thursday'], [5, 'Friday']];
@@ -45,6 +45,8 @@ export function ConfigEditor({ initialConfig, sections, selectedSectionId, initi
     <SemesterCalendar config={config} />
   </form>;
 }
+
+const todayIso = currentIstDate(new Date());
 
 function DateInput({ value, onChange, ariaLabel }: DateInputProps) {
   const [text, setText] = useState(formatDisplayDate(value));
@@ -111,7 +113,7 @@ function DateInput({ value, onChange, ariaLabel }: DateInputProps) {
           const day = i + 1;
           const iso = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           const isSelected = iso === selectedIso;
-          const isToday = iso === new Date().toISOString().slice(0, 10);
+          const isToday = iso === todayIso;
           return <button type="button" key={day} className={`calendar-day${isSelected ? ' selected' : ''}${isToday ? ' today' : ''}`} onClick={() => pickDate(day)}>{day}</button>;
         })}
       </div>
@@ -148,7 +150,6 @@ function SemesterCalendar({ config }: { config: ScheduleConfig }) {
   const startYear = startDate.getUTCFullYear();
   const endMonth = endDate.getUTCMonth();
   const endYear = endDate.getUTCFullYear();
-  const todayIso = new Date().toISOString().slice(0, 10);
 
   const months: { year: number; month: number }[] = [];
   for (let y = startYear, m = startMonth; y < endYear || (y === endYear && m <= endMonth); m++) {

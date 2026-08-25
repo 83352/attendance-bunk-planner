@@ -22,50 +22,29 @@ export async function saveSemesterConfig(_: SaveConfigState, formData: FormData)
   if (!sectionName) return { error: 'Section name is required.' };
   const config = parsed.data;
 
-  const { data: section, error: sectionError } = await supabase.from('sections').upsert({ name: sectionName }, { onConflict: 'name' }).select('id').single();
-  if (sectionError || !section) return { error: sectionError?.message ?? 'Could not save section.' };
-  const { data: semester, error: semesterError } = await supabase.from('semesters').upsert({ section_id: section.id, name: 'Current semester', start_date: config.semesterStart, end_date: config.semesterEnd }, { onConflict: 'section_id,name' }).select('id').single();
-  if (semesterError || !semester) return { error: semesterError?.message ?? 'Could not save semester.' };
+  const examDays = config.exams.flatMap((exam) => (exam.dailyPeriods ?? []).map((day) => ({ examName: exam.name, date: day.date, periodsPerDay: day.periodsPerDay })));
 
-  const tables = ['timetable_periods', 'exam_periods', 'exam_period_days'] as const;
-  for (const table of tables) {
-    const { error } = await supabase.from(table).delete().eq('semester_id', semester.id);
-    if (error) {
-      if (table === 'exam_period_days') return { error: 'Exam day table is missing. Run migration 002_exam_day_overrides.sql in Supabase, then try again.' };
-      return { error: `Could not replace ${table.replaceAll('_', ' ')}.` };
-    }
+  // The entire swap runs inside one Postgres transaction (migration
+  // 005_atomic_save.sql), so a failure part-way through can no longer leave
+  // half-saved state behind. The function re-checks admin rights itself.
+  const { error } = await supabase.rpc('save_semester_config', {
+    p_section_name: sectionName,
+    p_semester_start: config.semesterStart,
+    p_semester_end: config.semesterEnd,
+    p_timetable: config.timetable,
+    p_exams: config.exams.map((exam) => ({ name: exam.name, start: exam.start, end: exam.end, periodsPerDay: exam.periodsPerDay })),
+    p_exam_days: examDays,
+    p_holidays: config.holidays,
+    p_special_saturdays: config.specialSaturdays,
+  });
+
+  if (error) {
+    const missingRpc = error.message.includes('schema cache') || error.message.includes('function public.save_semester_config');
+    if (missingRpc) return { error: 'Atomic save is not installed yet. Run migration 005_atomic_save.sql in Supabase, then try again.' };
+    if (error.code === '42501' || error.message.includes('administrator')) return { error: 'You are not authorized to change configuration.' };
+    return { error: `Could not save the configuration. ${error.message}` };
   }
-  const rows = {
-    timetable_periods: config.timetable.map((period) => ({ semester_id: semester.id, weekday: period.weekday, sequence: period.sequence, start_time: period.start, end_time: period.end })),
-    exam_periods: config.exams.map((exam) => ({ semester_id: semester.id, name: exam.name, start_date: exam.start, end_date: exam.end, periods_per_day: exam.periodsPerDay })),
-  };
-  if (rows.timetable_periods.length > 0) {
-    const { error } = await supabase.from('timetable_periods').insert(rows.timetable_periods);
-    if (error) return { error: 'Could not save timetable periods.' };
-  }
-  const { error: holidayDeleteError } = await supabase.from('universal_holidays').delete().not('id', 'is', null);
-  if (holidayDeleteError) return { error: 'Universal calendar tables are missing. Run migration 003_universal_calendar.sql in Supabase, then try again.' };
-  const universalHolidays = config.holidays.map((holiday) => ({ name: holiday.name, start_date: holiday.start, end_date: holiday.end }));
-  if (universalHolidays.length > 0) {
-    const { error } = await supabase.from('universal_holidays').insert(universalHolidays);
-    if (error) return { error: 'Could not save universal holidays.' };
-  }
-  const { error: saturdayDeleteError } = await supabase.from('universal_special_saturdays').delete().not('id', 'is', null);
-  if (saturdayDeleteError) return { error: 'Universal calendar tables are missing. Run migration 003_universal_calendar.sql in Supabase, then try again.' };
-  const universalSaturdays = config.specialSaturdays.map((special) => ({ date: special.date, copied_weekday: special.copiedWeekday }));
-  if (universalSaturdays.length > 0) {
-    const { error } = await supabase.from('universal_special_saturdays').insert(universalSaturdays);
-    if (error) return { error: 'Could not save universal special Saturdays.' };
-  }
-  if (rows.exam_periods.length > 0) {
-    const { error } = await supabase.from('exam_periods').insert(rows.exam_periods);
-    if (error) return { error: 'Could not save examinations.' };
-  }
-  const examDays = config.exams.flatMap((exam) => (exam.dailyPeriods ?? []).map((day) => ({ exam_name: exam.name, semester_id: semester.id, date: day.date, periods_per_day: day.periodsPerDay })));
-  if (examDays.length > 0) {
-    const { error } = await supabase.from('exam_period_days').insert(examDays);
-    if (error) return { error: 'Could not save daily examination overrides.' };
-  }
+
   revalidatePath('/');
   revalidatePath('/admin');
   return { success: 'Configuration saved.' };

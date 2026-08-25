@@ -114,7 +114,7 @@ function Results({ result, endDate }: { result: AttendanceResult; endDate: strin
         <div><p className="eyebrow">A practical rhythm</p><h3>Spread the bunks, keep your options open.</h3></div>
         <div className="week-row">{result.practicalBunksByWeek.map((bunks, index) => <div className="week" key={`${index}-${bunks}`}><span>W{index + 1}</span><strong>{bunks}</strong></div>)}</div>
       </div>
-      {(result.recoveryTo75.periodsRequired > 0 || result.recoveryToTarget.periodsRequired > 0) && (
+      {((result.recoveryTo75.periodsRequired ?? 0) > 0 || (result.recoveryToTarget.periodsRequired ?? 0) > 0) && (
         <div className="recovery">
           <div><p className="eyebrow">Recovery mode</p><h3>Build your attendance back, one day at a time.</h3></div>
           <RecoveryCard recovery={result.recoveryTo75} label="To reach 75%" />
@@ -130,7 +130,7 @@ function RecoveryCard({ recovery, label }: { recovery: AttendanceResult['recover
   return (
     <article className="recovery-card">
       <span>{label}</span>
-      {recovery.reachable ? <><strong>{recovery.periodsRequired} periods</strong><small>minimum {recovery.minimumCollegeDays} college days</small></> : <><strong>Not reachable</strong><small>best finish: {percentage(recovery.bestAchievablePercentage)}</small></>}
+      {recovery.reachable && recovery.periodsRequired !== null ? <><strong>{recovery.periodsRequired} periods</strong><small>minimum {recovery.minimumCollegeDays} college days</small></> : <><strong>Not reachable</strong><small>best finish: {percentage(recovery.bestAchievablePercentage)}</small></>}
     </article>
   );
 }

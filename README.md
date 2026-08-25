@@ -76,6 +76,9 @@ In Supabase **SQL Editor**, run these files in order:
 1. `supabase/migrations/001_initial_schema.sql`
 2. `supabase/migrations/002_exam_day_overrides.sql`
 3. `supabase/migrations/003_universal_calendar.sql`
+4. `supabase/migrations/004_security_hardening.sql`
+5. `supabase/migrations/005_atomic_save.sql`
+6. `supabase/migrations/006_drop_legacy_calendar_tables.sql`
 
 Create an admin user in **Authentication -> Users**, then grant access:
 
@@ -89,13 +92,11 @@ Never commit `.env.local` or share your database password.
 
 ## Deploy to Vercel
 
-## Deploy to Vercel
-
 1. Push this repository to GitHub.
 2. Import it at https://vercel.com.
 3. Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` under **Project Settings -> Environment Variables** for Production, Preview, and Development.
 4. Deploy the project.
-5. Run all four migrations in the production Supabase project.
+5. Run all six migrations in the production Supabase project.
 6. In Supabase **Authentication -> URL Configuration**, set the Site URL to your Vercel URL and add `https://your-domain.vercel.app/**` as a redirect URL.
 7. Create or grant the production admin user, then test `/`, `/admin/login`, and `/admin`.
 

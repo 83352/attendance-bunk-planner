@@ -8,7 +8,8 @@ export type AttendanceInput = {
 
 export type RecoveryResult = {
   targetPercentage: number;
-  periodsRequired: number;
+  /** Periods that must be attended to reach the target; null when unreachable. */
+  periodsRequired: number | null;
   reachable: boolean;
   minimumCollegeDays: number | null;
   bestAchievablePercentage: number;

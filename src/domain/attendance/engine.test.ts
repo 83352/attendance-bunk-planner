@@ -99,6 +99,7 @@ describe('attendance engine', () => {
   it('reports an unreachable recovery target', () => {
     const result = calculateAttendance({ config, now, currentPercentage: 0, targetPercentage: 100 });
     expect(result.recoveryToTarget.reachable).toBe(false);
+    expect(result.recoveryToTarget.periodsRequired).toBeNull();
     expect(result.recoveryToTarget.minimumCollegeDays).toBeNull();
   });
 
