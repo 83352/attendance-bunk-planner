@@ -6,6 +6,7 @@ import type { AttendanceResult } from '@/domain/attendance/types';
 import type { ScheduleConfig } from '@/domain/schedule/types';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { ThemeToggle } from './ThemeToggle';
 
 const formatter = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 const percentage = (value: number) => `${value.toFixed(2)}%`;
@@ -47,6 +48,7 @@ export function Calculator({ config, sectionName, sections, selectedSectionId }:
         <Link className="brand" href="/" aria-label="dontbunk home">
           dont<span>bunk</span>
         </Link>
+        <ThemeToggle />
         <span className="header-spark" aria-hidden="true">◆</span>
       </header>
 
