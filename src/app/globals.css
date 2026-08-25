@@ -161,10 +161,16 @@ label > span { position: absolute; z-index: 2; right: 12px; bottom: 13px; color:
   .admin-heading > button, .day-title button { min-height: 44px; }
   .period-row { grid-template-columns: 24px minmax(0, 1fr) 12px minmax(0, 1fr) 22px 22px 25px; gap: 4px; }
   .period-row input, .config-row input, .config-row select { min-height: 44px; }
+  .exam-main-row { grid-template-columns: 1fr 1fr 34px !important; gap: 8px; }
+  .exam-main-row strong { grid-column: span 2; }
+  .exam-main-row select { grid-column: span 3; width: 100%; }
+  .exam-main-row .remove-button { grid-column: span 1; justify-self: end; }
+  .exam-day-row { grid-template-columns: 1.5fr 1fr 28px !important; max-width: 100% !important; gap: 6px; }
 }
 .public-section { margin-top: 30px; }.public-section select { width: 100%; margin-top: 9px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); color: var(--ink); font-size: 16px; font-weight: 700; outline: none; }
 .exam-editor { display: grid; gap: 10px; }
-.exam-day-row { max-width: 330px; }
+.exam-main-row { grid-template-columns: 50px 1.2fr 1.2fr 1.5fr 28px; gap: 8px; }
+.exam-day-row { grid-template-columns: 1.5fr 1fr 28px; max-width: 330px; gap: 8px; }
 .period-row { grid-template-columns: 28px minmax(0, 1fr) 18px minmax(0, 1fr) 24px 24px 28px; }
 .period-row > button { width: 24px; height: 28px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; font: 18px/1 'DM Mono', monospace; }
 .period-row > button:hover { background: var(--paper); color: var(--ink); }
@@ -185,3 +191,26 @@ label > span { position: absolute; z-index: 2; right: 12px; bottom: 13px; color:
 .calendar-day:hover { background: var(--paper); }
 .calendar-day.today { border: 1.5px solid #55ad9b; }
 .calendar-day.selected { background: var(--ink); color: white; }
+
+.semester-month { margin-top: 20px; padding: 20px; border-radius: 14px; background: rgba(255, 255, 255, 0.88); border: 1px solid var(--line); box-shadow: 4px 6px 0 var(--shadow); }
+.semester-month-title { font: 800 13px/1.2 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .5px; color: #218575; margin-bottom: 12px; }
+.semester-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.semester-weekday { padding: 4px 0; text-align: center; color: var(--muted); font: 700 9px 'DM Mono', monospace; text-transform: uppercase; }
+.semester-cell { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 38px; border-radius: 8px; background: #ffffff; border: 1px solid var(--line); color: var(--ink); font-size: 12px; transition: transform .1s, border-color .1s; }
+.semester-cell:hover:not(.off) { transform: translateY(-1px); border-color: #55ad9b; }
+.semester-cell.off { background: #f3f7f6; border-color: transparent; color: #8fa0a6; opacity: 0.5; }
+.semester-cell.holiday { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+.semester-cell.exam { background: #dbeafe; border-color: #93c5fd; color: #1e40af; }
+.semester-cell.special-saturday { background: #d1fae5; border-color: #6ee7b7; color: #065f46; }
+.semester-cell.today { border: 2.5px solid #218575; font-weight: 800; }
+.semester-day-num { font-weight: 700; font-size: 11px; line-height: 1; }
+.semester-cell .semester-count { font: 700 9px 'DM Mono', monospace; color: var(--muted); margin-top: 2px; line-height: 1; }
+.semester-cell.holiday .semester-count { color: #b91c1c; }
+.semester-cell.exam .semester-count { color: #1d4ed8; }
+.semester-cell.special-saturday .semester-count { color: #047857; }
+.semester-dot { display: block; width: 5px; height: 5px; border-radius: 50%; margin-top: 2px; }
+.dot-holiday { background: #b91c1c; }
+.dot-exam { background: #1d4ed8; }
+.dot-special { background: #047857; }
+.semester-legend { display: flex; gap: 16px; justify-content: center; margin-top: 16px; font-size: 11px; font-weight: 700; color: var(--muted); }
+.semester-legend span { display: inline-flex; align-items: center; gap: 6px; }

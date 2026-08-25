@@ -81,7 +81,6 @@ export function Calculator({ config, sectionName, sections, selectedSectionId }:
               <span>%</span>
             </label>
           </div>
-
           {error && <p className="error" role="alert">{error}</p>}
 
           <button className="calculate" type="button" onClick={calculate}>
