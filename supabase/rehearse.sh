@@ -10,10 +10,12 @@ export PGSSLMODE="${PGSSLMODE:-disable}"
 
 echo "Rehearsing migrations against ${PGHOST}:${PGPORT}/${PGDATABASE}"
 
-# Supabase migrations reference auth.uid() from the auth schema. Real Supabase
-# provides it; a plain Postgres container does not, so create a minimal stub.
+# Supabase migrations reference auth.uid() and auth.users from the auth schema.
+# Real Supabase provides both; a plain Postgres container does not, so create a
+# minimal stub (001_initial_schema.sql has a foreign key to auth.users(id)).
 psql -v ON_ERROR_STOP=1 <<'SQL'
 create schema if not exists auth;
+create table if not exists auth.users (id uuid primary key);
 create or replace function auth.uid() returns uuid
 language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
 grant usage on schema auth to public;
