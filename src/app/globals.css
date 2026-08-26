@@ -146,7 +146,11 @@ label > span { position: absolute; z-index: 2; right: 12px; bottom: 13px; color:
 .admin-link:hover { color: var(--ink); }
 
 .public-section { margin: 0 0 17px; }
-.public-section select { width: 100%; margin-top: 7px; padding: 9px 10px; border: 3px solid var(--black); border-radius: 0; background: var(--surface); color: var(--ink); font: 700 13px "Courier New", monospace; outline: none; }
+.section-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 7px; }
+.section-chip { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; padding: 8px 12px; border: 2px solid var(--black); background: var(--surface); color: var(--ink); font: 700 11px "Courier New", monospace; text-transform: uppercase; letter-spacing: .55px; text-decoration: none; box-shadow: 2px 2px 0 var(--black); transition: transform .12s ease-out, box-shadow .12s ease-out, background .12s ease-out; }
+.section-chip:hover { background: var(--lime); color: #111111; transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--black); }
+.section-chip.active { background: var(--black); color: var(--lime); }
+[data-theme="dark"] .section-chip.active { background: var(--lime); color: #101210; border-color: var(--lime); }
 
 .results { width: min(100%, 680px); margin: 36px auto 0; animation: rise .32s ease both; }
 .result-hero { position: relative; overflow: hidden; padding: 22px 20px; border: 3px solid var(--black); background: var(--lime); box-shadow: var(--shadow); color: #14261c; }

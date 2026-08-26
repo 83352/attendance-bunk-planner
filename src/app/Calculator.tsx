@@ -4,14 +4,12 @@ import { useState } from 'react';
 import { calculateAttendance } from '@/domain/attendance/engine';
 import type { AttendanceResult } from '@/domain/attendance/types';
 import type { ScheduleConfig } from '@/domain/schedule/types';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ThemeToggle } from './ThemeToggle';
+import { SectionSelector, type SectionOption } from './SectionSelector';
 
 const formatter = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 const percentage = (value: number) => `${value.toFixed(2)}%`;
-
-type SectionOption = { id: string; name: string };
 
 type CalculatorProps = {
   config: ScheduleConfig;
@@ -21,7 +19,6 @@ type CalculatorProps = {
 };
 
 export function Calculator({ config, sectionName, sections, selectedSectionId }: CalculatorProps) {
-  const router = useRouter();
   const [current, setCurrent] = useState('');
   const [target, setTarget] = useState('75');
   const [result, setResult] = useState<AttendanceResult | null>(null);
@@ -66,14 +63,7 @@ export function Calculator({ config, sectionName, sections, selectedSectionId }:
             </div>
           </div>
 
-          {sections.length > 1 && (
-            <label className="public-section">
-              Your section
-              <select value={selectedSectionId} onChange={(event) => router.push(`/?section=${event.target.value}`)}>
-                {sections.map((section) => <option key={section.id} value={section.id}>{section.name}</option>)}
-              </select>
-            </label>
-          )}
+          <SectionSelector sections={sections} selectedSectionId={selectedSectionId} />
 
           <div className="inputs">
             <label>
