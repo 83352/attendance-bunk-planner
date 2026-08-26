@@ -25,7 +25,6 @@ export function ThemeToggle() {
   const toggle = useCallback(() => {
     const next: Theme = theme === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', next);
-    try { localStorage.setItem('theme', next); } catch { /* private mode */ }
   }, [theme]);
 
   const label = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';

@@ -3,7 +3,7 @@ import Link from 'next/link';
 export type SectionOption = { id: string; name: string };
 
 export function SectionSelector({ sections, selectedSectionId }: { sections: SectionOption[]; selectedSectionId: string }) {
-  if (sections.length <= 1) return null;
+  if (sections.length === 0) return null;
   return (
     <label className="public-section">
       Your section

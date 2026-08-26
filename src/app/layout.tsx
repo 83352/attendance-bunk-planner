@@ -30,19 +30,13 @@ export const viewport: Viewport = {
 
 // Runs before paint to avoid a flash of the wrong theme.
 // Default follows Indian sun time: dark between 19:00 and 06:30 local,
-// light otherwise. A saved toggle choice in localStorage always wins.
+// light otherwise. The toggle is per-visit — nothing is persisted.
 const themeInitScript = `
 (function () {
   try {
-    var stored = localStorage.getItem('theme');
-    var theme;
-    if (stored === 'light' || stored === 'dark') {
-      theme = stored;
-    } else {
-      var hour = new Date().getHours();
-      var minutes = new Date().getMinutes();
-      theme = hour >= 19 || hour < 6 || (hour === 6 && minutes < 30) ? 'dark' : 'light';
-    }
+    var hour = new Date().getHours();
+    var minutes = new Date().getMinutes();
+    var theme = hour >= 19 || hour < 6 || (hour === 6 && minutes < 30) ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', theme);
   } catch (e) {
     document.documentElement.setAttribute('data-theme', 'light');
