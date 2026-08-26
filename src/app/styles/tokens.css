@@ -1,0 +1,165 @@
+@import "tailwindcss";
+
+/* Dark mode is driven by the data-theme attribute set before paint by the
+   inline script in layout.tsx — not by the OS preference. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ---------------------------------------------------------------------------
+   Design tokens. Light is the retro-paper default; [data-theme="dark"] below
+   swaps the raw variables, and every utility that references them (bg-cream,
+   text-black, shadow-hard, …) flips automatically.
+--------------------------------------------------------------------------- */
+@theme {
+  --color-black: #111111;        /* ink / borders (flips to light in dark) */
+  --color-cream: #f5f2e9;        /* page background */
+  --color-paper: #fffdf7;        /* card background */
+  --color-orange: #ff4b00;
+  --color-red: #f21d2f;
+  --color-lime: #b7f14a;
+  --color-green: #46e34d;
+  --color-grey: #9a9aa0;         /* muted text on inputs */
+  --color-line: #d8d4ca;         /* hairlines */
+  --color-surface: #ffffff;
+  --color-muted: #66666a;
+  --color-mint: #d9f3e3;
+  --color-card: #ffffff;
+  --color-cal-off: #f3f7f6;
+  --color-holiday-bg: #fee2e2;   --color-holiday-border: #fca5a5;  --color-holiday-ink: #991b1b;
+  --color-exam-bg: #dbeafe;      --color-exam-border: #93c5fd;     --color-exam-ink: #1e40af;
+  --color-special-bg: #d1fae5;   --color-special-border: #6ee7b7;  --color-special-ink: #065f46;
+  --color-teal: #218575;
+  --color-today: #55ad9b;
+  --color-success: #087d42;
+  --color-danger-bg: #ffd9d0;    --color-danger-ink: #a00d1e;
+  --color-warning-bg: #fff0e8;
+  --color-link: #087d42;
+  --color-error: #a00d1e;
+  --color-hero-danger: #f21d2f;  --color-hero-danger-ink: #ffffff;
+  --color-code-bg: #111111;      --color-code-border: #111111;
+
+  --shadow-color: rgba(19, 35, 43, 1);
+  --shadow-soft: rgba(19, 35, 43, .15);
+  --shadow-ring: rgba(19, 35, 43, .06);
+  --shadow-hard: 5px 5px 0 var(--shadow-color);
+  --shadow-hard-sm: 2px 2px 0 var(--shadow-color);
+  --shadow-hard-md: 4px 4px 0 var(--shadow-color);
+  --shadow-pop: 0 8px 24px var(--shadow-soft), 0 0 0 1px var(--shadow-ring);
+
+  --font-sans: Arial, Helvetica, sans-serif;
+  --font-display: Impact, "Arial Narrow", Arial, sans-serif;
+  --font-term: "Courier New", Courier, monospace;
+
+  --breakpoint-phone: 650px;
+
+  --animate-rise: rise 0.32s ease both;
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  --animate-calendar-pop: calendar-pop 0.15s ease both;
+  @keyframes calendar-pop {
+    from { transform: translateY(-4px) scale(.97); }
+    to { transform: translateY(0) scale(1); }
+  }
+}
+
+[data-theme="dark"] {
+  --color-black: #ece9df;
+  --color-cream: #101210;
+  --color-paper: #181b18;
+  --color-orange: #ff6a24;
+  --color-red: #ff5964;
+  --color-grey: #8b8f88;
+  --color-line: #2c332c;
+  --color-surface: #141714;
+  --color-muted: #9aa096;
+  --color-mint: #17251c;
+  --color-card: #151815;
+  --color-cal-off: #131613;
+  --color-holiday-bg: #3a1717;   --color-holiday-border: #7f2d2d;  --color-holiday-ink: #ffb3b3;
+  --color-exam-bg: #16233c;      --color-exam-border: #2d4d80;     --color-exam-ink: #a8c6ff;
+  --color-special-bg: #12301f;   --color-special-border: #2f7a52;  --color-special-ink: #93e6b8;
+  --color-teal: #4ecfae;
+  --color-today: #4ecfae;
+  --color-success: #57d98a;
+  --color-danger-bg: #3a1717;    --color-danger-ink: #ffb3b3;
+  --color-warning-bg: #33200f;
+  --color-link: #57d98a;
+  --color-error: #ff8f97;
+  --color-hero-danger: #ff5964;  --color-hero-danger-ink: #40060d;
+  --color-code-bg: #000000;      --color-code-border: #2c332c;
+
+  --shadow-color: #ece9df;   /* hard offset shadows follow the light ink, as before */
+  --shadow-soft: rgba(0, 0, 0, .45);
+  --shadow-ring: rgba(0, 0, 0, .3);
+}
+
+/* Native widgets (scrollbars, date pickers) follow the active theme. */
+html { color-scheme: light; }
+html[data-theme="dark"] { color-scheme: dark; }
+
+/* ---------------------------------------------------------------------------
+   Repeated multi-property patterns, promoted to utilities so JSX stays
+   readable. Everything else lives inline in the components.
+--------------------------------------------------------------------------- */
+@utility btn-calculate {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 12px 11px;
+  border: 3px solid var(--color-black);
+  background: var(--color-orange);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 4px 4px 0 var(--shadow-color);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 13px;
+  line-height: 1;
+  letter-spacing: .7px;
+  text-align: center;
+  text-transform: uppercase;
+  transition: transform .16s ease-out, box-shadow .16s ease-out, background .16s ease-out;
+}
+@utility btn-calculate-hover {
+  &:hover {
+    background: #ff5f1c;
+    transform: translate(-1px, -1px);
+    box-shadow: 5px 5px 0 var(--shadow-color);
+  }
+  &:active {
+    transform: translate(3px, 3px);
+    box-shadow: 1px 1px 0 var(--shadow-color);
+  }
+  & span { float: right; font-family: var(--font-sans); font-weight: 900; font-size: 18px; line-height: .75; }
+}
+@utility eyebrow-text {
+  font-family: var(--font-term);
+  text-transform: uppercase;
+  letter-spacing: .55px;
+  font-weight: 900;
+}
+@utility input-placeholder {
+  &::placeholder { color: var(--color-grey); opacity: 1; font: 700 13px/1.3 var(--font-term); letter-spacing: 0; }
+}
+@utility setup-steps {
+  display: grid;
+  gap: 18px;
+  max-width: 680px;
+  margin: 30px 0;
+  padding-left: 22px;
+  color: var(--color-black);
+  font: 13px/1.5 var(--font-term);
+  & li { padding-left: 5px; }
+  & strong, & span { display: block; }
+  & span { margin-top: 4px; color: var(--color-muted); }
+  & a { color: var(--color-link); font-weight: 700; }
+  & pre { overflow-x: auto; margin: 10px 0 0; padding: 12px; border: 2px solid var(--color-code-border); background: var(--color-code-bg); color: var(--color-lime); font: 11px/1.7 var(--font-term); }
+}
+@utility setup-warning {
+  padding: 14px;
+  border: 2px solid var(--color-black);
+  border-left: 7px solid var(--color-orange);
+  background: var(--color-warning-bg);
+  font-size: 12px;
+}

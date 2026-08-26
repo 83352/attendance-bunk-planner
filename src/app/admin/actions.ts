@@ -23,7 +23,7 @@ export async function saveSemesterConfig(_: SaveConfigState, formData: FormData)
   const updatedAtRaw = String(formData.get('updatedAt') ?? '');
   const parsedUpdatedAt = updatedAtRaw === '' ? null : new Date(updatedAtRaw);
   if (parsedUpdatedAt !== null && Number.isNaN(parsedUpdatedAt.getTime())) return { error: 'The configuration lock timestamp is invalid. Reload the page and try again.' };
-  const updatedAt = parsedUpdatedAt !== null && !Number.isNaN(parsedUpdatedAt.getTime()) ? parsedUpdatedAt : null;
+  const updatedAt = parsedUpdatedAt;
   const config = parsed.data;
 
   const examDays = config.exams.flatMap((exam) => (exam.dailyPeriods ?? []).map((day) => ({ examName: exam.name, date: day.date, periodsPerDay: day.periodsPerDay })));

@@ -1,14 +1,24 @@
 'use client';
 
-import { useActionState, useEffect, useRef, useState } from 'react';
+import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ScheduleConfig, TimetablePeriod, Weekday } from '@/domain/schedule/types';
-import { buildCalendar, currentIstDate, periodsForDate } from '@/domain/schedule/calendar';
+import { buildCalendar, currentIstDate, dateInRange, periodsForDate } from '@/domain/schedule/calendar';
 import { deleteSection, renameSection, saveSemesterConfig } from './actions';
 
 const days: [Weekday, string][] = [[1, 'Monday'], [2, 'Tuesday'], [3, 'Wednesday'], [4, 'Thursday'], [5, 'Friday']];
 type SectionOption = { id: string; name: string };
 type DateInputProps = { value: string; onChange: (value: string) => void; ariaLabel?: string };
+
+// Shared admin building blocks (were .admin-heading / .config-section etc.)
+const adminHeading = 'flex items-center justify-between gap-4 phone:flex-col phone:items-start';
+const adminH2 = 'm-0 font-display text-[24px] leading-none font-black uppercase';
+const configSection = 'grid gap-4 pt-[22px] border-t-[3px] border-dotted border-red';
+const adminButton = 'border-2 border-black bg-paper px-3 py-[9px] cursor-pointer font-term text-[10px] font-black uppercase shadow-[2px_2px_0_var(--shadow-color)]';
+const fieldLabel = 'grid gap-2 text-[10px] leading-[1.1] font-black text-black';
+const adminInput = 'min-w-0 border-2 border-black bg-surface px-2 py-2.5 font-sans text-[12px] text-black outline-none focus:border-orange';
+const removeButton = 'size-7 shrink-0 border-2 border-black bg-danger-bg font-term text-[20px] leading-none font-bold text-danger-ink cursor-pointer';
+const fieldHelp = 'font-term text-[11px] leading-[1.4] text-muted';
 
 export function ConfigEditor({ initialConfig, updatedAt, sections, selectedSectionId, initialSectionName }: { initialConfig: ScheduleConfig; updatedAt: string | null; sections: SectionOption[]; selectedSectionId: string; initialSectionName: string }) {
   const router = useRouter();
@@ -17,8 +27,10 @@ export function ConfigEditor({ initialConfig, updatedAt, sections, selectedSecti
   const [sectionChoice, setSectionChoice] = useState(selectedSectionId);
   const [draggedPeriod, setDraggedPeriod] = useState<number | null>(null);
   const [state, action, pending] = useActionState(saveSemesterConfig, {});
-  const calendar = buildCalendar(config, new Date());
-  const semesterPeriodCount = calendar.heldThroughYesterday.length + calendar.today.length + calendar.future.length;
+  const semesterPeriodCount = useMemo(() => {
+    const calendar = buildCalendar(config, new Date());
+    return calendar.heldThroughYesterday.length + calendar.today.length + calendar.future.length;
+  }, [config]);
   useEffect(() => { if (state.success) router.refresh(); }, [router, state.success]);
   const update = (changes: Partial<ScheduleConfig>) => setConfig((current) => ({ ...current, ...changes }));
   const updatePeriod = (index: number, changes: Partial<TimetablePeriod>) => update({ timetable: config.timetable.map((period, periodIndex) => periodIndex === index ? { ...period, ...changes } : period) });
@@ -33,17 +45,25 @@ export function ConfigEditor({ initialConfig, updatedAt, sections, selectedSecti
   const removeExam = (name: 'Mid 1' | 'Mid 2') => update({ exams: config.exams.filter((exam) => exam.name !== name) });
   const updateExam = (name: 'Mid 1' | 'Mid 2', changes: Partial<ScheduleConfig['exams'][number]>) => update({ exams: config.exams.map((exam) => exam.name === name ? { ...exam, ...changes } : exam) });
 
-  return <form className="config-editor" action={action}>
-    <div className="admin-heading"><div><p className="eyebrow">Schedule basics</p><h2>Current semester</h2></div><button className="calculate" type="submit" disabled={pending}>{pending ? 'Saving...' : 'Save changes'} <span aria-hidden="true">↗</span></button></div>
-    <div className="admin-fields"><label>Choose section<select value={sectionChoice} onChange={(event) => { const choice = event.target.value; setSectionChoice(choice); if (choice === '__new__') { setSectionName(''); return; } router.push(`/admin?section=${choice}`); }}><option value="" disabled>{sections.length === 0 ? 'No sections saved yet' : 'Choose a section'}</option>{sections.map((section) => <option key={section.id} value={section.id}>{section.name}</option>)}<option value="__new__">+ Create new section from this one</option></select></label><label>Section name<input value={sectionName} onChange={(event) => setSectionName(event.target.value)} /><small className="field-help">Choose the create option, enter a new name, then save. All current details will be copied.</small></label><label>Semester starts<DateInput value={config.semesterStart} onChange={(value) => update({ semesterStart: value })} /></label><label>Semester ends<DateInput value={config.semesterEnd} onChange={(value) => update({ semesterEnd: value })} /></label></div>
+  return <form className="mt-[34px] grid gap-[22px]" action={action}>
+    <div className={adminHeading}><div><p className="eyebrow-text mb-[7px] text-[10px] text-muted">Schedule basics</p><h2 className={adminH2}>Current semester</h2></div><button className="btn-calculate btn-calculate-hover !w-auto min-w-[120px] disabled:cursor-wait disabled:opacity-65 phone:min-h-11" type="submit" disabled={pending}>{pending ? 'Saving...' : 'Save changes'} <span aria-hidden="true">↗</span></button></div>
+    <div className="grid gap-3.5 border-[3px] border-black bg-paper p-[18px] shadow-hard">
+      <label className={fieldLabel}>Choose section<select className="w-full border-2 border-black bg-surface px-2.5 py-2.5 font-term text-[13px] font-bold text-black outline-none focus:border-orange" value={sectionChoice} onChange={(event) => { const choice = event.target.value; setSectionChoice(choice); if (choice === '__new__') { setSectionName(''); return; } router.push(`/admin?section=${choice}`); }}><option value="" disabled>{sections.length === 0 ? 'No sections saved yet' : 'Choose a section'}</option>{sections.map((section) => <option key={section.id} value={section.id}>{section.name}</option>)}<option value="__new__">+ Create new section from this one</option></select></label>
+      <label className={fieldLabel}>Section name<input className={adminInput} value={sectionName} onChange={(event) => setSectionName(event.target.value)} /><small className={fieldHelp}>Choose the create option, enter a new name, then save. All current details will be copied.</small></label>
+      <label className={fieldLabel}>Semester starts<DateInput value={config.semesterStart} onChange={(value) => update({ semesterStart: value })} /></label>
+      <label className={fieldLabel}>Semester ends<DateInput value={config.semesterEnd} onChange={(value) => update({ semesterEnd: value })} /></label>
+    </div>
     <input type="hidden" name="sectionName" value={sectionName} /><input type="hidden" name="config" value={JSON.stringify(config)} /><input type="hidden" name="updatedAt" value={updatedAt ?? ''} />
-    <section className="config-section"><div className="admin-heading"><div><p className="eyebrow">Weekly timetable</p><h2>Periods by weekday</h2></div><div className="counter-group"><div className="semester-counter"><strong>{config.timetable.length}</strong><span>regular / week</span></div><div className="semester-counter"><strong>{semesterPeriodCount}</strong><span>periods this semester</span></div></div></div>{days.map(([weekday, label]) => <div className="day-editor" key={weekday}><div className="day-title"><strong>{label}</strong><button type="button" onClick={() => addPeriod(weekday)}>+ period</button></div>{config.timetable.map((period, index) => period.weekday === weekday && <div className="period-row" key={`${weekday}-${index}`} draggable onDragStart={() => setDraggedPeriod(index)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedPeriod !== null) movePeriod(draggedPeriod, index); setDraggedPeriod(null); }}><span>#{period.sequence}</span><input aria-label={`${label} period start`} type="time" value={period.start} onChange={(event) => updatePeriod(index, { start: event.target.value })} /><span className="arrow">to</span><input aria-label={`${label} period end`} type="time" value={period.end} onChange={(event) => updatePeriod(index, { end: event.target.value })} /><button type="button" aria-label={`Move ${label} period up`} onClick={() => movePeriod(index, index - 1)}>↑</button><button type="button" aria-label={`Move ${label} period down`} onClick={() => movePeriod(index, index + 1)}>↓</button><button type="button" aria-label={`Remove ${label} period`} onClick={() => removePeriod(index)}>×</button></div>)}</div>)}</section>
-    <ConfigList title="Mid examinations" actionLabel="+ exam" onAdd={() => addExam(config.exams.some((exam) => exam.name === 'Mid 1') ? 'Mid 2' : 'Mid 1')}>{(['Mid 1', 'Mid 2'] as const).map((name) => { const exam = config.exams.find((item) => item.name === name); return exam && <div className="exam-editor" key={name}><div className="config-row exam-main-row"><strong>{name}</strong><DateInput ariaLabel={`${name} start`} value={exam.start} onChange={(value) => updateExam(name, { start: value })} /><DateInput ariaLabel={`${name} end`} value={exam.end} onChange={(value) => updateExam(name, { end: value })} /><select aria-label={`${name} default periods per day`} value={exam.periodsPerDay} onChange={(event) => updateExam(name, { periodsPerDay: Number(event.target.value) as 2 | 4 })}><option value="2">2 periods/day</option><option value="4">4 periods/day</option></select><button className="remove-button" type="button" aria-label={`Remove ${name}`} onClick={() => removeExam(name)}>×</button></div><small className="field-help">Use the default above, then override individual exam dates below.</small>{exam.dailyPeriods?.map((day, dayIndex) => <div className="config-row exam-day-row" key={`${name}-${dayIndex}`}><DateInput ariaLabel={`${name} override date`} value={day.date} onChange={(value) => updateExam(name, { dailyPeriods: exam.dailyPeriods?.map((entry, entryIndex) => entryIndex === dayIndex ? { ...entry, date: value } : entry) })} /><select aria-label={`${name} override periods`} value={day.periodsPerDay} onChange={(event) => updateExam(name, { dailyPeriods: exam.dailyPeriods?.map((entry, entryIndex) => entryIndex === dayIndex ? { ...entry, periodsPerDay: Number(event.target.value) as 2 | 4 } : entry) })}><option value="2">2 periods</option><option value="4">4 periods</option></select><button className="remove-button" type="button" aria-label={`Remove ${name} daily override`} onClick={() => updateExam(name, { dailyPeriods: exam.dailyPeriods?.filter((_, entryIndex) => entryIndex !== dayIndex) })}>×</button></div>)}<button type="button" onClick={() => updateExam(name, { dailyPeriods: [...(exam.dailyPeriods ?? []), { date: exam.start, periodsPerDay: exam.periodsPerDay }] })}>+ date override</button></div>; })}</ConfigList>
-    <ConfigList title="Universal holidays" actionLabel="+ holiday" onAdd={addHoliday}><p className="field-help">These holidays apply to every section.</p>{config.holidays.map((holiday, index) => <div className="config-row" key={index}><input aria-label="Holiday name" value={holiday.name} onChange={(event) => update({ holidays: config.holidays.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item) })} /><DateInput ariaLabel="Holiday start" value={holiday.start} onChange={(value) => update({ holidays: config.holidays.map((item, itemIndex) => itemIndex === index ? { ...item, start: value } : item) })} /><DateInput ariaLabel="Holiday end" value={holiday.end} onChange={(value) => update({ holidays: config.holidays.map((item, itemIndex) => itemIndex === index ? { ...item, end: value } : item) })} /><button className="remove-button" type="button" aria-label={`Remove ${holiday.name}`} onClick={() => removeHoliday(index)}>×</button></div>)}</ConfigList>
-    <ConfigList title="Universal special Saturdays" actionLabel="+ Saturday" onAdd={addSaturday}><p className="field-help">These working Saturdays apply to every section.</p>{config.specialSaturdays.map((special, index) => <div className="config-row" key={index}><DateInput ariaLabel="Special Saturday date" value={special.date} onChange={(value) => update({ specialSaturdays: config.specialSaturdays.map((item, itemIndex) => itemIndex === index ? { ...item, date: value } : item) })} /><select aria-label="Copied weekday" value={special.copiedWeekday} onChange={(event) => update({ specialSaturdays: config.specialSaturdays.map((item, itemIndex) => itemIndex === index ? { ...item, copiedWeekday: Number(event.target.value) as Weekday } : item) })}><option value="1">Monday timetable</option><option value="2">Tuesday timetable</option><option value="3">Wednesday timetable</option><option value="4">Thursday timetable</option><option value="5">Friday timetable</option></select><button className="remove-button" type="button" aria-label="Remove special Saturday" onClick={() => removeSaturday(index)}>×</button></div>)}</ConfigList>
-    {state.error && <p className="error" role="alert">{state.error}</p>}{state.success && <p className="success" role="status">{state.success}</p>}
-    <SemesterCalendar config={config} />
     <SectionManager sections={sections} selectedSectionId={selectedSectionId} />
+    <section className="grid gap-4 pt-[22px] border-t-[3px] border-dotted border-red">
+      <div className={adminHeading}><div><p className="eyebrow-text mb-[7px] text-[10px] text-muted">Weekly timetable</p><h2 className={adminH2}>Periods by weekday</h2></div><div className="flex items-start gap-[18px] phone:flex-wrap"><div className="grid shrink-0 justify-items-center gap-0.5"><strong className="font-display text-[25px] leading-none font-black text-teal">{config.timetable.length}</strong><span className="whitespace-nowrap font-term text-[10px] text-muted">regular / week</span></div><div className="grid shrink-0 justify-items-center gap-0.5"><strong className="font-display text-[25px] leading-none font-black text-teal">{semesterPeriodCount}</strong><span className="whitespace-nowrap font-term text-[10px] text-muted">periods this semester</span></div></div></div>
+      {days.map(([weekday, label]) => <div className="grid gap-2" key={weekday}><div className="flex items-center justify-between text-[14px]"><strong>{label}</strong><button className={adminButton} type="button" onClick={() => addPeriod(weekday)}>+ period</button></div>{config.timetable.map((period, index) => period.weekday === weekday && <div className="grid grid-cols-[24px_minmax(0,1fr)_12px_minmax(0,1fr)_22px_22px_25px] items-center gap-1" key={`${weekday}-${index}`} draggable onDragStart={() => setDraggedPeriod(index)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedPeriod !== null) movePeriod(draggedPeriod, index); setDraggedPeriod(null); }}><span className="font-term text-[11px] text-muted">#{period.sequence}</span><input className={`${adminInput} min-h-11`} aria-label={`${label} period start`} type="time" value={period.start} onChange={(event) => updatePeriod(index, { start: event.target.value })} /><span className="text-center">→</span><input className={`${adminInput} min-h-11`} aria-label={`${label} period end`} type="time" value={period.end} onChange={(event) => updatePeriod(index, { end: event.target.value })} /><button className={`${adminButton} !p-0 text-center text-[16px]`} type="button" aria-label={`Move ${label} period up`} onClick={() => movePeriod(index, index - 1)}>↑</button><button className={`${adminButton} !p-0 text-center text-[16px]`} type="button" aria-label={`Move ${label} period down`} onClick={() => movePeriod(index, index + 1)}>↓</button><button className={`${adminButton} !p-0 text-center text-[16px]`} type="button" aria-label={`Remove ${label} period`} onClick={() => removePeriod(index)}>×</button></div>)}</div>)}
+    </section>
+    <ConfigList title="Mid examinations" actionLabel="+ exam" onAdd={() => addExam(config.exams.some((exam) => exam.name === 'Mid 1') ? 'Mid 2' : 'Mid 1')}>{(['Mid 1', 'Mid 2'] as const).map((name) => { const exam = config.exams.find((item) => item.name === name); return exam && <div className="grid gap-2.5" key={name}><div className="grid grid-cols-[50px_minmax(0,1.2fr)_minmax(0,1.2fr)_minmax(0,1.5fr)_28px] items-center gap-2 phone:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_34px]"><strong className="text-[13px]">{name}</strong><DateInput ariaLabel={`${name} start`} value={exam.start} onChange={(value) => updateExam(name, { start: value })} /><DateInput ariaLabel={`${name} end`} value={exam.end} onChange={(value) => updateExam(name, { end: value })} /><select className={`${adminInput} phone:col-span-3 phone:w-full`} aria-label={`${name} default periods per day`} value={exam.periodsPerDay} onChange={(event) => updateExam(name, { periodsPerDay: Number(event.target.value) as 2 | 4 })}><option value="2">2 periods/day</option><option value="4">4 periods/day</option></select><button className={`${removeButton} phone:col-span-1 phone:justify-self-end`} type="button" aria-label={`Remove ${name}`} onClick={() => removeExam(name)}>×</button></div><small className={fieldHelp}>Use the default above, then override individual exam dates below.</small>{exam.dailyPeriods?.map((day, dayIndex) => <div className="grid max-w-[330px] grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_28px] items-center gap-1.5 phone:max-w-full" key={`${name}-${dayIndex}`}><DateInput ariaLabel={`${name} override date`} value={day.date} onChange={(value) => updateExam(name, { dailyPeriods: exam.dailyPeriods?.map((entry, entryIndex) => entryIndex === dayIndex ? { ...entry, date: value } : entry) })} /><select className={adminInput} aria-label={`${name} override periods`} value={day.periodsPerDay} onChange={(event) => updateExam(name, { dailyPeriods: exam.dailyPeriods?.map((entry, entryIndex) => entryIndex === dayIndex ? { ...entry, periodsPerDay: Number(event.target.value) as 2 | 4 } : entry) })}><option value="2">2 periods</option><option value="4">4 periods</option></select><button className={removeButton} type="button" aria-label={`Remove ${name} daily override`} onClick={() => updateExam(name, { dailyPeriods: exam.dailyPeriods?.filter((_, entryIndex) => entryIndex !== dayIndex) })}>×</button></div>)}<button className={adminButton} type="button" onClick={() => updateExam(name, { dailyPeriods: [...(exam.dailyPeriods ?? []), { date: exam.start, periodsPerDay: exam.periodsPerDay }] })}>+ date override</button></div>; })}</ConfigList>
+    <ConfigList title="Universal holidays" actionLabel="+ holiday" onAdd={addHoliday}><p className={fieldHelp}>These holidays apply to every section.</p>{config.holidays.map((holiday, index) => <div className="grid grid-cols-[repeat(auto-fit,minmax(100px,1fr))] items-center gap-1.5" key={index}><input className={adminInput} aria-label="Holiday name" value={holiday.name} onChange={(event) => update({ holidays: config.holidays.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item) })} /><DateInput ariaLabel="Holiday start" value={holiday.start} onChange={(value) => update({ holidays: config.holidays.map((item, itemIndex) => itemIndex === index ? { ...item, start: value } : item) })} /><DateInput ariaLabel="Holiday end" value={holiday.end} onChange={(value) => update({ holidays: config.holidays.map((item, itemIndex) => itemIndex === index ? { ...item, end: value } : item) })} /><button className={removeButton} type="button" aria-label={`Remove ${holiday.name}`} onClick={() => removeHoliday(index)}>×</button></div>)}</ConfigList>
+    <ConfigList title="Universal special Saturdays" actionLabel="+ Saturday" onAdd={addSaturday}><p className={fieldHelp}>These working Saturdays apply to every section.</p>{config.specialSaturdays.map((special, index) => <div className="grid grid-cols-[repeat(auto-fit,minmax(100px,1fr))] items-center gap-1.5" key={index}><DateInput ariaLabel="Special Saturday date" value={special.date} onChange={(value) => update({ specialSaturdays: config.specialSaturdays.map((item, itemIndex) => itemIndex === index ? { ...item, date: value } : item) })} /><select className={adminInput} aria-label="Copied weekday" value={special.copiedWeekday} onChange={(event) => update({ specialSaturdays: config.specialSaturdays.map((item, itemIndex) => itemIndex === index ? { ...item, copiedWeekday: Number(event.target.value) as Weekday } : item) })}><option value="1">Monday timetable</option><option value="2">Tuesday timetable</option><option value="3">Wednesday timetable</option><option value="4">Thursday timetable</option><option value="5">Friday timetable</option></select><button className={removeButton} type="button" aria-label="Remove special Saturday" onClick={() => removeSaturday(index)}>×</button></div>)}</ConfigList>
+    {state.error && <p className="border-2 border-black bg-danger-bg p-2 font-term text-[11px] leading-[1.3] font-bold text-error" role="alert">{state.error}</p>}{state.success && <p className="font-term text-[13px] font-bold text-success" role="status">{state.success}</p>}
+    <SemesterCalendar config={config} />
   </form>;
 }
 
@@ -96,26 +116,26 @@ function DateInput({ value, onChange, ariaLabel }: DateInputProps) {
   const selectedIso = parsed ?? '';
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-  return <div className="date-input-wrapper" ref={containerRef}>
-    <input inputMode="numeric" placeholder="dd/mm/yyyy" aria-label={ariaLabel} value={text} onChange={(event) => setText(event.target.value)} onBlur={() => { const p = parseDisplayDate(text); if (p) { setText(formatDisplayDate(p)); onChange(p); } }} />
-    <button type="button" className="calendar-toggle" aria-label="Open calendar" onClick={toggleCalendar}>
+return <div className="relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-stretch" ref={containerRef}>
+<input className="min-w-0 w-full min-h-[54px] rounded-none border-2 border-line border-r-0 bg-surface px-2 py-2.5 font-sans text-[16px] text-black outline-none focus:border-orange" inputMode="numeric" placeholder="dd/mm/yyyy" aria-label={ariaLabel} value={text} onChange={(event) => setText(event.target.value)} onBlur={() => { const p = parseDisplayDate(text); if (p) { setText(formatDisplayDate(p)); onChange(p); } }} />
+    <button type="button" className="grid w-[38px] place-items-center rounded-r-lg border-2 border-line border-l-0 bg-surface text-muted cursor-pointer transition-[background,color] hover:bg-mint hover:text-black" aria-label="Open calendar" onClick={toggleCalendar}>
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M1 7h14" stroke="currentColor" strokeWidth="1.5"/><path d="M5 1v4M11 1v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
     </button>
-    {open && <div className="calendar-popup">
-      <div className="calendar-nav">
-        <button type="button" onClick={() => navigateMonth(-1)} aria-label="Previous month">‹</button>
-        <span>{monthNames[viewMonth]} {viewYear}</span>
-        <button type="button" onClick={() => navigateMonth(1)} aria-label="Next month">›</button>
+    {open && <div className="absolute top-full left-0 z-50 mt-1.5 min-w-[250px] rounded-xl border border-line bg-card p-2.5 shadow-pop animate-calendar-pop">
+      <div className="mb-2 flex items-center justify-between">
+        <button className="size-7 rounded-[7px] border border-line bg-transparent text-[16px] font-bold text-black cursor-pointer hover:bg-paper" type="button" onClick={() => navigateMonth(-1)} aria-label="Previous month">‹</button>
+        <span className="font-term text-[12px] font-bold text-black">{monthNames[viewMonth]} {viewYear}</span>
+        <button className="size-7 rounded-[7px] border border-line bg-transparent text-[16px] font-bold text-black cursor-pointer hover:bg-paper" type="button" onClick={() => navigateMonth(1)} aria-label="Next month">›</button>
       </div>
-      <div className="calendar-grid">
-        {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => <span key={d} className="calendar-weekday">{d}</span>)}
+      <div className="grid grid-cols-7 gap-0.5">
+        {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => <span key={d} className="py-1 text-center font-term text-[9px] font-bold uppercase text-muted">{d}</span>)}
         {Array.from({ length: blanks }).map((_, i) => <span key={`b${i}`} />)}
         {Array.from({ length: daysInMonth }, (_, i) => {
           const day = i + 1;
           const iso = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           const isSelected = iso === selectedIso;
           const isToday = iso === todayIso;
-          return <button type="button" key={day} className={`calendar-day${isSelected ? ' selected' : ''}${isToday ? ' today' : ''}`} onClick={() => pickDate(day)}>{day}</button>;
+          return <button type="button" key={day} className={`size-8 rounded-lg border-0 font-sans text-[12px] font-medium text-black cursor-pointer transition-colors hover:bg-paper ${isSelected ? 'bg-black text-cream dark:text-[#101210]' : 'bg-transparent'} ${isToday ? 'outline outline-1.5 outline-today' : ''}`} onClick={() => pickDate(day)}>{day}</button>;
         })}
       </div>
     </div>}
@@ -137,7 +157,7 @@ function parseDisplayDate(value: string): string | null {
 }
 
 function ConfigList({ title, actionLabel, onAdd, children }: { title: string; actionLabel: string; onAdd: () => void; children: React.ReactNode }) {
-  return <section className="config-section"><div className="admin-heading"><div><p className="eyebrow">Calendar exceptions</p><h2>{title}</h2></div><button type="button" onClick={onAdd}>{actionLabel}</button></div>{children}</section>;
+  return <section className={configSection}><div className={adminHeading}><div><p className="eyebrow-text mb-[7px] text-[10px] text-muted">Calendar exceptions</p><h2 className={adminH2}>{title}</h2></div><button className={adminButton} type="button" onClick={onAdd}>{actionLabel}</button></div>{children}</section>;
 }
 
 function SectionManager({ sections, selectedSectionId }: { sections: SectionOption[]; selectedSectionId: string }) {
@@ -147,36 +167,34 @@ function SectionManager({ sections, selectedSectionId }: { sections: SectionOpti
   useEffect(() => { router.refresh(); }, [router, renameState.success, deleteState.success]);
   if (sections.length === 0) return null;
 
-  return <section className="config-section">
-    <div className="admin-heading"><div><p className="eyebrow">Section management</p><h2>Rename or remove</h2></div></div>
-    <form className="section-manager" action={renameAction}>
-      <label>
+  return <section className={configSection}>
+    <div className={adminHeading}><div><p className="eyebrow-text mb-[7px] text-[10px] text-muted">Section management</p><h2 className={adminH2}>Rename or remove</h2></div></div>
+    <form className="grid max-w-[420px] gap-3.5 border-[3px] border-black bg-paper p-[18px] shadow-[2px_2px_0_var(--shadow-color)]" action={renameAction}>
+      <label className={fieldLabel}>
         Rename section
-        <select name="sectionId" defaultValue={selectedSectionId || ''} required>
+        <select className="border-2 border-black bg-surface p-2.5 font-sans text-[13px] text-black outline-none focus:border-orange" name="sectionId" defaultValue={selectedSectionId || ''} required>
           {sections.map((section) => <option key={section.id} value={section.id}>{section.name}</option>)}
         </select>
       </label>
-      <label>
+      <label className={fieldLabel}>
         New name
-        <input name="newName" required maxLength={80} placeholder="e.g. CSE 6" />
+        <input className={adminInput} name="newName" required maxLength={80} placeholder="e.g. CSE 6" />
       </label>
-      <button type="submit" disabled={renamePending}>{renamePending ? 'Renaming...' : 'Rename'}</button>
-      {renameState.error && <p className="error" role="alert">{renameState.error}</p>}
+      <button className="min-h-11 justify-self-start border-[3px] border-black bg-orange px-4 py-2.5 font-term text-[12px] font-black uppercase text-white cursor-pointer shadow-[2px_2px_0_var(--shadow-color)] disabled:cursor-wait disabled:opacity-65" type="submit" disabled={renamePending}>{renamePending ? 'Renaming...' : 'Rename'}</button>
+      {renameState.error && <p className="border-2 border-black bg-danger-bg p-2 font-term text-[11px] leading-[1.3] font-bold text-error" role="alert">{renameState.error}</p>}
     </form>
-    <form className="section-manager" action={deleteAction} onSubmit={(event) => {
+    <form className="grid max-w-[420px] gap-3.5 border-[3px] border-black bg-paper p-[18px] shadow-[2px_2px_0_var(--shadow-color)]" action={deleteAction} onSubmit={(event) => {
       if (!confirm('Delete this section? Its timetable, exams and semester dates are removed permanently. Holidays shared by all sections are kept.')) event.preventDefault();
     }}>
       <input type="hidden" name="sectionId" value={selectedSectionId || ''} />
-      <p className="field-help">Deletes “{sections.find((section) => section.id === selectedSectionId)?.name ?? selectedSectionId}” — the section currently open above. This cannot be undone.</p>
-      <button type="submit" className="remove-button" disabled={deletePending || !selectedSectionId}>{deletePending ? 'Deleting...' : 'Delete current section'}</button>
-      {deleteState.error && <p className="error" role="alert">{deleteState.error}</p>}
+      <p className={fieldHelp}>Deletes “{sections.find((section) => section.id === selectedSectionId)?.name ?? selectedSectionId}” — the section currently open above. This cannot be undone.</p>
+      <button type="submit" className={`${removeButton} h-auto min-h-11 w-auto min-w-[120px] justify-self-start px-4 py-2.5 !text-[12px] disabled:cursor-wait disabled:opacity-65`} disabled={deletePending || !selectedSectionId}>{deletePending ? 'Deleting...' : 'Delete current section'}</button>
+      {deleteState.error && <p className="border-2 border-black bg-danger-bg p-2 font-term text-[11px] leading-[1.3] font-bold text-error" role="alert">{deleteState.error}</p>}
     </form>
   </section>;
 }
 
-function dateInRange(date: string, start: string, end: string): boolean {
-  return date >= start && date <= end;
-}
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 function SemesterCalendar({ config }: { config: ScheduleConfig }) {
   const startDate = new Date(`${config.semesterStart}T00:00:00Z`);
@@ -191,8 +209,6 @@ function SemesterCalendar({ config }: { config: ScheduleConfig }) {
     if (m > 11) { m = 0; y++; }
     months.push({ year: y, month: m });
   }
-
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
   let totalPeriods = 0;
 
@@ -213,13 +229,13 @@ function SemesterCalendar({ config }: { config: ScheduleConfig }) {
       const isSpecialSaturday = inSemester && config.specialSaturdays.some((s) => s.date === iso);
       const isToday = iso === todayIso;
 
-      let className = 'semester-cell';
-      if (!inSemester) className += ' off';
-      else if (isHoliday) className += ' holiday';
-      else if (isExam) className += ' exam';
-      else if (isSpecialSaturday) className += ' special-saturday';
-      else if (count === 0) className += ' off';
-      if (isToday) className += ' today';
+      let className = 'relative flex h-[38px] flex-col items-center justify-center rounded-lg border text-[12px] transition-[transform,border-color] hover:-translate-y-px';
+      if (!inSemester || count === 0 && !isHoliday && !isExam && !isSpecialSaturday) className += ' border-transparent bg-cal-off text-muted opacity-50';
+      else if (isHoliday) className += ' bg-holiday-bg border-holiday-border text-holiday-ink';
+      else if (isExam) className += ' bg-exam-bg border-exam-border text-exam-ink';
+      else if (isSpecialSaturday) className += ' bg-special-bg border-special-border text-special-ink';
+      else className += ' bg-card border-line text-black dark:bg-mint dark:border-[#2f4a38]';
+      if (isToday) className += ' !border-2 !border-today font-extrabold';
 
       let title = `${iso}: ${count} period${count !== 1 ? 's' : ''}`;
       if (isHoliday) { const holiday = config.holidays.find((h) => dateInRange(iso, h.start, h.end)); title += ` — ${holiday?.name ?? 'Holiday'}`; }
@@ -232,29 +248,29 @@ function SemesterCalendar({ config }: { config: ScheduleConfig }) {
     return { year, month, blanks, dayCells };
   });
 
-  return <section className="config-section">
-    <div className="admin-heading">
-      <div><p className="eyebrow">Semester overview</p><h2>Period calendar</h2></div>
-      <div className="semester-counter"><strong>{totalPeriods}</strong><span>total periods</span></div>
+  return <section className={configSection}>
+    <div className={adminHeading}>
+      <div><p className="eyebrow-text mb-[7px] text-[10px] text-teal">Semester overview</p><h2 className={adminH2}>Period calendar</h2></div>
+<div className="grid shrink-0 justify-items-center gap-0.5"><strong className="font-display text-[25px] leading-none font-black text-teal">{totalPeriods}</strong><span className="whitespace-nowrap font-term text-[10px] text-muted">total periods</span></div>
     </div>
-    {monthGrids.map(({ year, month, blanks, dayCells }) => <div className="semester-month" key={`${year}-${month}`}>
-      <div className="semester-month-title">{monthNames[month]} {year}</div>
-      <div className="semester-grid">
-        {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => <span key={d} className="semester-weekday">{d}</span>)}
+    {monthGrids.map(({ year, month, blanks, dayCells }) => <div className="mt-5 rounded-[14px] border border-line bg-paper p-5 shadow-[4px_6px_0_var(--shadow-color)]" key={`${year}-${month}`}>
+      <div className="mb-3 font-term text-[13px] leading-[1.2] font-extrabold uppercase tracking-[.5px] text-teal">{MONTH_NAMES[month]} {year}</div>
+      <div className="grid grid-cols-7 gap-1">
+        {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => <span key={d} className="py-1 text-center font-term text-[9px] font-bold uppercase text-muted">{d}</span>)}
         {Array.from({ length: blanks }).map((_, i) => <span key={`b${i}`} />)}
         {dayCells.map(({ day, className, title, count, isHoliday, isExam, isSpecialSaturday, inSemester }) => <div key={day} className={className} title={title}>
-          <span className="semester-day-num">{day}</span>
-          {inSemester && count > 0 && <span className="semester-count">{count}</span>}
-          {isHoliday && <span className="semester-dot dot-holiday" />}
-          {isExam && <span className="semester-dot dot-exam" />}
-          {isSpecialSaturday && !isHoliday && !isExam && <span className="semester-dot dot-special" />}
+          <span className="text-[11px] leading-none font-bold">{day}</span>
+          {inSemester && count > 0 && <span className="mt-0.5 font-term text-[9px] leading-none font-bold text-muted">{count}</span>}
+          {isHoliday && <span className="mt-0.5 block size-[5px] rounded-full bg-holiday-ink" />}
+          {isExam && <span className="mt-0.5 block size-[5px] rounded-full bg-exam-ink" />}
+          {isSpecialSaturday && !isHoliday && !isExam && <span className="mt-0.5 block size-[5px] rounded-full bg-special-ink" />}
         </div>)}
       </div>
     </div>)}
-    <div className="semester-legend">
-      <span><span className="semester-dot dot-holiday" /> Holiday</span>
-      <span><span className="semester-dot dot-exam" /> Exam</span>
-      <span><span className="semester-dot dot-special" /> Working Sat</span>
+    <div className="mt-4 flex justify-center gap-4 text-[11px] font-bold text-muted">
+      <span className="inline-flex items-center gap-1.5"><span className="inline-block size-[5px] rounded-full bg-holiday-ink" /> Holiday</span>
+      <span className="inline-flex items-center gap-1.5"><span className="inline-block size-[5px] rounded-full bg-exam-ink" /> Exam</span>
+      <span className="inline-flex items-center gap-1.5"><span className="inline-block size-[5px] rounded-full bg-special-ink" /> Working Sat</span>
     </div>
   </section>;
 }

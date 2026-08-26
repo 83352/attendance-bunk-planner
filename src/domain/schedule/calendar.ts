@@ -35,7 +35,7 @@ function datesBetween(start: string, end: string): string[] {
   return dates;
 }
 
-function dateInRange(date: string, start: string, end: string): boolean {
+export function dateInRange(date: string, start: string, end: string): boolean {
   return date >= start && date <= end;
 }
 

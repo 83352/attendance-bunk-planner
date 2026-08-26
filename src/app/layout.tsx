@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import "./globals.css";
+import "./styles/tokens.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://dontbunk.vercel.app"),
@@ -29,18 +29,21 @@ export const viewport: Viewport = {
 };
 
 // Runs before paint to avoid a flash of the wrong theme.
-// Default follows Indian sun time: dark between 19:00 and 06:30 local,
-// light otherwise. The toggle is per-visit — nothing is persisted.
+// Default follows Indian sun time: dark between 19:00 and 06:30 local, light
+// otherwise. A manual toggle is remembered for the tab's session so the theme
+// survives navigation (home → admin) but resets when the tab is closed.
 const themeInitScript = `
 (function () {
+  var theme;
   try {
+    theme = sessionStorage.getItem('dontbunk-theme');
+  } catch (e) {}
+  if (theme !== 'light' && theme !== 'dark') {
     var hour = new Date().getHours();
     var minutes = new Date().getMinutes();
-    var theme = hour >= 19 || hour < 6 || (hour === 6 && minutes < 30) ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', theme);
-  } catch (e) {
-    document.documentElement.setAttribute('data-theme', 'light');
+    theme = hour >= 19 || hour < 6 || (hour === 6 && minutes < 30) ? 'dark' : 'light';
   }
+  document.documentElement.setAttribute('data-theme', theme);
 })();
 `;
 
