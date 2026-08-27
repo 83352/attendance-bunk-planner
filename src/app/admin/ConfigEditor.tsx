@@ -52,9 +52,9 @@ export function ConfigEditor({ initialConfig, updatedAt, sections, selectedSecti
       <label className={fieldLabel}>Section name<input className={adminInput} value={sectionName} onChange={(event) => setSectionName(event.target.value)} /><small className={fieldHelp}>Choose the create option, enter a new name, then save. All current details will be copied.</small></label>
       <label className={fieldLabel}>Semester starts<DateInput value={config.semesterStart} onChange={(value) => update({ semesterStart: value })} /></label>
       <label className={fieldLabel}>Semester ends<DateInput value={config.semesterEnd} onChange={(value) => update({ semesterEnd: value })} /></label>
+      <SectionManager sections={sections} selectedSectionId={selectedSectionId} />
     </div>
     <input type="hidden" name="sectionName" value={sectionName} /><input type="hidden" name="config" value={JSON.stringify(config)} /><input type="hidden" name="updatedAt" value={updatedAt ?? ''} />
-    <SectionManager sections={sections} selectedSectionId={selectedSectionId} />
     <section className="grid gap-4 pt-[22px] border-t-[3px] border-dotted border-red">
       <div className={adminHeading}><div><p className="eyebrow-text mb-[7px] text-[10px] text-muted">Weekly timetable</p><h2 className={adminH2}>Periods by weekday</h2></div><div className="flex items-start gap-[18px] phone:flex-wrap"><div className="grid shrink-0 justify-items-center gap-0.5"><strong className="font-display text-[25px] leading-none font-black text-teal">{config.timetable.length}</strong><span className="whitespace-nowrap font-term text-[10px] text-muted">regular / week</span></div><div className="grid shrink-0 justify-items-center gap-0.5"><strong className="font-display text-[25px] leading-none font-black text-teal">{semesterPeriodCount}</strong><span className="whitespace-nowrap font-term text-[10px] text-muted">periods this semester</span></div></div></div>
       {days.map(([weekday, label]) => <div className="grid gap-2" key={weekday}><div className="flex items-center justify-between text-[14px]"><strong>{label}</strong><button className={adminButton} type="button" onClick={() => addPeriod(weekday)}>+ period</button></div>{config.timetable.map((period, index) => period.weekday === weekday && <div className="grid grid-cols-[24px_minmax(0,1fr)_12px_minmax(0,1fr)_22px_22px_25px] items-center gap-1" key={`${weekday}-${index}`} draggable onDragStart={() => setDraggedPeriod(index)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedPeriod !== null) movePeriod(draggedPeriod, index); setDraggedPeriod(null); }}><span className="font-term text-[11px] text-muted">#{period.sequence}</span><input className={`${adminInput} min-h-11`} aria-label={`${label} period start`} type="time" value={period.start} onChange={(event) => updatePeriod(index, { start: event.target.value })} /><span className="text-center">→</span><input className={`${adminInput} min-h-11`} aria-label={`${label} period end`} type="time" value={period.end} onChange={(event) => updatePeriod(index, { end: event.target.value })} /><button className={`${adminButton} !p-0 text-center text-[16px]`} type="button" aria-label={`Move ${label} period up`} onClick={() => movePeriod(index, index - 1)}>↑</button><button className={`${adminButton} !p-0 text-center text-[16px]`} type="button" aria-label={`Move ${label} period down`} onClick={() => movePeriod(index, index + 1)}>↓</button><button className={`${adminButton} !p-0 text-center text-[16px]`} type="button" aria-label={`Remove ${label} period`} onClick={() => removePeriod(index)}>×</button></div>)}</div>)}
@@ -117,15 +117,15 @@ function DateInput({ value, onChange, ariaLabel }: DateInputProps) {
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 return <div className="relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-stretch" ref={containerRef}>
-<input className="min-w-0 w-full min-h-[54px] rounded-none border-2 border-line border-r-0 bg-surface px-2 py-2.5 font-sans text-[16px] text-black outline-none focus:border-orange" inputMode="numeric" placeholder="dd/mm/yyyy" aria-label={ariaLabel} value={text} onChange={(event) => setText(event.target.value)} onBlur={() => { const p = parseDisplayDate(text); if (p) { setText(formatDisplayDate(p)); onChange(p); } }} />
-    <button type="button" className="grid w-[38px] place-items-center rounded-r-lg border-2 border-line border-l-0 bg-surface text-muted cursor-pointer transition-[background,color] hover:bg-mint hover:text-black" aria-label="Open calendar" onClick={toggleCalendar}>
+<input className="min-w-0 w-full min-h-[54px] rounded-none border-2 border-black border-r-0 bg-surface px-2 py-2.5 font-sans text-[16px] text-black outline-none focus:border-orange" inputMode="numeric" placeholder="dd/mm/yyyy" aria-label={ariaLabel} value={text} onChange={(event) => setText(event.target.value)} onBlur={() => { const p = parseDisplayDate(text); if (p) { setText(formatDisplayDate(p)); onChange(p); } }} />
+    <button type="button" className="grid w-[38px] place-items-center border-2 border-black bg-surface text-muted cursor-pointer transition-[background,color] hover:bg-orange hover:text-white" aria-label="Open calendar" onClick={toggleCalendar}>
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M1 7h14" stroke="currentColor" strokeWidth="1.5"/><path d="M5 1v4M11 1v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
     </button>
-    {open && <div className="absolute top-full left-0 z-50 mt-1.5 min-w-[250px] rounded-xl border border-line bg-card p-2.5 shadow-pop animate-calendar-pop">
+    {open && <div className="absolute top-full left-0 z-50 mt-1.5 min-w-[250px] border-[3px] border-black bg-paper p-2.5 shadow-hard animate-calendar-pop">
       <div className="mb-2 flex items-center justify-between">
-        <button className="size-7 rounded-[7px] border border-line bg-transparent text-[16px] font-bold text-black cursor-pointer hover:bg-paper" type="button" onClick={() => navigateMonth(-1)} aria-label="Previous month">‹</button>
+        <button className="size-7 border-2 border-black bg-surface text-[16px] font-bold text-black cursor-pointer hover:bg-orange hover:text-white" type="button" onClick={() => navigateMonth(-1)} aria-label="Previous month">‹</button>
         <span className="font-term text-[12px] font-bold text-black">{monthNames[viewMonth]} {viewYear}</span>
-        <button className="size-7 rounded-[7px] border border-line bg-transparent text-[16px] font-bold text-black cursor-pointer hover:bg-paper" type="button" onClick={() => navigateMonth(1)} aria-label="Next month">›</button>
+        <button className="size-7 border-2 border-black bg-surface text-[16px] font-bold text-black cursor-pointer hover:bg-orange hover:text-white" type="button" onClick={() => navigateMonth(1)} aria-label="Next month">›</button>
       </div>
       <div className="grid grid-cols-7 gap-0.5">
         {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => <span key={d} className="py-1 text-center font-term text-[9px] font-bold uppercase text-muted">{d}</span>)}
@@ -135,7 +135,7 @@ return <div className="relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] item
           const iso = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           const isSelected = iso === selectedIso;
           const isToday = iso === todayIso;
-          return <button type="button" key={day} className={`size-8 rounded-lg border-0 font-sans text-[12px] font-medium text-black cursor-pointer transition-colors hover:bg-paper ${isSelected ? 'bg-black text-cream dark:text-[#101210]' : 'bg-transparent'} ${isToday ? 'outline outline-1.5 outline-today' : ''}`} onClick={() => pickDate(day)}>{day}</button>;
+          return <button type="button" key={day} className={`size-8 border-0 font-sans text-[12px] font-medium text-black cursor-pointer transition-colors hover:bg-surface ${isSelected ? 'bg-black text-lime' : 'bg-transparent'} ${isToday ? 'outline outline-2 outline-today' : ''}`} onClick={() => pickDate(day)}>{day}</button>;
         })}
       </div>
     </div>}
@@ -167,9 +167,8 @@ function SectionManager({ sections, selectedSectionId }: { sections: SectionOpti
   useEffect(() => { router.refresh(); }, [router, renameState.success, deleteState.success]);
   if (sections.length === 0) return null;
 
-  return <section className={configSection}>
-    <div className={adminHeading}><div><p className="eyebrow-text mb-[7px] text-[10px] text-muted">Section management</p><h2 className={adminH2}>Rename or remove</h2></div></div>
-    <form className="grid max-w-[420px] gap-3.5 border-[3px] border-black bg-paper p-[18px] shadow-[2px_2px_0_var(--shadow-color)]" action={renameAction}>
+  return <div className="grid gap-3.5">
+    <form className="grid max-w-none gap-3.5 phone:grid-cols-2 phone:items-end phone:gap-2.5" action={renameAction}>
       <label className={fieldLabel}>
         Rename section
         <select className="border-2 border-black bg-surface p-2.5 font-sans text-[13px] text-black outline-none focus:border-orange" name="sectionId" defaultValue={selectedSectionId || ''} required>
@@ -183,15 +182,15 @@ function SectionManager({ sections, selectedSectionId }: { sections: SectionOpti
       <button className="min-h-11 justify-self-start border-[3px] border-black bg-orange px-4 py-2.5 font-term text-[12px] font-black uppercase text-white cursor-pointer shadow-[2px_2px_0_var(--shadow-color)] disabled:cursor-wait disabled:opacity-65" type="submit" disabled={renamePending}>{renamePending ? 'Renaming...' : 'Rename'}</button>
       {renameState.error && <p className="border-2 border-black bg-danger-bg p-2 font-term text-[11px] leading-[1.3] font-bold text-error" role="alert">{renameState.error}</p>}
     </form>
-    <form className="grid max-w-[420px] gap-3.5 border-[3px] border-black bg-paper p-[18px] shadow-[2px_2px_0_var(--shadow-color)]" action={deleteAction} onSubmit={(event) => {
+    <form className="grid max-w-none gap-2.5 border-t border-line pt-3.5 phone:grid-cols-[minmax(0,1fr)_auto] phone:items-center" action={deleteAction} onSubmit={(event) => {
       if (!confirm('Delete this section? Its timetable, exams and semester dates are removed permanently. Holidays shared by all sections are kept.')) event.preventDefault();
     }}>
       <input type="hidden" name="sectionId" value={selectedSectionId || ''} />
       <p className={fieldHelp}>Deletes “{sections.find((section) => section.id === selectedSectionId)?.name ?? selectedSectionId}” — the section currently open above. This cannot be undone.</p>
-      <button type="submit" className={`${removeButton} h-auto min-h-11 w-auto min-w-[120px] justify-self-start px-4 py-2.5 !text-[12px] disabled:cursor-wait disabled:opacity-65`} disabled={deletePending || !selectedSectionId}>{deletePending ? 'Deleting...' : 'Delete current section'}</button>
+      <button type="submit" className={`${removeButton} h-auto min-h-11 w-auto min-w-[120px] justify-self-start px-4 py-2.5 !text-[12px] disabled:cursor-wait disabled:opacity-65 phone:justify-self-end`} disabled={deletePending || !selectedSectionId}>{deletePending ? 'Deleting...' : 'Delete current section'}</button>
       {deleteState.error && <p className="border-2 border-black bg-danger-bg p-2 font-term text-[11px] leading-[1.3] font-bold text-error" role="alert">{deleteState.error}</p>}
     </form>
-  </section>;
+  </div>;
 }
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -229,13 +228,13 @@ function SemesterCalendar({ config }: { config: ScheduleConfig }) {
       const isSpecialSaturday = inSemester && config.specialSaturdays.some((s) => s.date === iso);
       const isToday = iso === todayIso;
 
-      let className = 'relative flex h-[38px] flex-col items-center justify-center rounded-lg border text-[12px] transition-[transform,border-color] hover:-translate-y-px';
-      if (!inSemester || count === 0 && !isHoliday && !isExam && !isSpecialSaturday) className += ' border-transparent bg-cal-off text-muted opacity-50';
+      let className = 'relative flex h-[38px] flex-col items-center justify-center border-2 text-[12px] transition-transform hover:-translate-y-px';
+      if (!inSemester || count === 0 && !isHoliday && !isExam && !isSpecialSaturday) className += ' border-transparent bg-transparent text-muted opacity-40';
       else if (isHoliday) className += ' bg-holiday-bg border-holiday-border text-holiday-ink';
       else if (isExam) className += ' bg-exam-bg border-exam-border text-exam-ink';
       else if (isSpecialSaturday) className += ' bg-special-bg border-special-border text-special-ink';
-      else className += ' bg-card border-line text-black dark:bg-mint dark:border-[#2f4a38]';
-      if (isToday) className += ' !border-2 !border-today font-extrabold';
+      else className += ' bg-cal-cell border-cal-cell-border text-black';
+      if (isToday) className += ' !border-today font-extrabold';
 
       let title = `${iso}: ${count} period${count !== 1 ? 's' : ''}`;
       if (isHoliday) { const holiday = config.holidays.find((h) => dateInRange(iso, h.start, h.end)); title += ` — ${holiday?.name ?? 'Holiday'}`; }
@@ -253,14 +252,14 @@ function SemesterCalendar({ config }: { config: ScheduleConfig }) {
       <div><p className="eyebrow-text mb-[7px] text-[10px] text-teal">Semester overview</p><h2 className={adminH2}>Period calendar</h2></div>
 <div className="grid shrink-0 justify-items-center gap-0.5"><strong className="font-display text-[25px] leading-none font-black text-teal">{totalPeriods}</strong><span className="whitespace-nowrap font-term text-[10px] text-muted">total periods</span></div>
     </div>
-    {monthGrids.map(({ year, month, blanks, dayCells }) => <div className="mt-5 rounded-[14px] border border-line bg-paper p-5 shadow-[4px_6px_0_var(--shadow-color)]" key={`${year}-${month}`}>
+    {monthGrids.map(({ year, month, blanks, dayCells }) => <div className="mt-5 border-[3px] border-black bg-surface p-5 shadow-hard" key={`${year}-${month}`}>
       <div className="mb-3 font-term text-[13px] leading-[1.2] font-extrabold uppercase tracking-[.5px] text-teal">{MONTH_NAMES[month]} {year}</div>
       <div className="grid grid-cols-7 gap-1">
         {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => <span key={d} className="py-1 text-center font-term text-[9px] font-bold uppercase text-muted">{d}</span>)}
         {Array.from({ length: blanks }).map((_, i) => <span key={`b${i}`} />)}
         {dayCells.map(({ day, className, title, count, isHoliday, isExam, isSpecialSaturday, inSemester }) => <div key={day} className={className} title={title}>
           <span className="text-[11px] leading-none font-bold">{day}</span>
-          {inSemester && count > 0 && <span className="mt-0.5 font-term text-[9px] leading-none font-bold text-muted">{count}</span>}
+          {inSemester && count > 0 && <span className="mt-0.5 font-term text-[9px] leading-none font-bold opacity-70">{count}</span>}
           {isHoliday && <span className="mt-0.5 block size-[5px] rounded-full bg-holiday-ink" />}
           {isExam && <span className="mt-0.5 block size-[5px] rounded-full bg-exam-ink" />}
           {isSpecialSaturday && !isHoliday && !isExam && <span className="mt-0.5 block size-[5px] rounded-full bg-special-ink" />}
