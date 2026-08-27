@@ -5,7 +5,6 @@ import { calculateAttendance } from '@/domain/attendance/engine';
 import type { AttendanceResult } from '@/domain/attendance/types';
 import type { ScheduleConfig } from '@/domain/schedule/types';
 import Link from 'next/link';
-import { ThemeToggle } from './ThemeToggle';
 import { SectionSelector, type SectionOption } from './SectionSelector';
 
 const formatter = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -45,11 +44,10 @@ export function Calculator({ config, sectionName, sections, selectedSectionId }:
 
   return (
     <>
-      <header className="relative flex min-h-[47px] items-center justify-center border-b-[3px] border-black bg-black px-4 pt-[calc(10px+env(safe-area-inset-top))] pb-[10px] text-cream phone:min-h-[52px] phone:justify-start phone:px-[18px]">
-        <Link className="font-display text-[16px] leading-none font-black tracking-[1px] no-underline text-cream phone:text-[17px]" href="/" aria-label="dontbunk home">
-dont<span className="text-lime dark:text-[#47790a]">bunk</span>
+      <header className="relative flex min-h-[47px] items-center justify-center border-b-[3px] border-[#111111] bg-[#111111] px-4 pt-[calc(10px+env(safe-area-inset-top))] pb-[10px] text-[#f5f2e9] phone:min-h-[52px] phone:justify-start phone:px-[18px]">
+        <Link className="font-display text-[16px] leading-none font-black tracking-[0.75px] no-underline text-[#f5f2e9] phone:text-[17px]" href="/" aria-label="dontbunk home">
+dont<span className="text-[#b7f14a]">bunk</span>
         </Link>
-        <ThemeToggle />
         <span className="absolute right-6 rotate-45 text-[14px] text-lime phone:right-5" aria-hidden="true">◆</span>
       </header>
 
@@ -105,7 +103,7 @@ function Results({ result, endDate }: { result: AttendanceResult; endDate: strin
   return (
     <section className="mx-auto mt-9 w-full max-w-[680px] animate-rise phone:mt-[30px]" aria-live="polite">
       <div className={`relative overflow-hidden border-[3px] border-black px-5 pt-[22px] pb-[22px] shadow-hard phone:px-[17px] phone:pt-5 phone:pb-5 ${isDanger ? 'bg-hero-danger text-hero-danger-ink' : 'bg-lime text-[#14261c]'}`}>
-        <p className={`eyebrow-text mb-3 text-[10px] ${isDanger ? 'text-hero-danger-ink' : 'text-black dark:text-[#14261c]'}`}>Your semester runway</p>
+        <p className={`eyebrow-text mb-3 text-[10px] ${isDanger ? 'text-hero-danger-ink' : 'text-black'}`}>Your semester runway</p>
         <div className="relative z-[1] font-display text-[88px] leading-[.8] font-black tracking-[-2px] phone:text-[clamp(74px,24vw,100px)]">{result.maximumBunks}</div>
         {isDanger ? (
           <>

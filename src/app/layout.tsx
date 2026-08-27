@@ -22,37 +22,12 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#101210" },
-    { media: "(prefers-color-scheme: light)", color: "#111111" },
-  ],
+  themeColor: "#111111",
 };
-
-// Runs before paint to avoid a flash of the wrong theme.
-// Default follows Indian sun time: dark between 19:00 and 06:30 local, light
-// otherwise. A manual toggle is remembered for the tab's session so the theme
-// survives navigation (home → admin) but resets when the tab is closed.
-const themeInitScript = `
-(function () {
-  var theme;
-  try {
-    theme = sessionStorage.getItem('dontbunk-theme');
-  } catch (e) {}
-  if (theme !== 'light' && theme !== 'dark') {
-    var hour = new Date().getHours();
-    var minutes = new Date().getMinutes();
-    theme = hour >= 19 || hour < 6 || (hour === 6 && minutes < 30) ? 'dark' : 'light';
-  }
-  document.documentElement.setAttribute('data-theme', theme);
-})();
-`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en-GB" suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-      </head>
+    <html lang="en-GB">
       <body>
         {children}
         <Analytics />

@@ -1,16 +1,11 @@
 @import "tailwindcss";
 
-/* Dark mode is driven by the data-theme attribute set before paint by the
-   inline script in layout.tsx — not by the OS preference. */
-@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
-
 /* ---------------------------------------------------------------------------
-   Design tokens. Light is the retro-paper default; [data-theme="dark"] below
-   swaps the raw variables, and every utility that references them (bg-cream,
-   text-black, shadow-hard, …) flips automatically.
+   Design tokens for the single, retro-paper light theme. Every utility that
+   references them (bg-cream, text-black, shadow-hard, …) reads from here.
 --------------------------------------------------------------------------- */
 @theme {
-  --color-black: #111111;        /* ink / borders (flips to light in dark) */
+  --color-black: #111111;        /* ink / borders */
   --color-cream: #f5f2e9;        /* page background */
   --color-paper: #fffdf7;        /* card background */
   --color-orange: #ff4b00;
@@ -24,6 +19,8 @@
   --color-mint: #d9f3e3;
   --color-card: #ffffff;
   --color-cal-off: #f3f7f6;
+  --color-cal-cell: #ffffff;     /* raised day cell inside a month panel */
+  --color-cal-cell-border: #111111;
   --color-holiday-bg: #fee2e2;   --color-holiday-border: #fca5a5;  --color-holiday-ink: #991b1b;
   --color-exam-bg: #dbeafe;      --color-exam-border: #93c5fd;     --color-exam-ink: #1e40af;
   --color-special-bg: #d1fae5;   --color-special-border: #6ee7b7;  --color-special-ink: #065f46;
@@ -36,6 +33,11 @@
   --color-error: #a00d1e;
   --color-hero-danger: #f21d2f;  --color-hero-danger-ink: #ffffff;
   --color-code-bg: #111111;      --color-code-border: #111111;
+  /* Active section chip: a neon block with black type and a hard shadow. */
+  --color-chip-bg: #b7f14a;
+  --color-chip-ink: #111111;
+  --color-chip-border: #111111;
+  --color-chip-shadow: rgba(19, 35, 43, 1);
 
   --shadow-color: rgba(19, 35, 43, 1);
   --shadow-soft: rgba(19, 35, 43, .15);
@@ -63,40 +65,8 @@
   }
 }
 
-[data-theme="dark"] {
-  --color-black: #ece9df;
-  --color-cream: #101210;
-  --color-paper: #181b18;
-  --color-orange: #ff6a24;
-  --color-red: #ff5964;
-  --color-grey: #8b8f88;
-  --color-line: #2c332c;
-  --color-surface: #141714;
-  --color-muted: #9aa096;
-  --color-mint: #17251c;
-  --color-card: #151815;
-  --color-cal-off: #131613;
-  --color-holiday-bg: #3a1717;   --color-holiday-border: #7f2d2d;  --color-holiday-ink: #ffb3b3;
-  --color-exam-bg: #16233c;      --color-exam-border: #2d4d80;     --color-exam-ink: #a8c6ff;
-  --color-special-bg: #12301f;   --color-special-border: #2f7a52;  --color-special-ink: #93e6b8;
-  --color-teal: #4ecfae;
-  --color-today: #4ecfae;
-  --color-success: #57d98a;
-  --color-danger-bg: #3a1717;    --color-danger-ink: #ffb3b3;
-  --color-warning-bg: #33200f;
-  --color-link: #57d98a;
-  --color-error: #ff8f97;
-  --color-hero-danger: #ff5964;  --color-hero-danger-ink: #40060d;
-  --color-code-bg: #000000;      --color-code-border: #2c332c;
-
-  --shadow-color: #ece9df;   /* hard offset shadows follow the light ink, as before */
-  --shadow-soft: rgba(0, 0, 0, .45);
-  --shadow-ring: rgba(0, 0, 0, .3);
-}
-
-/* Native widgets (scrollbars, date pickers) follow the active theme. */
+/* Native widgets (scrollbars, date pickers) follow the light theme. */
 html { color-scheme: light; }
-html[data-theme="dark"] { color-scheme: dark; }
 
 /* ---------------------------------------------------------------------------
    Repeated multi-property patterns, promoted to utilities so JSX stays
@@ -111,7 +81,7 @@ html[data-theme="dark"] { color-scheme: dark; }
   background: var(--color-orange);
   color: #fff;
   cursor: pointer;
-  box-shadow: 4px 4px 0 var(--shadow-color);
+  box-shadow: 4px 4px 0 var(--color-black);
   font-family: var(--font-display);
   font-weight: 900;
   font-size: 13px;
@@ -125,11 +95,11 @@ html[data-theme="dark"] { color-scheme: dark; }
   &:hover {
     background: #ff5f1c;
     transform: translate(-1px, -1px);
-    box-shadow: 5px 5px 0 var(--shadow-color);
+    box-shadow: 5px 5px 0 var(--color-black);
   }
   &:active {
     transform: translate(3px, 3px);
-    box-shadow: 1px 1px 0 var(--shadow-color);
+    box-shadow: 1px 1px 0 var(--color-black);
   }
   & span { float: right; font-family: var(--font-sans); font-weight: 900; font-size: 18px; line-height: .75; }
 }
