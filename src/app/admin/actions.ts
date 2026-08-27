@@ -20,10 +20,14 @@ export async function saveSemesterConfig(_: SaveConfigState, formData: FormData)
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Configuration is invalid.' };
   const sectionName = String(formData.get('sectionName') ?? '').trim();
   if (!sectionName) return { error: 'Section name is required.' };
-  const updatedAtRaw = String(formData.get('updatedAt') ?? '');
-  const parsedUpdatedAt = updatedAtRaw === '' ? null : new Date(updatedAtRaw);
-  if (parsedUpdatedAt !== null && Number.isNaN(parsedUpdatedAt.getTime())) return { error: 'The configuration lock timestamp is invalid. Reload the page and try again.' };
-  const updatedAt = parsedUpdatedAt;
+  const updatedAtRaw = String(formData.get('updatedAt') ?? '').trim();
+  // The lock timestamp is compared for exact equality in save_semester_config.
+  // Postgres stores it with microsecond precision, but a JS Date only keeps
+  // milliseconds — round-tripping through `new Date()` truncates the value and
+  // makes the check fail on every save. Validate it, then pass the original
+  // string through unchanged so the comparison stays exact.
+  if (updatedAtRaw !== '' && Number.isNaN(new Date(updatedAtRaw).getTime())) return { error: 'The configuration lock timestamp is invalid. Reload the page and try again.' };
+  const updatedAt = updatedAtRaw === '' ? null : updatedAtRaw;
   const config = parsed.data;
 
   const examDays = config.exams.flatMap((exam) => (exam.dailyPeriods ?? []).map((day) => ({ examName: exam.name, date: day.date, periodsPerDay: day.periodsPerDay })));
@@ -40,7 +44,7 @@ export async function saveSemesterConfig(_: SaveConfigState, formData: FormData)
     p_exam_days: examDays,
     p_holidays: config.holidays,
     p_special_saturdays: config.specialSaturdays,
-    p_expected_updated_at: updatedAt === null ? null : updatedAt.toISOString(),
+    p_expected_updated_at: updatedAt,
   });
 
   if (error) {
