@@ -24,12 +24,10 @@ export function Calculator({ config, sectionName, sections, selectedSectionId, o
   const [result, setResult] = useState<AttendanceResult | null>(null);
   const [error, setError] = useState('');
   const [calculating, setCalculating] = useState(false);
-  const [toast, setToast] = useState('');
-
-  function showToast(message: string) {
-    setToast(message);
-    window.setTimeout(() => setToast(''), 2500);
-  }
+  // Bumped only inside calculate() so the Results panel remounts (and
+  // its flash replays) exclusively on a fresh button press, never on
+  // an input change.
+  const [resultSeq, setResultSeq] = useState(0);
 
   function calculate() {
     if (calculating) return;
@@ -52,8 +50,8 @@ export function Calculator({ config, sectionName, sections, selectedSectionId, o
     // Brief spinner so the result reveal feels intentional.
     window.setTimeout(() => {
       setResult(calculateAttendance({ config, now: new Date(), currentPercentage: currentValue, targetPercentage: targetValue }));
+      setResultSeq((n) => n + 1);
       setCalculating(false);
-      showToast('Result is ready ↓');
     }, 250);
   }
 
@@ -88,11 +86,9 @@ export function Calculator({ config, sectionName, sections, selectedSectionId, o
           </button>
         </section>
 
-        {result ? <Results key={`${current}-${target}-${sectionName}`} result={result} endDate={config.semesterEnd} /> : <p className="mx-auto mt-[clamp(18px,2.4vw,24px)] w-full max-w-[680px] text-center font-term text-[9px] leading-[1.45] text-muted">Your timetable and semester calendar are already loaded.</p>}
+        {result ? <Results key={resultSeq} result={result} endDate={config.semesterEnd} /> : <p className="mx-auto mt-[clamp(18px,2.4vw,24px)] w-full max-w-[680px] text-center font-term text-[9px] leading-[1.45] text-muted">Your timetable and semester calendar are already loaded.</p>}
 
 <a className="show-desktop mx-auto mt-[clamp(10px,1.6vw,16px)] min-h-11 w-full max-w-[680px] items-center justify-center py-[3px] text-center font-term text-[9px] font-black uppercase tracking-[.55px] text-muted underline decoration-link decoration-dotted decoration-[3px] underline-offset-[3px] hover:text-black" href="/admin">Owner? Admin panel</a>
-
-        {toast ? <div className="toast" role="status" aria-live="polite">{toast}</div> : null}
       </main>
     </>
   );

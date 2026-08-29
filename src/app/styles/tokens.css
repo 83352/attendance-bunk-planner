@@ -69,6 +69,12 @@
     35%  { filter: brightness(1.12) saturate(1.15); }
     100% { filter: brightness(1) saturate(1); }
   }
+  --animate-chip-pop: chip-pop .18s ease-out both;
+  @keyframes chip-pop {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(.96); }
+    100% { transform: scale(1); }
+  }
 }
 
 /* Native widgets (scrollbars, date pickers) follow the light theme. */
@@ -114,9 +120,7 @@ html { color-scheme: light; }
     font-weight: 900;
     font-size: 18px;
     line-height: .75;
-    transition: transform .16s ease-out;
   }
-  &:hover span { transform: translate(2px, -2px); }
   &:disabled {
     cursor: not-allowed;
     opacity: .85;
@@ -136,30 +140,6 @@ html { color-scheme: light; }
   25%      { transform: translateX(-3px); }
   50%      { transform: translateX(3px); }
   75%      { transform: translateX(-2px); }
-}
-/* Fixed bottom-center toast. */
-@utility toast {
-  position: fixed;
-  left: 50%;
-  bottom: calc(28px + env(safe-area-inset-bottom));
-  transform: translateX(-50%);
-  z-index: 50;
-  pointer-events: none;
-  padding: 10px 16px;
-  border: 3px solid var(--color-black);
-  background: var(--color-lime);
-  color: var(--color-black);
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-size: 13px;
-  letter-spacing: .6px;
-  text-transform: uppercase;
-  box-shadow: 4px 4px 0 var(--color-black);
-  animation: toast-in .32s ease-out both;
-}
-@keyframes toast-in {
-  from { opacity: 0; transform: translate(-50%, 12px); }
-  to   { opacity: 1; transform: translate(-50%, 0); }
 }
 @utility eyebrow-text {
   font-family: var(--font-term);
