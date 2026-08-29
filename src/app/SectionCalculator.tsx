@@ -70,12 +70,12 @@ function PageChrome({ sections, activeId, onSelect, children }: { sections: Sect
     <>
       <SiteHeader />
       <main className="mx-auto w-full max-w-[680px] min-h-[calc(100vh-47px)] px-5 pt-3 pb-[calc(56px+env(safe-area-inset-bottom))] phone:px-3 phone:pb-[calc(44px+env(safe-area-inset-bottom))]">
-        <section className="mx-auto w-full max-w-[480px] border-[3px] border-black bg-paper px-4 pt-[17px] pb-[18px] shadow-hard animate-rise phone:pt-[20px] phone:pb-[22px]" aria-label="Attendance calculator">
-          <div className="mb-4 flex items-start gap-3 phone:mb-[19px] phone:gap-2.5">
+        <section className="mx-auto w-full max-w-[680px] border-[3px] border-black bg-paper px-[clamp(16px,2vw,24px)] pt-[clamp(17px,2vw,24px)] pb-[clamp(18px,2.2vw,26px)] shadow-hard animate-rise" aria-label="Attendance calculator">
+          <div className="mb-[clamp(16px,2vw,22px)] flex items-start gap-[clamp(12px,1.4vw,16px)]">
             <span className="mt-px grid size-[27px] shrink-0 place-items-center border-2 border-black bg-orange font-term text-[11px] leading-none font-black text-white">01</span>
             <div>
               <p className="eyebrow-text mb-[3px] text-[10px] text-black">attendance desk</p>
-              <h1 className="m-0 font-display text-[28px] leading-[.95] font-black tracking-[.2px] uppercase phone:text-[clamp(27px,8vw,35px)]">Can I bunk?</h1>
+              <h1 className="m-0 font-display text-[clamp(27px,4.4vw,40px)] leading-[.95] font-black tracking-[.2px] uppercase">Can I bunk?</h1>
             </div>
           </div>
           <ChipRow sections={sections} activeId={activeId} onSelect={onSelect} />
@@ -83,7 +83,7 @@ function PageChrome({ sections, activeId, onSelect, children }: { sections: Sect
             {children}
           </div>
         </section>
-<a className="show-desktop mx-auto mt-3 min-h-11 w-full max-w-[480px] items-center justify-center py-[3px] text-center font-term text-[9px] font-black uppercase tracking-[.55px] text-muted underline decoration-link decoration-dotted decoration-[3px] underline-offset-[3px] hover:text-black phone:mt-2.5" href="/admin">Owner? Admin panel</a>
+<a className="show-desktop mx-auto mt-[clamp(10px,1.6vw,16px)] min-h-11 w-full max-w-[680px] items-center justify-center py-[3px] text-center font-term text-[9px] font-black uppercase tracking-[.55px] text-muted underline decoration-link decoration-dotted decoration-[3px] underline-offset-[3px] hover:text-black" href="/admin">Owner? Admin panel</a>
       </main>
     </>
   );
@@ -102,7 +102,7 @@ function ChipRow({ sections, activeId, onSelect }: { sections: SectionOption[]; 
               key={section.id}
               type="button"
               onClick={() => onSelect(section.id)}
-              className={`inline-flex min-h-[44px] cursor-pointer items-center justify-center border-2 px-4 py-2.5 font-term text-[12px] font-bold uppercase tracking-[.55px] transition-[transform,box-shadow,background] duration-100 hover:-translate-y-px phone:min-h-[50px] phone:px-5 phone:py-3 phone:text-[13px] ${isActive ? 'border-chip-border bg-chip-bg text-chip-ink shadow-[2px_2px_0_var(--color-chip-shadow)] hover:shadow-[3px_3px_0_var(--color-chip-shadow)]' : 'border-black bg-surface text-black shadow-[2px_2px_0_var(--shadow-color)] hover:shadow-[3px_3px_0_var(--shadow-color)]'}`}
+              className={`inline-flex min-h-[clamp(44px,5.6vw,56px)] cursor-pointer items-center justify-center border-2 px-[clamp(16px,2vw,22px)] py-[clamp(10px,1.2vw,14px)] font-term text-[clamp(12px,1.5vw,14px)] font-bold uppercase tracking-[.55px] transition-[transform,box-shadow,background] duration-100 hover:-translate-y-px ${isActive ? 'border-chip-border bg-chip-bg text-chip-ink shadow-[2px_2px_0_var(--color-chip-shadow)] hover:shadow-[3px_3px_0_var(--color-chip-shadow)]' : 'border-black bg-surface text-black shadow-[2px_2px_0_var(--shadow-color)] hover:shadow-[3px_3px_0_var(--shadow-color)]'}`}
               aria-pressed={isActive}
               aria-current={isActive ? 'page' : undefined}
             >

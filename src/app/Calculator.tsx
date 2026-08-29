@@ -47,27 +47,27 @@ export function Calculator({ config, sectionName, sections, selectedSectionId, o
     <>
       <SiteHeader />
       <main className="mx-auto w-full max-w-[680px] min-h-[calc(100vh-47px)] px-5 pt-3 pb-[calc(56px+env(safe-area-inset-bottom))] phone:px-3 phone:pb-[calc(44px+env(safe-area-inset-bottom))]">
-        <section className="mx-auto w-full max-w-[480px] border-[3px] border-black bg-paper px-4 pt-[17px] pb-[18px] shadow-hard animate-rise phone:pt-[20px] phone:pb-[22px]" aria-label="Attendance calculator">
-          <div className="mb-4 flex items-start gap-3 phone:mb-[19px] phone:gap-2.5">
+        <section className="mx-auto w-full max-w-[680px] border-[3px] border-black bg-paper px-[clamp(16px,2vw,24px)] pt-[clamp(17px,2vw,24px)] pb-[clamp(18px,2.2vw,26px)] shadow-hard animate-rise" aria-label="Attendance calculator">
+          <div className="mb-[clamp(16px,2vw,22px)] flex items-start gap-[clamp(12px,1.4vw,16px)]">
             <span className="mt-px grid size-[27px] shrink-0 place-items-center border-2 border-black bg-orange font-term text-[11px] leading-none font-black text-white">01</span>
             <div>
               <p className="eyebrow-text mb-[3px] text-[10px] text-black">{sectionName} / attendance desk</p>
-              <h1 className="m-0 font-display text-[28px] leading-[.95] font-black tracking-[.2px] uppercase phone:text-[clamp(27px,8vw,35px)]">Can I bunk?</h1>
+              <h1 className="m-0 font-display text-[clamp(27px,4.4vw,40px)] leading-[.95] font-black tracking-[.2px] uppercase">Can I bunk?</h1>
             </div>
           </div>
 
           <SectionSelector sections={sections} selectedSectionId={selectedSectionId} onSelect={onSelectSection ?? (() => {})} />
 
-          <div className="mb-[17px] grid gap-4 phone:mb-5 phone:gap-[18px]">
-            <label className="relative grid gap-[7px] text-[10px] leading-[1.1] font-black text-black phone:gap-2">
+          <div className="mb-[clamp(17px,2vw,22px)] grid gap-[clamp(16px,1.8vw,20px)]">
+            <label className="relative grid gap-[clamp(7px,.8vw,10px)] text-[10px] leading-[1.1] font-black text-black">
               Current attendance %
-              <input className="input-placeholder relative z-[1] min-h-[60px] w-full border-[3px] border-black bg-surface px-[13px] py-2 pr-[38px] font-sans text-[30px] leading-[.95] font-black text-black shadow-[2px_2px_0_var(--shadow-color)] outline-none focus:border-orange focus:outline-2 focus:outline-lime focus:outline-offset-2 phone:min-h-[68px] phone:px-4 phone:text-[34px]" inputMode="decimal" value={current} placeholder="Enter your attendance..." onChange={(event) => setCurrent(event.target.value)} aria-label="Current attendance percentage" />
-              <span className="absolute right-3 bottom-[13px] z-[2] font-term text-[13px] leading-none font-bold text-grey phone:right-4 phone:bottom-[20px] phone:text-[15px]">%</span>
+              <input className="input-placeholder relative z-[1] min-h-[clamp(60px,8vw,80px)] w-full border-[3px] border-black bg-surface px-[clamp(13px,1.6vw,18px)] py-2 pr-[clamp(38px,5vw,52px)] font-sans text-[clamp(30px,4vw,40px)] leading-[.95] font-black text-black shadow-[2px_2px_0_var(--shadow-color)] outline-none focus:border-orange focus:outline-2 focus:outline-lime focus:outline-offset-2" inputMode="decimal" value={current} placeholder="Enter your attendance..." onChange={(event) => setCurrent(event.target.value)} aria-label="Current attendance percentage" />
+              <span className="absolute right-[clamp(12px,1.6vw,18px)] bottom-[clamp(13px,2.4vw,24px)] z-[2] font-term text-[clamp(13px,1.6vw,16px)] leading-none font-bold text-grey">%</span>
             </label>
-            <label className="relative grid gap-[7px] text-[10px] leading-[1.1] font-black text-black phone:gap-2">
+            <label className="relative grid gap-[clamp(7px,.8vw,10px)] text-[10px] leading-[1.1] font-black text-black">
               Target attendance %
-              <input className="relative z-[1] min-h-[60px] w-full border-[3px] border-black bg-surface px-[13px] py-2 pr-[38px] font-sans text-[30px] leading-[.95] font-black text-black shadow-[2px_2px_0_var(--shadow-color)] outline-none focus:border-orange focus:outline-2 focus:outline-lime focus:outline-offset-2 phone:min-h-[68px] phone:px-4 phone:text-[34px]" inputMode="decimal" value={target} onChange={(event) => setTarget(event.target.value)} aria-label="Target attendance percentage" />
-              <span className="absolute right-3 bottom-[13px] z-[2] font-term text-[13px] leading-none font-bold text-grey phone:right-4 phone:bottom-[20px] phone:text-[15px]">%</span>
+              <input className="relative z-[1] min-h-[clamp(60px,8vw,80px)] w-full border-[3px] border-black bg-surface px-[clamp(13px,1.6vw,18px)] py-2 pr-[clamp(38px,5vw,52px)] font-sans text-[clamp(30px,4vw,40px)] leading-[.95] font-black text-black shadow-[2px_2px_0_var(--shadow-color)] outline-none focus:border-orange focus:outline-2 focus:outline-lime focus:outline-offset-2" inputMode="decimal" value={target} onChange={(event) => setTarget(event.target.value)} aria-label="Target attendance percentage" />
+              <span className="absolute right-[clamp(12px,1.6vw,18px)] bottom-[clamp(13px,2.4vw,24px)] z-[2] font-term text-[clamp(13px,1.6vw,16px)] leading-none font-bold text-grey">%</span>
             </label>
           </div>
           {error && <p className="mb-[13px] border-2 border-black bg-danger-bg p-2 font-term text-[11px] leading-[1.3] font-bold text-error" role="alert">{error}</p>}
@@ -77,9 +77,9 @@ export function Calculator({ config, sectionName, sections, selectedSectionId, o
           </button>
         </section>
 
-        {result ? <Results result={result} endDate={config.semesterEnd} /> : <p className="mx-auto mt-[18px] w-full max-w-[480px] text-center font-term text-[9px] leading-[1.45] text-muted phone:mt-5 phone:px-2">Your timetable and semester calendar are already loaded.</p>}
+        {result ? <Results result={result} endDate={config.semesterEnd} /> : <p className="mx-auto mt-[clamp(18px,2.4vw,24px)] w-full max-w-[680px] text-center font-term text-[9px] leading-[1.45] text-muted">Your timetable and semester calendar are already loaded.</p>}
 
-<a className="show-desktop mx-auto mt-3 min-h-11 w-full max-w-[480px] items-center justify-center py-[3px] text-center font-term text-[9px] font-black uppercase tracking-[.55px] text-muted underline decoration-link decoration-dotted decoration-[3px] underline-offset-[3px] hover:text-black phone:mt-2.5" href="/admin">Owner? Admin panel</a>
+<a className="show-desktop mx-auto mt-[clamp(10px,1.6vw,16px)] min-h-11 w-full max-w-[680px] items-center justify-center py-[3px] text-center font-term text-[9px] font-black uppercase tracking-[.55px] text-muted underline decoration-link decoration-dotted decoration-[3px] underline-offset-[3px] hover:text-black" href="/admin">Owner? Admin panel</a>
       </main>
     </>
   );
