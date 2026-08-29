@@ -50,3 +50,23 @@ export async function loadSectionConfig(supabase: SupabaseClient, sectionId: str
 
   return { config, updatedAt: semester.updated_at ?? null };
 }
+
+/**
+ * Loads the schedule config for every section in one parallel fan-out.
+ * Used by the public home page so the user can switch sections without
+ * hitting the network. Sections without a saved semester fall back to
+ * defaultConfig so the client always has a complete config to render.
+ */
+export async function loadAllSectionConfigs(
+  supabase: SupabaseClient,
+  sections: { id: string; name: string }[],
+): Promise<Record<string, ScheduleConfig>> {
+  if (sections.length === 0) return {};
+  const entries = await Promise.all(
+    sections.map(async (section) => {
+      const { config } = await loadSectionConfig(supabase, section.id);
+      return [section.id, config] as const;
+    }),
+  );
+  return Object.fromEntries(entries);
+}

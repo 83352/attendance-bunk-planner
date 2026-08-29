@@ -15,9 +15,10 @@ type CalculatorProps = {
   sectionName: string;
   sections: SectionOption[];
   selectedSectionId: string;
+  onSelectSection?: (sectionId: string) => void;
 };
 
-export function Calculator({ config, sectionName, sections, selectedSectionId }: CalculatorProps) {
+export function Calculator({ config, sectionName, sections, selectedSectionId, onSelectSection }: CalculatorProps) {
   const [current, setCurrent] = useState('');
   const [target, setTarget] = useState('75');
   const [result, setResult] = useState<AttendanceResult | null>(null);
@@ -61,7 +62,7 @@ dont<span className="text-[#b7f14a]">bunk</span>
             </div>
           </div>
 
-          <SectionSelector sections={sections} selectedSectionId={selectedSectionId} />
+          <SectionSelector sections={sections} selectedSectionId={selectedSectionId} onSelect={onSelectSection ?? (() => {})} />
 
           <div className="mb-[17px] grid gap-4 phone:mb-5 phone:gap-[18px]">
             <label className="relative grid gap-[7px] text-[10px] leading-[1.1] font-black text-black phone:gap-2">
