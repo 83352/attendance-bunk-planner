@@ -23,8 +23,16 @@ export function Calculator({ config, sectionName, sections, selectedSectionId, o
   const [target, setTarget] = useState('75');
   const [result, setResult] = useState<AttendanceResult | null>(null);
   const [error, setError] = useState('');
+  const [calculating, setCalculating] = useState(false);
+  const [toast, setToast] = useState('');
+
+  function showToast(message: string) {
+    setToast(message);
+    window.setTimeout(() => setToast(''), 2500);
+  }
 
   function calculate() {
+    if (calculating) return;
     if (current.trim() === '') {
       setError('Enter your attendance to find out.');
       return;
@@ -40,7 +48,13 @@ export function Calculator({ config, sectionName, sections, selectedSectionId, o
       return;
     }
     setError('');
-    setResult(calculateAttendance({ config, now: new Date(), currentPercentage: currentValue, targetPercentage: targetValue }));
+    setCalculating(true);
+    // Brief spinner so the result reveal feels intentional.
+    window.setTimeout(() => {
+      setResult(calculateAttendance({ config, now: new Date(), currentPercentage: currentValue, targetPercentage: targetValue }));
+      setCalculating(false);
+      showToast('Result is ready ↓');
+    }, 250);
   }
 
   return (
@@ -58,25 +72,27 @@ export function Calculator({ config, sectionName, sections, selectedSectionId, o
           <div className="mb-[clamp(17px,2vw,22px)] grid gap-[clamp(16px,1.8vw,20px)]">
             <label className="relative grid gap-[clamp(7px,.8vw,10px)] text-[12px] leading-[1.1] font-black text-black">
               Current attendance %
-              <input className="input-placeholder relative z-[1] min-h-[clamp(60px,8vw,80px)] w-full border-[3px] border-black bg-surface px-[clamp(13px,1.6vw,18px)] py-2 pr-[clamp(38px,5vw,52px)] font-sans text-[clamp(30px,4vw,40px)] leading-[.95] font-black text-black shadow-[2px_2px_0_var(--shadow-color)] outline-none focus:border-orange focus:outline-2 focus:outline-lime focus:outline-offset-2" inputMode="decimal" value={current} placeholder="Enter your attendance..." onChange={(event) => setCurrent(event.target.value)} aria-label="Current attendance percentage" />
+              <input className={`input-placeholder relative z-[1] min-h-[clamp(60px,8vw,80px)] w-full border-[3px] border-black bg-surface px-[clamp(13px,1.6vw,18px)] py-2 pr-[clamp(38px,5vw,52px)] font-sans text-[clamp(30px,4vw,40px)] leading-[.95] font-black text-black shadow-[2px_2px_0_var(--shadow-color)] outline-none focus:border-orange focus:outline-2 focus:outline-lime focus:outline-offset-2 ${error ? 'input-error' : ''}`} inputMode="decimal" value={current} placeholder="Enter your attendance..." onChange={(event) => { setCurrent(event.target.value); if (error) setError(''); }} aria-invalid={error ? true : undefined} aria-label="Current attendance percentage" />
 <span className="absolute right-[clamp(12px,1.6vw,18px)] bottom-[clamp(13px,2.4vw,24px)] z-[2] font-term text-[clamp(16px,2vw,20px)] leading-none font-bold text-grey">%</span>
             </label>
             <label className="relative grid gap-[clamp(7px,.8vw,10px)] text-[12px] leading-[1.1] font-black text-black">
               Target attendance %
-              <input className="relative z-[1] min-h-[clamp(60px,8vw,80px)] w-full border-[3px] border-black bg-surface px-[clamp(13px,1.6vw,18px)] py-2 pr-[clamp(38px,5vw,52px)] font-sans text-[clamp(30px,4vw,40px)] leading-[.95] font-black text-black shadow-[2px_2px_0_var(--shadow-color)] outline-none focus:border-orange focus:outline-2 focus:outline-lime focus:outline-offset-2" inputMode="decimal" value={target} onChange={(event) => setTarget(event.target.value)} aria-label="Target attendance percentage" />
+              <input className={`relative z-[1] min-h-[clamp(60px,8vw,80px)] w-full border-[3px] border-black bg-surface px-[clamp(13px,1.6vw,18px)] py-2 pr-[clamp(38px,5vw,52px)] font-sans text-[clamp(30px,4vw,40px)] leading-[.95] font-black text-black shadow-[2px_2px_0_var(--shadow-color)] outline-none focus:border-orange focus:outline-2 focus:outline-lime focus:outline-offset-2 ${error ? 'input-error' : ''}`} inputMode="decimal" value={target} onChange={(event) => { setTarget(event.target.value); if (error) setError(''); }} aria-invalid={error ? true : undefined} aria-label="Target attendance percentage" />
               <span className="absolute right-[clamp(12px,1.6vw,18px)] bottom-[clamp(13px,2.4vw,24px)] z-[2] font-term text-[clamp(16px,2vw,20px)] leading-none font-bold text-grey">%</span>
             </label>
           </div>
           {error && <p className="mb-[13px] border-2 border-black bg-danger-bg p-2 font-term text-[11px] leading-[1.3] font-bold text-error" role="alert">{error}</p>}
 
-          <button className="btn-calculate btn-calculate-hover" type="button" onClick={calculate}>
-            Can I bunk? <span aria-hidden="true">↗</span>
+          <button className="btn-calculate btn-calculate-hover" type="button" onClick={calculate} disabled={calculating} aria-busy={calculating}>
+            {calculating ? 'Calculating…' : <>Can I bunk? <span aria-hidden="true">↗</span></>}
           </button>
         </section>
 
-        {result ? <Results result={result} endDate={config.semesterEnd} /> : <p className="mx-auto mt-[clamp(18px,2.4vw,24px)] w-full max-w-[680px] text-center font-term text-[9px] leading-[1.45] text-muted">Your timetable and semester calendar are already loaded.</p>}
+        {result ? <Results key={`${current}-${target}-${sectionName}`} result={result} endDate={config.semesterEnd} /> : <p className="mx-auto mt-[clamp(18px,2.4vw,24px)] w-full max-w-[680px] text-center font-term text-[9px] leading-[1.45] text-muted">Your timetable and semester calendar are already loaded.</p>}
 
 <a className="show-desktop mx-auto mt-[clamp(10px,1.6vw,16px)] min-h-11 w-full max-w-[680px] items-center justify-center py-[3px] text-center font-term text-[9px] font-black uppercase tracking-[.55px] text-muted underline decoration-link decoration-dotted decoration-[3px] underline-offset-[3px] hover:text-black" href="/admin">Owner? Admin panel</a>
+
+        {toast ? <div className="toast" role="status" aria-live="polite">{toast}</div> : null}
       </main>
     </>
   );
@@ -94,7 +110,7 @@ function Results({ result, endDate }: { result: AttendanceResult; endDate: strin
   const isDanger = unreachable || brutal;
   return (
     <section className="mx-auto mt-9 w-full max-w-[680px] animate-rise phone:mt-[30px]" aria-live="polite">
-      <div className={`relative overflow-hidden border-[3px] border-black px-5 pt-[22px] pb-[22px] shadow-hard phone:px-[17px] phone:pt-5 phone:pb-5 ${isDanger ? 'bg-hero-danger text-hero-danger-ink' : 'bg-lime text-[#14261c]'}`}>
+      <div className={`relative overflow-hidden border-[3px] border-black px-5 pt-[22px] pb-[22px] shadow-hard [animation:var(--animate-flash)] phone:px-[17px] phone:pt-5 phone:pb-5 ${isDanger ? 'bg-hero-danger text-hero-danger-ink' : 'bg-lime text-[#14261c]'}`}>
         <p className={`eyebrow-text mb-3 text-[10px] ${isDanger ? 'text-hero-danger-ink' : 'text-black'}`}>Your semester runway</p>
         <div className="relative z-[1] font-display text-[88px] leading-[.8] font-black tracking-[-2px] phone:text-[clamp(74px,24vw,100px)]">{result.maximumBunks}</div>
         {isDanger ? (
