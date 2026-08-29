@@ -63,7 +63,7 @@ begin
     set start_date = excluded.start_date,
         end_date = excluded.end_date,
         updated_at = now()
-  returning semesters.updated_at into v_existing_updated_at;
+  returning id, updated_at into v_semester_id, v_existing_updated_at;
 
   delete from public.timetable_periods where semester_id = v_semester_id;
   delete from public.exam_periods where semester_id = v_semester_id;
