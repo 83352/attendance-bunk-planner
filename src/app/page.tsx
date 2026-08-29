@@ -24,7 +24,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ s
   const configsBySection = await loadAllSectionConfigs(supabase, sections);
   const namesBySection: Record<string, string> = Object.fromEntries(sections.map((section) => [section.id, section.name]));
 
-  const initialSectionId = sections.find((section) => section.id === requestedSection)?.id ?? sections[0].id;
+  // Honour an explicit ?section= from the URL, otherwise leave nothing
+  // selected so the user picks one. Don't fall back to the first section.
+  const initialSectionId = sections.find((section) => section.id === requestedSection)?.id ?? '';
 
   return <SectionCalculator sections={sections} initialSectionId={initialSectionId} configsBySection={configsBySection} namesBySection={namesBySection} />;
 }
