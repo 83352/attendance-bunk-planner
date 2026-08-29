@@ -111,7 +111,7 @@ html { color-scheme: light; }
   font-weight: 900;
 }
 @utility input-placeholder {
-  &::placeholder { color: var(--color-grey); opacity: 1; font: 700 13px/1.3 var(--font-term); letter-spacing: 0; }
+  &::placeholder { color: var(--color-grey); opacity: 1; font: 700 15px/1.3 var(--font-term); letter-spacing: 0; }
 }
 @utility setup-steps {
   display: grid;

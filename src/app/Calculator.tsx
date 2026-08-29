@@ -56,12 +56,12 @@ export function Calculator({ config, sectionName, sections, selectedSectionId, o
           <SectionSelector sections={sections} selectedSectionId={selectedSectionId} onSelect={onSelectSection ?? (() => {})} />
 
           <div className="mb-[clamp(17px,2vw,22px)] grid gap-[clamp(16px,1.8vw,20px)]">
-            <label className="relative grid gap-[clamp(7px,.8vw,10px)] text-[10px] leading-[1.1] font-black text-black">
+            <label className="relative grid gap-[clamp(7px,.8vw,10px)] text-[12px] leading-[1.1] font-black text-black">
               Current attendance %
               <input className="input-placeholder relative z-[1] min-h-[clamp(60px,8vw,80px)] w-full border-[3px] border-black bg-surface px-[clamp(13px,1.6vw,18px)] py-2 pr-[clamp(38px,5vw,52px)] font-sans text-[clamp(30px,4vw,40px)] leading-[.95] font-black text-black shadow-[2px_2px_0_var(--shadow-color)] outline-none focus:border-orange focus:outline-2 focus:outline-lime focus:outline-offset-2" inputMode="decimal" value={current} placeholder="Enter your attendance..." onChange={(event) => setCurrent(event.target.value)} aria-label="Current attendance percentage" />
               <span className="absolute right-[clamp(12px,1.6vw,18px)] bottom-[clamp(13px,2.4vw,24px)] z-[2] font-term text-[clamp(13px,1.6vw,16px)] leading-none font-bold text-grey">%</span>
             </label>
-            <label className="relative grid gap-[clamp(7px,.8vw,10px)] text-[10px] leading-[1.1] font-black text-black">
+            <label className="relative grid gap-[clamp(7px,.8vw,10px)] text-[12px] leading-[1.1] font-black text-black">
               Target attendance %
               <input className="relative z-[1] min-h-[clamp(60px,8vw,80px)] w-full border-[3px] border-black bg-surface px-[clamp(13px,1.6vw,18px)] py-2 pr-[clamp(38px,5vw,52px)] font-sans text-[clamp(30px,4vw,40px)] leading-[.95] font-black text-black shadow-[2px_2px_0_var(--shadow-color)] outline-none focus:border-orange focus:outline-2 focus:outline-lime focus:outline-offset-2" inputMode="decimal" value={target} onChange={(event) => setTarget(event.target.value)} aria-label="Target attendance percentage" />
               <span className="absolute right-[clamp(12px,1.6vw,18px)] bottom-[clamp(13px,2.4vw,24px)] z-[2] font-term text-[clamp(13px,1.6vw,16px)] leading-none font-bold text-grey">%</span>
