@@ -71,12 +71,9 @@ function PageChrome({ sections, activeId, onSelect, children }: { sections: Sect
       <SiteHeader />
       <main className="mx-auto w-full max-w-[680px] min-h-[calc(100vh-47px)] px-5 pt-3 pb-[calc(56px+env(safe-area-inset-bottom))] phone:px-3 phone:pb-[calc(44px+env(safe-area-inset-bottom))]">
         <section className="mx-auto w-full max-w-[680px] border-[3px] border-black bg-paper px-[clamp(16px,2vw,24px)] pt-[clamp(17px,2vw,24px)] pb-[clamp(18px,2.2vw,26px)] shadow-hard animate-rise" aria-label="Attendance calculator">
-          <div className="mb-[clamp(16px,2vw,22px)] flex items-start gap-[clamp(12px,1.4vw,16px)]">
-            <span className="mt-px grid size-[27px] shrink-0 place-items-center border-2 border-black bg-orange font-term text-[11px] leading-none font-black text-white">01</span>
-            <div>
-              <p className="eyebrow-text mb-[3px] text-[10px] text-black">attendance desk</p>
-              <h1 className="m-0 font-display text-[clamp(27px,4.4vw,40px)] leading-[.95] font-black tracking-[.2px] uppercase">Can I bunk?</h1>
-            </div>
+          <div className="mb-[clamp(16px,2vw,22px)]">
+            <p className="eyebrow-text mb-[3px] text-[10px] text-black">attendance desk</p>
+            <h1 className="m-0 font-display text-[clamp(27px,4.4vw,40px)] leading-[.95] font-black tracking-[.2px] uppercase">Can I bunk?</h1>
           </div>
           <ChipRow sections={sections} activeId={activeId} onSelect={onSelect} />
           <div className="mt-[6px] grid gap-4">
