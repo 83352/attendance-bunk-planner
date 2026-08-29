@@ -55,6 +55,14 @@ describe('calendar engine', () => {
     expect(periodsForDate(changed, '2026-08-24')).toHaveLength(4);
     expect(periodsForDate(changed, '2026-08-27')).toHaveLength(2);
   });
+
+  it('treats a custom-named exam like a mid exam', () => {
+    const changed = {
+      ...config,
+      exams: [{ name: 'Saturday test', start: '2026-08-29', end: '2026-08-29', periodsPerDay: 2 as const }],
+    };
+    expect(periodsForDate(changed, '2026-08-29')).toHaveLength(2);
+  });
 });
 
 describe('attendance engine', () => {

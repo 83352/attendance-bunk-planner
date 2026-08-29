@@ -7,7 +7,7 @@ const baseConfig = {
   timetable: [],
   holidays: [],
   specialSaturdays: [] as { date: string; copiedWeekday: number }[],
-  exams: [] as { name: 'Mid 1' | 'Mid 2'; start: string; end: string; periodsPerDay: 2 | 4 }[],
+  exams: [] as { name: string; start: string; end: string; periodsPerDay: 2 | 4 }[],
 };
 
 describe('semesterConfigSchema', () => {
@@ -22,6 +22,35 @@ describe('semesterConfigSchema', () => {
     });
     expect(parsed.success).toBe(false);
     if (!parsed.success) expect(parsed.error.issues[0].message).toBe('Exam dates must be inside the semester.');
+  });
+
+  it('accepts a custom-named exam inside the semester', () => {
+    const parsed = semesterConfigSchema.safeParse({
+      ...baseConfig,
+      exams: [{ name: 'Saturday test', start: '2026-08-29', end: '2026-08-29', periodsPerDay: 2 }],
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('rejects an exam with a blank name', () => {
+    const parsed = semesterConfigSchema.safeParse({
+      ...baseConfig,
+      exams: [{ name: '   ', start: '2026-08-29', end: '2026-08-29', periodsPerDay: 2 }],
+    });
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) expect(parsed.error.issues[0].message).toBe('Exam name is required.');
+  });
+
+  it('rejects duplicate exam names regardless of case', () => {
+    const parsed = semesterConfigSchema.safeParse({
+      ...baseConfig,
+      exams: [
+        { name: 'Mid 1', start: '2026-08-29', end: '2026-08-29', periodsPerDay: 2 },
+        { name: 'mid 1', start: '2026-09-05', end: '2026-09-05', periodsPerDay: 2 },
+      ],
+    });
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) expect(parsed.error.issues[0].message).toBe('Each exam name must be unique.');
   });
 
   it('rejects holidays outside the semester', () => {

@@ -19,7 +19,7 @@ export type SpecialSaturday = {
 };
 
 export type ExamPeriod = {
-  name: 'Mid 1' | 'Mid 2';
+  name: string;
   start: string;
   end: string;
   periodsPerDay: 2 | 4;
