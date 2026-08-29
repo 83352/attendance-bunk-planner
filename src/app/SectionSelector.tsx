@@ -14,7 +14,7 @@ export function SectionSelector({
   if (sections.length === 0) return null;
   return (
     <label className="mb-[17px] block">
-      Your section
+      <span className="text-[12px] leading-[1.1] font-black text-black">Your section</span>
       <span className="mt-[7px] flex flex-wrap gap-2" role="group" aria-label="Choose your section">
         {sections.map((section) => {
           const isActive = section.id === selectedSectionId;
