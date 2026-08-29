@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { calculateAttendance } from '@/domain/attendance/engine';
 import type { AttendanceResult } from '@/domain/attendance/types';
 import type { ScheduleConfig } from '@/domain/schedule/types';
-import Link from 'next/link';
 import { SectionSelector, type SectionOption } from './SectionSelector';
+import { SiteHeader } from './SiteHeader';
 
 const formatter = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 const percentage = (value: number) => `${value.toFixed(2)}%`;
@@ -45,13 +45,7 @@ export function Calculator({ config, sectionName, sections, selectedSectionId, o
 
   return (
     <>
-      <header className="relative flex min-h-[47px] items-center justify-center border-b-[3px] border-[#111111] bg-[#111111] px-4 pt-[calc(10px+env(safe-area-inset-top))] pb-[10px] text-[#f5f2e9] phone:min-h-[52px] phone:justify-start phone:px-[18px]">
-        <Link className="font-display text-[16px] leading-none font-black tracking-[0.75px] no-underline text-[#f5f2e9] phone:text-[17px]" href="/" aria-label="dontbunk home">
-dont<span className="text-[#b7f14a]">bunk</span>
-        </Link>
-        <span className="absolute right-6 rotate-45 text-[14px] text-lime phone:right-5" aria-hidden="true">◆</span>
-      </header>
-
+      <SiteHeader />
       <main className="mx-auto w-full max-w-[680px] min-h-[calc(100vh-47px)] px-5 pt-3 pb-[calc(56px+env(safe-area-inset-bottom))] phone:px-3 phone:pb-[calc(44px+env(safe-area-inset-bottom))]">
         <section className="mx-auto w-full max-w-[294px] border-[3px] border-black bg-paper px-4 pt-[17px] pb-[18px] shadow-hard animate-rise phone:max-w-[420px] phone:pt-[18px] phone:pb-5" aria-label="Attendance calculator">
           <div className="mb-4 flex items-start gap-3 phone:mb-[19px] phone:gap-2.5">
