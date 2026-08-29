@@ -91,6 +91,14 @@ html { color-scheme: light; }
   text-transform: uppercase;
   transition: transform .16s ease-out, box-shadow .16s ease-out, background .16s ease-out;
 }
+@media (max-width: 650px) {
+  .btn-calculate {
+    min-height: 60px;
+    padding: 16px 14px 15px;
+    font-size: 16px;
+    letter-spacing: .8px;
+  }
+}
 @utility btn-calculate-hover {
   &:hover {
     background: #ff5f1c;
@@ -125,6 +133,11 @@ html { color-scheme: light; }
   & span { margin-top: 4px; color: var(--color-muted); }
   & a { color: var(--color-link); font-weight: 700; }
   & pre { overflow-x: auto; margin: 10px 0 0; padding: 12px; border: 2px solid var(--color-code-border); background: var(--color-code-bg); color: var(--color-lime); font: 11px/1.7 var(--font-term); }
+}
+/* Hidden on phone (≤650px), shown on desktop. Complements the `phone:` prefix. */
+.show-desktop { display: none; }
+@media (min-width: 651px) {
+  .show-desktop { display: flex; }
 }
 @utility setup-warning {
   padding: 14px;

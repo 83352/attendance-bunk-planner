@@ -47,7 +47,7 @@ export function Calculator({ config, sectionName, sections, selectedSectionId, o
     <>
       <SiteHeader />
       <main className="mx-auto w-full max-w-[680px] min-h-[calc(100vh-47px)] px-5 pt-3 pb-[calc(56px+env(safe-area-inset-bottom))] phone:px-3 phone:pb-[calc(44px+env(safe-area-inset-bottom))]">
-        <section className="mx-auto w-full max-w-[294px] border-[3px] border-black bg-paper px-4 pt-[17px] pb-[18px] shadow-hard animate-rise phone:max-w-[420px] phone:pt-[18px] phone:pb-5" aria-label="Attendance calculator">
+        <section className="mx-auto w-full max-w-[480px] border-[3px] border-black bg-paper px-4 pt-[17px] pb-[18px] shadow-hard animate-rise phone:pt-[20px] phone:pb-[22px]" aria-label="Attendance calculator">
           <div className="mb-4 flex items-start gap-3 phone:mb-[19px] phone:gap-2.5">
             <span className="mt-px grid size-[27px] shrink-0 place-items-center border-2 border-black bg-orange font-term text-[11px] leading-none font-black text-white">01</span>
             <div>
@@ -61,13 +61,13 @@ export function Calculator({ config, sectionName, sections, selectedSectionId, o
           <div className="mb-[17px] grid gap-4 phone:mb-5 phone:gap-[18px]">
             <label className="relative grid gap-[7px] text-[10px] leading-[1.1] font-black text-black phone:gap-2">
               Current attendance %
-              <input className="input-placeholder relative z-[1] min-h-[54px] w-full border-[3px] border-black bg-surface px-[13px] py-2 pr-[38px] font-sans text-[30px] leading-[.95] font-black text-black shadow-[2px_2px_0_var(--shadow-color)] outline-none focus:border-orange focus:outline-2 focus:outline-lime focus:outline-offset-2 phone:min-h-[56px] phone:pl-3" inputMode="decimal" value={current} placeholder="Enter your attendance..." onChange={(event) => setCurrent(event.target.value)} aria-label="Current attendance percentage" />
-              <span className="absolute right-3 bottom-[13px] z-[2] font-term text-[13px] leading-none font-bold text-grey phone:bottom-[15px]">%</span>
+              <input className="input-placeholder relative z-[1] min-h-[60px] w-full border-[3px] border-black bg-surface px-[13px] py-2 pr-[38px] font-sans text-[30px] leading-[.95] font-black text-black shadow-[2px_2px_0_var(--shadow-color)] outline-none focus:border-orange focus:outline-2 focus:outline-lime focus:outline-offset-2 phone:min-h-[68px] phone:px-4 phone:text-[34px]" inputMode="decimal" value={current} placeholder="Enter your attendance..." onChange={(event) => setCurrent(event.target.value)} aria-label="Current attendance percentage" />
+              <span className="absolute right-3 bottom-[13px] z-[2] font-term text-[13px] leading-none font-bold text-grey phone:right-4 phone:bottom-[20px] phone:text-[15px]">%</span>
             </label>
             <label className="relative grid gap-[7px] text-[10px] leading-[1.1] font-black text-black phone:gap-2">
               Target attendance %
-              <input className="relative z-[1] min-h-[54px] w-full border-[3px] border-black bg-surface px-[13px] py-2 pr-[38px] font-sans text-[30px] leading-[.95] font-black text-black shadow-[2px_2px_0_var(--shadow-color)] outline-none focus:border-orange focus:outline-2 focus:outline-lime focus:outline-offset-2 phone:min-h-[56px] phone:pl-3" inputMode="decimal" value={target} onChange={(event) => setTarget(event.target.value)} aria-label="Target attendance percentage" />
-              <span className="absolute right-3 bottom-[13px] z-[2] font-term text-[13px] leading-none font-bold text-grey phone:bottom-[15px]">%</span>
+              <input className="relative z-[1] min-h-[60px] w-full border-[3px] border-black bg-surface px-[13px] py-2 pr-[38px] font-sans text-[30px] leading-[.95] font-black text-black shadow-[2px_2px_0_var(--shadow-color)] outline-none focus:border-orange focus:outline-2 focus:outline-lime focus:outline-offset-2 phone:min-h-[68px] phone:px-4 phone:text-[34px]" inputMode="decimal" value={target} onChange={(event) => setTarget(event.target.value)} aria-label="Target attendance percentage" />
+              <span className="absolute right-3 bottom-[13px] z-[2] font-term text-[13px] leading-none font-bold text-grey phone:right-4 phone:bottom-[20px] phone:text-[15px]">%</span>
             </label>
           </div>
           {error && <p className="mb-[13px] border-2 border-black bg-danger-bg p-2 font-term text-[11px] leading-[1.3] font-bold text-error" role="alert">{error}</p>}
@@ -77,9 +77,9 @@ export function Calculator({ config, sectionName, sections, selectedSectionId, o
           </button>
         </section>
 
-        {result ? <Results result={result} endDate={config.semesterEnd} /> : <p className="mx-auto mt-[18px] w-full max-w-[294px] text-center font-term text-[9px] leading-[1.45] text-muted phone:mt-5 phone:max-w-[420px] phone:px-2">Your timetable and semester calendar are already loaded.</p>}
+        {result ? <Results result={result} endDate={config.semesterEnd} /> : <p className="mx-auto mt-[18px] w-full max-w-[480px] text-center font-term text-[9px] leading-[1.45] text-muted phone:mt-5 phone:px-2">Your timetable and semester calendar are already loaded.</p>}
 
-        <a className="mx-auto mt-3 flex min-h-11 w-full max-w-[294px] items-center justify-center py-[3px] text-center font-term text-[9px] font-black uppercase tracking-[.55px] text-muted underline decoration-link decoration-dotted decoration-[3px] underline-offset-[3px] hover:text-black phone:mt-2.5 phone:max-w-[420px]" href="/admin">Owner? Admin panel</a>
+<a className="show-desktop mx-auto mt-3 min-h-11 w-full max-w-[480px] items-center justify-center py-[3px] text-center font-term text-[9px] font-black uppercase tracking-[.55px] text-muted underline decoration-link decoration-dotted decoration-[3px] underline-offset-[3px] hover:text-black phone:mt-2.5" href="/admin">Owner? Admin panel</a>
       </main>
     </>
   );
