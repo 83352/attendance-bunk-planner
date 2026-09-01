@@ -129,6 +129,29 @@ html { color-scheme: light; }
     background: var(--color-orange);
   }
 }
+/* Same lift + press feedback as the Calculate CTA, sized for the chip-style
+   section buttons. Pair with the existing chip base classes; this utility only
+   owns the hover/active motion and transition timing. */
+@utility btn-section-hover {
+  transition-property: transform, box-shadow, background;
+  transition-duration: .16s;
+  transition-timing-function: ease-out;
+  &:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 7px 7px 0 var(--shadow-color);
+    background: var(--color-cream);
+  }
+  &:active {
+    transform: translate(3px, 3px);
+    box-shadow: 2px 2px 0 var(--shadow-color);
+  }
+  /* Active chip already has the lime fill + 5px hard shadow; don't lift it on
+     hover or press it down on click. */
+  &[aria-pressed="true"] {
+    transform: none;
+    box-shadow: 5px 5px 0 var(--color-chip-shadow);
+  }
+}
 /* Error state for the attendance inputs. Pair with a red error message. */
 @utility input-error {
   border-color: var(--color-error) !important;
