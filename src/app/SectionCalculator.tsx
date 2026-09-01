@@ -27,18 +27,13 @@ type SectionCalculatorProps = {
  * picker.
  */
 export function SectionCalculator({ sections, configsBySection, namesBySection }: SectionCalculatorProps) {
-  function handleHomeClick() {
-    if (typeof window !== 'undefined' && window.location.search) {
-      window.history.replaceState(null, '', window.location.pathname);
-    }
-    return true;
-  }
-
   if (sections.length === 0) {
-    return <EmptyState onHomeClick={handleHomeClick} />;
+    return <EmptyState />;
   }
 
-  return <Calculator sections={sections} configsBySection={configsBySection} namesBySection={namesBySection} onHomeClick={handleHomeClick} />;
+  // Calculator owns its own home-click reset, so the logo "just works"
+  // without any prop threading.
+  return <Calculator sections={sections} configsBySection={configsBySection} namesBySection={namesBySection} />;
 }
 
 /**
@@ -46,10 +41,10 @@ export function SectionCalculator({ sections, configsBySection, namesBySection }
  * header + an empty chip row + a prompt to use the admin panel. Mirrors
  * the layout in Calculator.tsx so the page looks complete.
  */
-function EmptyState({ onHomeClick }: { onHomeClick?: (event: React.MouseEvent<HTMLAnchorElement>) => boolean | void }) {
+function EmptyState() {
   return (
     <>
-      <SiteHeader onHomeClick={onHomeClick} />
+      <SiteHeader />
       <main className="mx-auto w-full max-w-[680px] min-h-[calc(100vh-47px)] px-5 pt-3 pb-[calc(56px+env(safe-area-inset-bottom))] phone:px-3 phone:pb-[calc(44px+env(safe-area-inset-bottom))]">
         <section className="mx-auto w-full max-w-[680px] border-[3px] border-black bg-paper px-[clamp(16px,2vw,24px)] pt-[clamp(17px,2vw,24px)] pb-[clamp(18px,2.2vw,26px)] shadow-hard animate-rise" aria-label="Attendance calculator">
           <div className="mb-[clamp(16px,2vw,22px)]">

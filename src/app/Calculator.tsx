@@ -16,13 +16,9 @@ type CalculatorProps = {
   configsBySection: Record<string, ScheduleConfig>;
   /** Display name for each section id. */
   namesBySection: Record<string, string>;
-  /** Click handler for the dontbunk logo in the header. Return true to
-   *  prevent the default Link navigation when the caller has already reset
-   *  state in place. */
-  onHomeClick?: (event: React.MouseEvent<HTMLAnchorElement>) => boolean | void;
 };
 
-export function Calculator({ sections, configsBySection, namesBySection, onHomeClick }: CalculatorProps) {
+export function Calculator({ sections, configsBySection, namesBySection }: CalculatorProps) {
   // The active section lives here, not in the parent, so the card stays
   // mounted when the user switches chips. That means the rise-in animation
   // only plays once (on first load), and there is no remount flash.
@@ -52,9 +48,20 @@ export function Calculator({ sections, configsBySection, namesBySection, onHomeC
     setResultFor('');
   }, [activeId]);
 
+  // Logo click: send the user back to the blank picker. We prevent the
+  // Link's default navigation and clear state in place — no full page
+  // reload, no remount flash, no leftover ?section= in the URL.
+  function handleHomeClick() {
+    setActiveId('');
+    if (typeof window !== 'undefined' && window.location.search) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+    return true;
+  }
+
   const active = sections.find((section) => section.id === activeId);
   const config = active ? configsBySection[active.id] : undefined;
-  const sectionName = active ? (namesBySection[active.id] ?? active.name) : 'attendance desk';
+  const sectionName = active ? (namesBySection[active.id] ?? active.name) : null;
   // Use the section the result was computed for, so the footer date stays
   // correct after a section switch.
   const resultSection = sections.find((section) => section.id === resultFor);
@@ -90,11 +97,11 @@ export function Calculator({ sections, configsBySection, namesBySection, onHomeC
 
   return (
     <>
-      <SiteHeader onHomeClick={onHomeClick} />
+      <SiteHeader onHomeClick={handleHomeClick} />
       <main className="mx-auto w-full max-w-[680px] min-h-[calc(100vh-47px)] px-5 pt-3 pb-[calc(56px+env(safe-area-inset-bottom))] phone:px-3 phone:pb-[calc(44px+env(safe-area-inset-bottom))]">
         <section className="mx-auto w-full max-w-[680px] border-[3px] border-black bg-paper px-[clamp(16px,2vw,24px)] pt-[clamp(17px,2vw,24px)] pb-[clamp(18px,2.2vw,26px)] shadow-hard animate-rise" aria-label="Attendance calculator">
           <div className="mb-[clamp(16px,2vw,22px)]">
-            <p className="eyebrow-text mb-[3px] text-[10px] text-black">{sectionName} / attendance desk</p>
+            <p className="eyebrow-text mb-[3px] text-[10px] text-black">{sectionName ? `${sectionName} / attendance desk` : 'attendance desk'}</p>
             <h1 className="m-0 font-display text-[clamp(27px,4.4vw,40px)] leading-[.95] font-black tracking-[.2px] uppercase">Can I bunk?</h1>
           </div>
 

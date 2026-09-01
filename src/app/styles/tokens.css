@@ -136,12 +136,15 @@ html { color-scheme: light; }
   transition-property: transform, box-shadow, background;
   transition-duration: .16s;
   transition-timing-function: ease-out;
-  &:hover {
+  /* Hover and press only apply to non-active chips. On mobile, a tapped
+     chip can stay stuck in :hover (no mouseleave fires), so applying the
+     cream :hover background there would cover the active chip's lime fill. */
+  &:not([aria-pressed="true"]):hover {
     transform: translate(-2px, -2px);
     box-shadow: 7px 7px 0 var(--shadow-color);
     background: var(--color-cream);
   }
-  &:active {
+  &:not([aria-pressed="true"]):active {
     transform: translate(3px, 3px);
     box-shadow: 2px 2px 0 var(--shadow-color);
   }
@@ -150,6 +153,7 @@ html { color-scheme: light; }
   &[aria-pressed="true"] {
     transform: none;
     box-shadow: 5px 5px 0 var(--color-chip-shadow);
+    background-color: var(--color-chip-bg);
   }
 }
 /* Error state for the attendance inputs. Pair with a red error message. */
