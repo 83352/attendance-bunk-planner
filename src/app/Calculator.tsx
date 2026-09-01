@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { calculateAttendance } from '@/domain/attendance/engine';
 import type { AttendanceResult } from '@/domain/attendance/types';
 import type { ScheduleConfig } from '@/domain/schedule/types';
@@ -11,14 +11,22 @@ const formatter = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'sho
 const percentage = (value: number) => `${value.toFixed(2)}%`;
 
 type CalculatorProps = {
-  config: ScheduleConfig;
-  sectionName: string;
   sections: SectionOption[];
-  selectedSectionId: string;
-  onSelectSection?: (sectionId: string) => void;
+  /** Map of section id -> that section's loaded ScheduleConfig. */
+  configsBySection: Record<string, ScheduleConfig>;
+  /** Display name for each section id. */
+  namesBySection: Record<string, string>;
+  /** Click handler for the dontbunk logo in the header. Return true to
+   *  prevent the default Link navigation when the caller has already reset
+   *  state in place. */
+  onHomeClick?: (event: React.MouseEvent<HTMLAnchorElement>) => boolean | void;
 };
 
-export function Calculator({ config, sectionName, sections, selectedSectionId, onSelectSection }: CalculatorProps) {
+export function Calculator({ sections, configsBySection, namesBySection, onHomeClick }: CalculatorProps) {
+  // The active section lives here, not in the parent, so the card stays
+  // mounted when the user switches chips. That means the rise-in animation
+  // only plays once (on first load), and there is no remount flash.
+  const [activeId, setActiveId] = useState('');
   const [current, setCurrent] = useState('');
   const [target, setTarget] = useState('75');
   const [result, setResult] = useState<AttendanceResult | null>(null);
@@ -28,9 +36,33 @@ export function Calculator({ config, sectionName, sections, selectedSectionId, o
   // its flash replays) exclusively on a fresh button press, never on
   // an input change.
   const [resultSeq, setResultSeq] = useState(0);
+  // Track the section we calculated for so the Result renders with the
+  // right `config.semesterEnd` even after a switch. We don't try to
+  // reconcile the previous numbers — switching clears them.
+  const [resultFor, setResultFor] = useState<string>('');
+
+  // Section switch: drop the per-section inputs and any result so the user
+  // never sees stale numbers from a different timetable.
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) { firstRender.current = false; return; }
+    setCurrent('');
+    setError('');
+    setResult(null);
+    setResultFor('');
+  }, [activeId]);
+
+  const active = sections.find((section) => section.id === activeId);
+  const config = active ? configsBySection[active.id] : undefined;
+  const sectionName = active ? (namesBySection[active.id] ?? active.name) : 'attendance desk';
+  // Use the section the result was computed for, so the footer date stays
+  // correct after a section switch.
+  const resultSection = sections.find((section) => section.id === resultFor);
+  const resultEndDate = resultSection ? configsBySection[resultSection.id]?.semesterEnd : undefined;
 
   function calculate() {
     if (calculating) return;
+    if (!activeId || !config) return;
     if (current.trim() === '') {
       setError('Enter your attendance to find out.');
       return;
@@ -50,6 +82,7 @@ export function Calculator({ config, sectionName, sections, selectedSectionId, o
     // Brief spinner so the result reveal feels intentional.
     window.setTimeout(() => {
       setResult(calculateAttendance({ config, now: new Date(), currentPercentage: currentValue, targetPercentage: targetValue }));
+      setResultFor(activeId);
       setResultSeq((n) => n + 1);
       setCalculating(false);
     }, 250);
@@ -57,7 +90,7 @@ export function Calculator({ config, sectionName, sections, selectedSectionId, o
 
   return (
     <>
-      <SiteHeader />
+      <SiteHeader onHomeClick={onHomeClick} />
       <main className="mx-auto w-full max-w-[680px] min-h-[calc(100vh-47px)] px-5 pt-3 pb-[calc(56px+env(safe-area-inset-bottom))] phone:px-3 phone:pb-[calc(44px+env(safe-area-inset-bottom))]">
         <section className="mx-auto w-full max-w-[680px] border-[3px] border-black bg-paper px-[clamp(16px,2vw,24px)] pt-[clamp(17px,2vw,24px)] pb-[clamp(18px,2.2vw,26px)] shadow-hard animate-rise" aria-label="Attendance calculator">
           <div className="mb-[clamp(16px,2vw,22px)]">
@@ -65,28 +98,34 @@ export function Calculator({ config, sectionName, sections, selectedSectionId, o
             <h1 className="m-0 font-display text-[clamp(27px,4.4vw,40px)] leading-[.95] font-black tracking-[.2px] uppercase">Can I bunk?</h1>
           </div>
 
-          <SectionSelector sections={sections} selectedSectionId={selectedSectionId} onSelect={onSelectSection ?? (() => {})} />
+          <SectionSelector sections={sections} selectedSectionId={activeId} onSelect={setActiveId} />
 
-          <div className="mb-[clamp(17px,2vw,22px)] grid gap-[clamp(16px,1.8vw,20px)]">
-            <label className="relative grid gap-[clamp(7px,.8vw,10px)] text-[12px] leading-[1.1] font-black text-black">
-              Current attendance %
-              <input className={`input-placeholder relative z-[1] min-h-[clamp(60px,8vw,80px)] w-full border-[3px] border-black bg-surface px-[clamp(13px,1.6vw,18px)] py-2 pr-[clamp(38px,5vw,52px)] font-sans text-[clamp(30px,4vw,40px)] leading-[.95] font-black text-black shadow-[2px_2px_0_var(--shadow-color)] outline-none focus:border-orange focus:outline-2 focus:outline-lime focus:outline-offset-2 ${error ? 'input-error' : ''}`} inputMode="decimal" value={current} placeholder="Enter your attendance..." onChange={(event) => { setCurrent(event.target.value); if (error) setError(''); }} aria-invalid={error ? true : undefined} aria-label="Current attendance percentage" />
+          {active ? (
+            <>
+              <div className="mb-[clamp(17px,2vw,22px)] grid gap-[clamp(16px,1.8vw,20px)]">
+                <label className="relative grid gap-[clamp(7px,.8vw,10px)] text-[12px] leading-[1.1] font-black text-black">
+                  Current attendance %
+                  <input className={`input-placeholder relative z-[1] min-h-[clamp(60px,8vw,80px)] w-full border-[3px] border-black bg-surface px-[clamp(13px,1.6vw,18px)] py-2 pr-[clamp(38px,5vw,52px)] font-sans text-[clamp(30px,4vw,40px)] leading-[.95] font-black text-black shadow-[2px_2px_0_var(--shadow-color)] outline-none focus:border-orange focus:outline-2 focus:outline-lime focus:outline-offset-2 ${error ? 'input-error' : ''}`} inputMode="decimal" value={current} placeholder="Enter your attendance..." onChange={(event) => { setCurrent(event.target.value); if (error) setError(''); }} aria-invalid={error ? true : undefined} aria-label="Current attendance percentage" />
 <span className="absolute right-[clamp(12px,1.6vw,18px)] bottom-[clamp(13px,2.4vw,24px)] z-[2] font-term text-[clamp(16px,2vw,20px)] leading-none font-bold text-grey">%</span>
-            </label>
-            <label className="relative grid gap-[clamp(7px,.8vw,10px)] text-[12px] leading-[1.1] font-black text-black">
-              Target attendance %
-              <input className={`relative z-[1] min-h-[clamp(60px,8vw,80px)] w-full border-[3px] border-black bg-surface px-[clamp(13px,1.6vw,18px)] py-2 pr-[clamp(38px,5vw,52px)] font-sans text-[clamp(30px,4vw,40px)] leading-[.95] font-black text-black shadow-[2px_2px_0_var(--shadow-color)] outline-none focus:border-orange focus:outline-2 focus:outline-lime focus:outline-offset-2 ${error ? 'input-error' : ''}`} inputMode="decimal" value={target} onChange={(event) => { setTarget(event.target.value); if (error) setError(''); }} aria-invalid={error ? true : undefined} aria-label="Target attendance percentage" />
-              <span className="absolute right-[clamp(12px,1.6vw,18px)] bottom-[clamp(13px,2.4vw,24px)] z-[2] font-term text-[clamp(16px,2vw,20px)] leading-none font-bold text-grey">%</span>
-            </label>
-          </div>
-          {error && <p className="mb-[13px] border-2 border-black bg-danger-bg p-2 font-term text-[11px] leading-[1.3] font-bold text-error" role="alert">{error}</p>}
+                </label>
+                <label className="relative grid gap-[clamp(7px,.8vw,10px)] text-[12px] leading-[1.1] font-black text-black">
+                  Target attendance %
+                  <input className={`relative z-[1] min-h-[clamp(60px,8vw,80px)] w-full border-[3px] border-black bg-surface px-[clamp(13px,1.6vw,18px)] py-2 pr-[clamp(38px,5vw,52px)] font-sans text-[clamp(30px,4vw,40px)] leading-[.95] font-black text-black shadow-[2px_2px_0_var(--shadow-color)] outline-none focus:border-orange focus:outline-2 focus:outline-lime focus:outline-offset-2 ${error ? 'input-error' : ''}`} inputMode="decimal" value={target} onChange={(event) => { setTarget(event.target.value); if (error) setError(''); }} aria-invalid={error ? true : undefined} aria-label="Target attendance percentage" />
+                  <span className="absolute right-[clamp(12px,1.6vw,18px)] bottom-[clamp(13px,2.4vw,24px)] z-[2] font-term text-[clamp(16px,2vw,20px)] leading-none font-bold text-grey">%</span>
+                </label>
+              </div>
+              {error && <p className="mb-[13px] border-2 border-black bg-danger-bg p-2 font-term text-[11px] leading-[1.3] font-bold text-error" role="alert">{error}</p>}
 
-          <button className="btn-calculate btn-calculate-hover" type="button" onClick={calculate} disabled={calculating} aria-busy={calculating}>
-            {calculating ? 'Calculating…' : <>Can I bunk? <span aria-hidden="true">↗</span></>}
-          </button>
+              <button className="btn-calculate btn-calculate-hover" type="button" onClick={calculate} disabled={calculating} aria-busy={calculating}>
+                {calculating ? 'Calculating…' : <>Can I bunk? <span aria-hidden="true">↗</span></>}
+              </button>
+            </>
+          ) : (
+            <p className="mt-[6px] font-term text-[12px] leading-[1.4] text-muted">Pick your section above to load its timetable.</p>
+          )}
         </section>
 
-        {result ? <Results key={resultSeq} result={result} endDate={config.semesterEnd} /> : <p className="mx-auto mt-[clamp(18px,2.4vw,24px)] w-full max-w-[680px] text-center font-term text-[9px] leading-[1.45] text-muted">Your timetable and semester calendar are already loaded.</p>}
+        {result && resultEndDate ? <Results key={resultSeq} result={result} endDate={resultEndDate} /> : null}
 
 <a className="show-desktop mx-auto mt-[clamp(10px,1.6vw,16px)] min-h-11 w-full max-w-[680px] items-center justify-center py-[3px] text-center font-term text-[9px] font-black uppercase tracking-[.55px] text-muted underline decoration-link decoration-dotted decoration-[3px] underline-offset-[3px] hover:text-black" href="/admin">Owner? Admin panel</a>
       </main>
