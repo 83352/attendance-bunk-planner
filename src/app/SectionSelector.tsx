@@ -19,8 +19,8 @@ type SectionSelectorProps = {
  *   - branches with exactly 1 member render as that section's chip directly
  *     so the user commits in a single tap.
  *
- * Sections whose names aren't in BRANCH_GROUPS are dropped; a dev-only
- * console.warn lists them so we know to extend the curated list.
+ * Sections whose names aren't in BRANCH_GROUPS are shown under Other and also
+ * produce a development warning so the curated list can be extended later.
  */
 export function SectionSelector({ sections, selectedSectionId, onSelect }: SectionSelectorProps) {
   if (sections.length === 0) return null;
@@ -66,10 +66,10 @@ function BranchPicker({ sections, selectedSectionId, onSelect }: { sections: Sec
   const { multiGroups, singleSections, unmatched } = useMemo(() => {
     const buckets = new Map<string, SectionOption[]>();
     for (const group of BRANCH_GROUPS) buckets.set(group.label, []);
-    const unmatchedNames: string[] = [];
+    const unmatched: SectionOption[] = [];
     for (const section of sections) {
       const label = groupOf(section.name);
-      if (label === null) { unmatchedNames.push(section.name); continue; }
+      if (label === null) { unmatched.push(section); continue; }
       const list = buckets.get(label) ?? [];
       list.push(section);
     }
@@ -81,13 +81,13 @@ function BranchPicker({ sections, selectedSectionId, onSelect }: { sections: Sec
       const list = buckets.get(group.label) ?? [];
       if (list.length === 1 && list[0]) singleSections.push(list[0]);
     }
-    return { multiGroups, singleSections, unmatched: unmatchedNames };
+    return { multiGroups, singleSections, unmatched };
   }, [sections]);
 
   // Surface unmatched section names once so a developer notices the list is stale.
   useEffect(() => {
     if (unmatched.length > 0 && typeof console !== 'undefined') {
-      console.warn(`SectionSelector: no branch group for ${unmatched.join(', ')}. Add them to BRANCH_GROUPS.`);
+      console.warn(`SectionSelector: no branch group for ${unmatched.map((section) => section.name).join(', ')}. Add them to BRANCH_GROUPS.`);
     }
   }, [unmatched]);
 
@@ -128,6 +128,12 @@ function BranchPicker({ sections, selectedSectionId, onSelect }: { sections: Sec
               </button>
             );
           })}
+          {unmatched.length > 0 && <div className="flex basis-full flex-wrap gap-3" aria-label="Other sections">
+            {unmatched.map((section) => {
+              const isActive = section.id === selectedSectionId;
+              return <button key={section.id} type="button" onClick={() => onSelect(section.id)} className={`btn-section-hover inline-flex min-h-[clamp(44px,5.6vw,56px)] cursor-pointer items-center justify-center border-2 px-[clamp(16px,2vw,22px)] py-[clamp(10px,1.2vw,14px)] font-term text-[clamp(12px,1.5vw,14px)] font-bold uppercase tracking-[.55px] ${isActive ? 'border-chip-border text-chip-ink [animation:var(--animate-chip-pop)]' : 'border-black bg-surface text-black shadow-[5px_5px_0_var(--shadow-color)]'}`} aria-pressed={isActive}>{section.name}</button>;
+            })}
+          </div>}
         </div>
       ) : (
         <div className="mt-[7px] flex flex-col gap-3">

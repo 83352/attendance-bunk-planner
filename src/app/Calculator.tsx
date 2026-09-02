@@ -36,17 +36,26 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
   // right `config.semesterEnd` even after a switch. We don't try to
   // reconcile the previous numbers — switching clears them.
   const [resultFor, setResultFor] = useState<string>('');
+  const calculationTimer = useRef<number | null>(null);
 
   // Section switch: drop the per-section inputs and any result so the user
   // never sees stale numbers from a different timetable.
   const firstRender = useRef(true);
   useEffect(() => {
+    if (calculationTimer.current !== null) {
+      window.clearTimeout(calculationTimer.current);
+      calculationTimer.current = null;
+    }
     if (firstRender.current) { firstRender.current = false; return; }
     setCurrent('');
     setError('');
     setResult(null);
     setResultFor('');
   }, [activeId]);
+
+  useEffect(() => () => {
+    if (calculationTimer.current !== null) window.clearTimeout(calculationTimer.current);
+  }, []);
 
   // Logo click: send the user back to the blank picker. We prevent the
   // Link's default navigation and clear state in place — no full page
@@ -87,7 +96,10 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
     setError('');
     setCalculating(true);
     // Brief spinner so the result reveal feels intentional.
-    window.setTimeout(() => {
+    const requestedSectionId = activeId;
+    calculationTimer.current = window.setTimeout(() => {
+      calculationTimer.current = null;
+      if (requestedSectionId !== activeId) return;
       setResult(calculateAttendance({ config, now: new Date(), currentPercentage: currentValue, targetPercentage: targetValue }));
       setResultFor(activeId);
       setResultSeq((n) => n + 1);

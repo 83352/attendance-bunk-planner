@@ -41,7 +41,7 @@ describe('semesterConfigSchema', () => {
     if (!parsed.success) expect(parsed.error.issues[0].message).toBe('Exam name is required.');
   });
 
-  it('rejects duplicate exam names regardless of case', () => {
+  it('allows duplicate exam names', () => {
     const parsed = semesterConfigSchema.safeParse({
       ...baseConfig,
       exams: [
@@ -49,8 +49,7 @@ describe('semesterConfigSchema', () => {
         { name: 'mid 1', start: '2026-09-05', end: '2026-09-05', periodsPerDay: 2 },
       ],
     });
-    expect(parsed.success).toBe(false);
-    if (!parsed.success) expect(parsed.error.issues[0].message).toBe('Each exam name must be unique.');
+    expect(parsed.success).toBe(true);
   });
 
   it('rejects holidays outside the semester', () => {
@@ -77,10 +76,27 @@ describe('semesterConfigSchema', () => {
   it('rejects special Saturdays outside the semester', () => {
     const parsed = semesterConfigSchema.safeParse({
       ...baseConfig,
-      specialSaturdays: [{ date: '2026-12-25', copiedWeekday: 1 }],
+      specialSaturdays: [{ date: '2026-12-26', copiedWeekday: 1 }],
     });
     expect(parsed.success).toBe(false);
     if (!parsed.success) expect(parsed.error.issues[0].message).toBe('Special Saturday dates must be inside the semester.');
+  });
+
+  it('rejects a special Saturday entry on a weekday', () => {
+    const parsed = semesterConfigSchema.safeParse({
+      ...baseConfig,
+      specialSaturdays: [{ date: '2026-07-06', copiedWeekday: 1 }],
+    });
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) expect(parsed.error.issues[0].message).toBe('Special Saturday dates must be Saturdays.');
+  });
+
+  it('rejects impossible calendar dates', () => {
+    const parsed = semesterConfigSchema.safeParse({
+      ...baseConfig,
+      holidays: [{ name: 'Invalid', start: '2026-02-30', end: '2026-02-30' }],
+    });
+    expect(parsed.success).toBe(false);
   });
 
   it('accepts exceptions exactly on the semester boundaries', () => {

@@ -12,7 +12,8 @@ export default async function Home() {
     return <SectionCalculator sections={sections} configsBySection={{ '': defaultConfig }} namesBySection={{ '': 'CSE 5' }} />;
   }
 
-  const { data: sectionRows } = await supabase.from('sections').select('id, name').order('name');
+  const { data: sectionRows, error: sectionsError } = await supabase.from('sections').select('id, name').order('name');
+  if (sectionsError) throw new Error('Unable to load sections.');
   const sections = (sectionRows ?? []).map((row) => ({ id: row.id, name: row.name }));
 
   if (sections.length === 0) {

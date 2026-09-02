@@ -19,6 +19,7 @@ export type SpecialSaturday = {
 };
 
 export type ExamPeriod = {
+  id?: string;
   name: string;
   start: string;
   end: string;

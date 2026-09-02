@@ -20,7 +20,7 @@ const adminInput = 'min-w-0 border-2 border-black bg-surface px-2 py-2.5 font-sa
 const removeButton = 'size-7 shrink-0 border-2 border-black bg-danger-bg font-term text-[20px] leading-none font-bold text-danger-ink cursor-pointer';
 const fieldHelp = 'font-term text-[11px] leading-[1.4] text-muted';
 
-export function ConfigEditor({ initialConfig, sections, initialSectionId, initialSectionName, configsBySection, updatedAtBySection }: { initialConfig: ScheduleConfig; sections: SectionOption[]; initialSectionId: string; initialSectionName: string; configsBySection: Record<string, ScheduleConfig>; updatedAtBySection: Record<string, string | null> }) {
+export function ConfigEditor({ initialConfig, sections, initialSectionId, initialSectionName, configsBySection, updatedAtBySection, calendarUpdatedAt }: { initialConfig: ScheduleConfig; sections: SectionOption[]; initialSectionId: string; initialSectionName: string; configsBySection: Record<string, ScheduleConfig>; updatedAtBySection: Record<string, string | null>; calendarUpdatedAt: string }) {
   const router = useRouter();
   // Active section lives in client state so picking a different section is
   // a pure state update — no router navigation, no server re-render. The
@@ -31,6 +31,7 @@ export function ConfigEditor({ initialConfig, sections, initialSectionId, initia
   // renames the section through saveSemesterConfig. Seeded from the active
   // section's name and reset whenever the user switches sections.
   const [sectionName, setSectionName] = useState(initialSectionName);
+    const [examIds, setExamIds] = useState(() => config.exams.map(() => crypto.randomUUID()));
   const [draggedPeriod, setDraggedPeriod] = useState<number | null>(null);
   const [state, action, pending] = useActionState(saveSemesterConfig, {});
   // Active section's optimistic-lock timestamp. Used by the save action
@@ -57,9 +58,18 @@ export function ConfigEditor({ initialConfig, sections, initialSectionId, initia
   const handleSectionChange = (choice: string) => {
     setActiveSectionId(choice);
     setConfig(configsBySection[choice] ?? initialConfig);
+    setExamIds((configsBySection[choice] ?? initialConfig).exams.map(() => crypto.randomUUID()));
     // Reset the editable name to the new section's name so the user
     // doesn't carry a draft rename over from the previous section.
     setSectionName(sections.find((section) => section.id === choice)?.name ?? '');
+  };
+  const handleSectionDeleted = () => {
+    const nextSection = sections.find((section) => section.id !== activeSectionId);
+    const nextConfig = nextSection ? (configsBySection[nextSection.id] ?? initialConfig) : initialConfig;
+    setActiveSectionId(nextSection?.id ?? '');
+    setConfig(nextConfig);
+    setExamIds(nextConfig.exams.map(() => crypto.randomUUID()));
+    setSectionName(nextSection?.name ?? '');
   };
   const update = (changes: Partial<ScheduleConfig>) => setConfig((current) => ({ ...current, ...changes }));
   const updatePeriod = (index: number, changes: Partial<TimetablePeriod>) => update({ timetable: config.timetable.map((period, periodIndex) => periodIndex === index ? { ...period, ...changes } : period) });
@@ -68,7 +78,12 @@ export function ConfigEditor({ initialConfig, sections, initialSectionId, initia
   const movePeriod = (fromIndex: number, toIndex: number) => { if (toIndex < 0 || toIndex >= config.timetable.length || config.timetable[toIndex]?.weekday !== config.timetable[fromIndex]?.weekday) return; const reordered = [...config.timetable]; const [period] = reordered.splice(fromIndex, 1); reordered.splice(toIndex, 0, period); update({ timetable: reordered.map((item) => item.weekday === period.weekday ? { ...item, sequence: reordered.filter((candidate) => candidate.weekday === period.weekday).findIndex((candidate) => candidate === item) + 1 } : item) }); };
   const addHoliday = () => update({ holidays: [...config.holidays, { name: 'Holiday', start: config.semesterStart, end: config.semesterStart }] });
   const removeHoliday = (index: number) => update({ holidays: config.holidays.filter((_, itemIndex) => itemIndex !== index) });
-  const addSaturday = () => update({ specialSaturdays: [...config.specialSaturdays, { date: config.semesterStart, copiedWeekday: 2 }] });
+    const addSaturday = () => {
+      const date = new Date(`${config.semesterStart}T00:00:00Z`);
+      date.setUTCDate(date.getUTCDate() + ((6 - date.getUTCDay() + 7) % 7));
+      const saturday = date.toISOString().slice(0, 10);
+      update({ specialSaturdays: [...config.specialSaturdays, { date: saturday, copiedWeekday: 2 }] });
+    };
   const removeSaturday = (index: number) => update({ specialSaturdays: config.specialSaturdays.filter((_, itemIndex) => itemIndex !== index) });
   const addCustomExam = () => {
     const used = new Set(config.exams.map((exam) => exam.name.trim().toLowerCase()));
@@ -76,9 +91,13 @@ export function ConfigEditor({ initialConfig, sections, initialSectionId, initia
     let name = `Exam ${index}`;
     while (used.has(name.toLowerCase())) { index += 1; name = `Exam ${index}`; }
     update({ exams: [...config.exams, { name, start: config.semesterStart, end: config.semesterStart, periodsPerDay: 2, dailyPeriods: [] }] });
+    setExamIds((current) => [...current, crypto.randomUUID()]);
   };
-  const removeExam = (name: string) => update({ exams: config.exams.filter((exam) => exam.name !== name) });
-  const updateExam = (name: string, changes: Partial<ScheduleConfig['exams'][number]>) => update({ exams: config.exams.map((exam) => exam.name === name ? { ...exam, ...changes } : exam) });
+  const removeExam = (index: number) => {
+    update({ exams: config.exams.filter((_, examIndex) => examIndex !== index) });
+    setExamIds((current) => current.filter((_, examIndex) => examIndex !== index));
+  };
+  const updateExam = (index: number, changes: Partial<ScheduleConfig['exams'][number]>) => update({ exams: config.exams.map((exam, examIndex) => examIndex === index ? { ...exam, ...changes } : exam) });
 
 // Keying on activeSectionId remounts the form on switch so the save
   // success/error banner, the dragged period, and any other form-local
@@ -92,14 +111,14 @@ export function ConfigEditor({ initialConfig, sections, initialSectionId, initia
       <label className={fieldLabel}>Section name<input className={adminInput} value={sectionName} onChange={(event) => setSectionName(event.target.value)} maxLength={80} required /><small className={fieldHelp}>Renames the section when you press Save changes. Saving always updates the currently selected section.</small></label>
       <label className={fieldLabel}>Semester starts<DateInput value={config.semesterStart} onChange={(value) => update({ semesterStart: value })} /></label>
       <label className={fieldLabel}>Semester ends<DateInput value={config.semesterEnd} onChange={(value) => update({ semesterEnd: value })} /></label>
-      <SectionManager sections={sections} selectedSectionId={activeSectionId} />
+      <SectionManager sections={sections} selectedSectionId={activeSectionId} onDeleted={handleSectionDeleted} />
     </div>
-<input type="hidden" name="sectionName" value={sectionName} /><input type="hidden" name="activeSectionId" value={activeSectionId} /><input type="hidden" name="config" value={JSON.stringify(config)} /><input type="hidden" name="updatedAt" value={activeUpdatedAt ?? ''} />
+<input type="hidden" name="sectionName" value={sectionName} /><input type="hidden" name="activeSectionId" value={activeSectionId} /><input type="hidden" name="config" value={JSON.stringify(config)} /><input type="hidden" name="updatedAt" value={activeUpdatedAt ?? ''} /><input type="hidden" name="calendarUpdatedAt" value={calendarUpdatedAt} />
     <section className="grid gap-4 pt-[22px] border-t-[3px] border-dotted border-red">
       <div className={adminHeading}><div><p className="eyebrow-text mb-[7px] text-[10px] text-muted">Weekly timetable</p><h2 className={adminH2}>Periods by weekday</h2></div><div className="flex items-start gap-[18px] phone:flex-wrap"><div className="grid shrink-0 justify-items-center gap-0.5"><strong className="font-display text-[25px] leading-none font-black text-teal">{config.timetable.length}</strong><span className="whitespace-nowrap font-term text-[10px] text-muted">regular / week</span></div><div className="grid shrink-0 justify-items-center gap-0.5"><strong className="font-display text-[25px] leading-none font-black text-teal">{semesterPeriodCount}</strong><span className="whitespace-nowrap font-term text-[10px] text-muted">periods this semester</span></div></div></div>
       {days.map(([weekday, label]) => <div className="grid gap-2" key={weekday}><div className="flex items-center justify-between text-[14px]"><strong>{label}</strong><button className={adminButton} type="button" onClick={() => addPeriod(weekday)}>+ period</button></div>{config.timetable.map((period, index) => period.weekday === weekday && <div className="grid grid-cols-[24px_minmax(0,1fr)_12px_minmax(0,1fr)_22px_22px_25px] items-center gap-1" key={`${weekday}-${index}`} draggable onDragStart={() => setDraggedPeriod(index)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedPeriod !== null) movePeriod(draggedPeriod, index); setDraggedPeriod(null); }}><span className="font-term text-[11px] text-muted">#{period.sequence}</span><input className={`${adminInput} min-h-11`} aria-label={`${label} period start`} type="time" value={period.start} onChange={(event) => updatePeriod(index, { start: event.target.value })} /><span className="text-center">→</span><input className={`${adminInput} min-h-11`} aria-label={`${label} period end`} type="time" value={period.end} onChange={(event) => updatePeriod(index, { end: event.target.value })} /><button className={`${adminButton} !p-0 text-center text-[16px]`} type="button" aria-label={`Move ${label} period up`} onClick={() => movePeriod(index, index - 1)}>↑</button><button className={`${adminButton} !p-0 text-center text-[16px]`} type="button" aria-label={`Move ${label} period down`} onClick={() => movePeriod(index, index + 1)}>↓</button><button className={`${adminButton} !p-0 text-center text-[16px]`} type="button" aria-label={`Remove ${label} period`} onClick={() => removePeriod(index)}>×</button></div>)}</div>)}
     </section>
-    <ConfigList title="Exams" actionLabel="+ exam" onAdd={addCustomExam}>{config.exams.map((exam) => <div className="grid gap-2.5" key={exam.name}><div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,1.4fr)_minmax(0,1.2fr)_34px] items-center gap-2 phone:grid-cols-1"><input className={`${adminInput} min-h-11 self-center`} aria-label="Exam name" value={exam.name} onChange={(event) => updateExam(exam.name, { name: event.target.value })} placeholder="Exam name" maxLength={80} /><div className="min-w-0"><DateInput ariaLabel={`${exam.name} start`} value={exam.start} onChange={(value) => updateExam(exam.name, { start: value })} /></div><div className="min-w-0"><DateInput ariaLabel={`${exam.name} end`} value={exam.end} onChange={(value) => updateExam(exam.name, { end: value })} /></div><select className={`${adminInput} phone:w-full`} aria-label={`${exam.name} default periods per day`} value={exam.periodsPerDay} onChange={(event) => updateExam(exam.name, { periodsPerDay: Number(event.target.value) as 2 | 4 })}><option value="2">2 periods/day</option><option value="4">4 periods/day</option></select><button className={`${removeButton} phone:justify-self-end`} type="button" aria-label={`Remove ${exam.name}`} onClick={() => removeExam(exam.name)}>×</button></div><small className={fieldHelp}>Use the default above, then override individual exam dates below.</small>{exam.dailyPeriods?.map((day, dayIndex) => <div className="grid max-w-[330px] grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_28px] items-center gap-1.5 phone:max-w-full" key={`${exam.name}-${dayIndex}`}><DateInput ariaLabel={`${exam.name} override date`} value={day.date} onChange={(value) => updateExam(exam.name, { dailyPeriods: exam.dailyPeriods?.map((entry, entryIndex) => entryIndex === dayIndex ? { ...entry, date: value } : entry) })} /><select className={adminInput} aria-label={`${exam.name} override periods`} value={day.periodsPerDay} onChange={(event) => updateExam(exam.name, { dailyPeriods: exam.dailyPeriods?.map((entry, entryIndex) => entryIndex === dayIndex ? { ...entry, periodsPerDay: Number(event.target.value) as 2 | 4 } : entry) })}><option value="2">2 periods</option><option value="4">4 periods</option></select><button className={removeButton} type="button" aria-label={`Remove ${exam.name} daily override`} onClick={() => updateExam(exam.name, { dailyPeriods: exam.dailyPeriods?.filter((_, entryIndex) => entryIndex !== dayIndex) })}>×</button></div>)}<button className={adminButton} type="button" onClick={() => updateExam(exam.name, { dailyPeriods: [...(exam.dailyPeriods ?? []), { date: exam.start, periodsPerDay: exam.periodsPerDay }] })}>+ date override</button></div>)}</ConfigList>
+    <ConfigList title="Exams" actionLabel="+ exam" onAdd={addCustomExam}>{config.exams.map((exam) => <div className="grid gap-2.5" key={examIds[config.exams.indexOf(exam)]}><div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,1.4fr)_minmax(0,1.2fr)_34px] items-center gap-2 phone:grid-cols-1"><input className={`${adminInput} min-h-11 self-center`} aria-label="Exam name" value={exam.name} onChange={(event) => updateExam(config.exams.indexOf(exam), { name: event.target.value })} placeholder="Exam name" maxLength={80} /><div className="min-w-0"><DateInput ariaLabel={`${exam.name} start`} value={exam.start} onChange={(value) => updateExam(config.exams.indexOf(exam), { start: value })} /></div><div className="min-w-0"><DateInput ariaLabel={`${exam.name} end`} value={exam.end} onChange={(value) => updateExam(config.exams.indexOf(exam), { end: value })} /></div><select className={`${adminInput} phone:w-full`} aria-label={`${exam.name} default periods per day`} value={exam.periodsPerDay} onChange={(event) => updateExam(config.exams.indexOf(exam), { periodsPerDay: Number(event.target.value) as 2 | 4 })}><option value="2">2 periods/day</option><option value="4">4 periods/day</option></select><button className={`${removeButton} phone:justify-self-end`} type="button" aria-label={`Remove ${exam.name}`} onClick={() => removeExam(config.exams.indexOf(exam))}>×</button></div><small className={fieldHelp}>Use the default above, then override individual exam dates below.</small>{exam.dailyPeriods?.map((day, dayIndex) => <div className="grid max-w-[330px] grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_28px] items-center gap-1.5 phone:max-w-full" key={`${examIds[config.exams.indexOf(exam)]}-${dayIndex}`}><DateInput ariaLabel={`${exam.name} override date`} value={day.date} onChange={(value) => updateExam(config.exams.indexOf(exam), { dailyPeriods: exam.dailyPeriods?.map((entry, entryIndex) => entryIndex === dayIndex ? { ...entry, date: value } : entry) })} /><select className={adminInput} aria-label={`${exam.name} override periods`} value={day.periodsPerDay} onChange={(event) => updateExam(config.exams.indexOf(exam), { dailyPeriods: exam.dailyPeriods?.map((entry, entryIndex) => entryIndex === dayIndex ? { ...entry, periodsPerDay: Number(event.target.value) as 2 | 4 } : entry) })}><option value="2">2 periods</option><option value="4">4 periods</option></select><button className={removeButton} type="button" aria-label={`Remove ${exam.name} daily override`} onClick={() => updateExam(config.exams.indexOf(exam), { dailyPeriods: exam.dailyPeriods?.filter((_, entryIndex) => entryIndex !== dayIndex) })}>×</button></div>)}<button className={adminButton} type="button" onClick={() => updateExam(config.exams.indexOf(exam), { dailyPeriods: [...(exam.dailyPeriods ?? []), { date: exam.start, periodsPerDay: exam.periodsPerDay }] })}>+ date override</button></div>)}</ConfigList>
     <ConfigList title="Universal holidays" actionLabel="+ holiday" onAdd={addHoliday}><p className={fieldHelp}>These holidays apply to every section.</p>{config.holidays.map((holiday, index) => <div className="grid grid-cols-[repeat(auto-fit,minmax(100px,1fr))] items-center gap-1.5" key={index}><input className={adminInput} aria-label="Holiday name" value={holiday.name} onChange={(event) => update({ holidays: config.holidays.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item) })} /><DateInput ariaLabel="Holiday start" value={holiday.start} onChange={(value) => update({ holidays: config.holidays.map((item, itemIndex) => itemIndex === index ? { ...item, start: value } : item) })} /><DateInput ariaLabel="Holiday end" value={holiday.end} onChange={(value) => update({ holidays: config.holidays.map((item, itemIndex) => itemIndex === index ? { ...item, end: value } : item) })} /><button className={removeButton} type="button" aria-label={`Remove ${holiday.name}`} onClick={() => removeHoliday(index)}>×</button></div>)}</ConfigList>
     <ConfigList title="Universal special Saturdays" actionLabel="+ Saturday" onAdd={addSaturday}><p className={fieldHelp}>These working Saturdays apply to every section.</p>{config.specialSaturdays.map((special, index) => <div className="grid grid-cols-[repeat(auto-fit,minmax(100px,1fr))] items-center gap-1.5" key={index}><DateInput ariaLabel="Special Saturday date" value={special.date} onChange={(value) => update({ specialSaturdays: config.specialSaturdays.map((item, itemIndex) => itemIndex === index ? { ...item, date: value } : item) })} /><select className={adminInput} aria-label="Copied weekday" value={special.copiedWeekday} onChange={(event) => update({ specialSaturdays: config.specialSaturdays.map((item, itemIndex) => itemIndex === index ? { ...item, copiedWeekday: Number(event.target.value) as Weekday } : item) })}><option value="1">Monday timetable</option><option value="2">Tuesday timetable</option><option value="3">Wednesday timetable</option><option value="4">Thursday timetable</option><option value="5">Friday timetable</option></select><button className={removeButton} type="button" aria-label="Remove special Saturday" onClick={() => removeSaturday(index)}>×</button></div>)}</ConfigList>
     <SemesterCalendar config={config} />
@@ -116,6 +135,7 @@ function DateInput({ value, onChange, ariaLabel }: DateInputProps) {
   const viewing = parsed ? new Date(`${parsed}T00:00:00`) : new Date();
   const [viewYear, setViewYear] = useState(viewing.getFullYear());
   const [viewMonth, setViewMonth] = useState(viewing.getMonth());
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -136,6 +156,7 @@ function DateInput({ value, onChange, ariaLabel }: DateInputProps) {
     const iso = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     setText(formatDisplayDate(iso));
     onChange(iso);
+      inputRef.current?.setCustomValidity('');
     setOpen(false);
   }
 
@@ -156,7 +177,7 @@ function DateInput({ value, onChange, ariaLabel }: DateInputProps) {
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 return <div className="relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-stretch" ref={containerRef}>
-<input className="min-w-0 w-full min-h-[54px] rounded-none border-2 border-black border-r-0 bg-surface px-2 py-2.5 font-sans text-[16px] text-black outline-none focus:border-orange" inputMode="numeric" placeholder="dd/mm/yyyy" aria-label={ariaLabel} value={text} onChange={(event) => setText(event.target.value)} onBlur={() => { const p = parseDisplayDate(text); if (p) { setText(formatDisplayDate(p)); onChange(p); } }} />
+<input ref={inputRef} className="min-w-0 w-full min-h-[54px] rounded-none border-2 border-black border-r-0 bg-surface px-2 py-2.5 font-sans text-[16px] text-black outline-none focus:border-orange" inputMode="numeric" placeholder="dd/mm/yyyy" aria-label={ariaLabel} aria-invalid={text.trim() !== '' && !parsed} value={text} onChange={(event) => { setText(event.target.value); event.currentTarget.setCustomValidity(''); }} onBlur={(event) => { const p = parseDisplayDate(text); if (p) { setText(formatDisplayDate(p)); onChange(p); event.currentTarget.setCustomValidity(''); } else event.currentTarget.setCustomValidity('Enter a valid date as dd/mm/yyyy.'); }} required />
     <button type="button" className="grid w-[38px] place-items-center border-2 border-black bg-surface text-muted cursor-pointer transition-[background,color] hover:bg-orange hover:text-white" aria-label="Open calendar" onClick={toggleCalendar}>
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M1 7h14" stroke="currentColor" strokeWidth="1.5"/><path d="M5 1v4M11 1v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
     </button>
@@ -199,10 +220,17 @@ function ConfigList({ title, actionLabel, onAdd, children }: { title: string; ac
   return <section className={configSection}><div className={adminHeading}><div><p className="eyebrow-text mb-[7px] text-[10px] text-muted">Calendar exceptions</p><h2 className={adminH2}>{title}</h2></div><button className={adminButton} type="button" onClick={onAdd}>{actionLabel}</button></div>{children}</section>;
 }
 
-function SectionManager({ sections, selectedSectionId }: { sections: SectionOption[]; selectedSectionId: string }) {
+function SectionManager({ sections, selectedSectionId, onDeleted }: { sections: SectionOption[]; selectedSectionId: string; onDeleted: () => void }) {
   const router = useRouter();
   const [deleteState, deleteAction, deletePending] = useActionState(deleteSection, {});
-  useEffect(() => { router.refresh(); }, [router, deleteState.success]);
+  const deletionHandled = useRef(false);
+  useEffect(() => {
+    if (!deleteState.success) { deletionHandled.current = false; return; }
+    if (deletionHandled.current) return;
+    deletionHandled.current = true;
+    onDeleted();
+    router.refresh();
+  }, [deleteState.success, onDeleted, router]);
   if (sections.length === 0) return null;
 
   return <div className="grid gap-3.5">
