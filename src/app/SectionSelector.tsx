@@ -134,7 +134,7 @@ function BranchPicker({ sections, selectedSectionId, onSelect }: { sections: Sec
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => setStep({ kind: 'branches' })}
+              onClick={() => { setStep({ kind: 'branches' }); onSelect(''); }}
               className="inline-flex min-h-8 cursor-pointer items-center gap-1 border-2 border-black bg-orange px-2.5 py-1 font-term text-[10px] font-black uppercase tracking-[.55px] text-white shadow-[2px_2px_0_var(--shadow-color)] hover:bg-cream hover:text-black"
             >
               <span aria-hidden="true">←</span> back

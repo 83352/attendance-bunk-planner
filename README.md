@@ -10,11 +10,20 @@ The app uses a configured semester calendar and timetable instead of asking stud
 - Protected admin workspace at `/admin`
 - Admin sign-in at `/admin/login`
 - Section-specific timetables and exams
+- Two-step branch picker on the home page (CSE & Allied, ECE, EEE, Mechnical, MME)
 - Optimistic locking so concurrent admin saves cannot silently overwrite each other
 - Universal holidays and special Saturdays
 - Mid 1 and Mid 2 exam ranges with per-day overrides
 - IST calendar calculations using `Asia/Kolkata`
 - Mobile-first interface
+
+## Home page picker
+
+The home page uses a two-step branch picker instead of a flat list of section chips:
+
+- Step 1 shows one button per branch. Branches with multiple sections (CSE & Allied, ECE, Mechnical) advance to step 2, where the user picks the exact section. Branches with a single section (EEE, MME) commit in a single tap directly from step 1.
+- The curated branch list lives in `src/app/SectionSelector.tsx`. Any section whose name is not in the list is dropped and surfaces a dev-only `console.warn`, so adding a new branch in the future is a one-line change.
+- Hitting the `← back` button in step 2 clears the active section selection, so the calculator collapses back to its empty state when the user returns to step 1.
 
 ## Run locally
 
