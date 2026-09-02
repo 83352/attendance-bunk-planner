@@ -135,13 +135,13 @@ function BranchPicker({ sections, selectedSectionId, onSelect }: { sections: Sec
             <button
               type="button"
               onClick={() => setStep({ kind: 'branches' })}
-              className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 border-2 border-black bg-surface px-3 py-1.5 font-term text-[11px] font-bold uppercase tracking-[.4px] text-black shadow-[2px_2px_0_var(--shadow-color)] hover:bg-cream"
+              className="inline-flex min-h-8 cursor-pointer items-center gap-1 border-2 border-black bg-orange px-2.5 py-1 font-term text-[10px] font-black uppercase tracking-[.55px] text-white shadow-[2px_2px_0_var(--shadow-color)] hover:bg-cream hover:text-black"
             >
               <span aria-hidden="true">←</span> back
             </button>
-            <span className="font-term text-[10px] font-black uppercase tracking-[.55px] text-muted">{activeGroup?.label}</span>
+            <span className="font-term text-[12px] font-black uppercase tracking-[.55px] text-black">{activeGroup?.label}</span>
           </div>
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label={`Choose your section in ${activeGroup?.label ?? ''}`}>
+          <div className="flex flex-wrap gap-2" role="group" aria-label={`Choose your section in ${activeGroup?.label ?? ''}`}>
             {activeGroup?.list.map((section) => {
               const isActive = section.id === selectedSectionId;
               return (
@@ -149,7 +149,7 @@ function BranchPicker({ sections, selectedSectionId, onSelect }: { sections: Sec
                   key={section.id}
                   type="button"
                   onClick={() => onSelect(section.id)}
-                  className={`btn-section-hover inline-flex min-h-9 cursor-pointer items-center justify-center border-2 px-3 py-1.5 font-term text-[11px] font-bold uppercase tracking-[.4px] ${isActive ? 'border-chip-border text-chip-ink' : 'border-black bg-surface text-black shadow-[3px_3px_0_var(--shadow-color)]'}`}
+                  className={`btn-section-hover inline-flex min-h-10 cursor-pointer items-center justify-center border-2 px-4 py-2 font-term text-[12px] font-bold uppercase tracking-[.4px] ${isActive ? 'border-chip-border text-chip-ink' : 'border-black bg-surface text-black shadow-[3px_3px_0_var(--shadow-color)]'}`}
                   aria-pressed={isActive}
                 >
                   {section.name}
