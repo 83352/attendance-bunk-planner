@@ -99,6 +99,28 @@ describe('semesterConfigSchema', () => {
     expect(parsed.success).toBe(false);
   });
 
+  it('rejects PostgreSQL-incompatible year zero dates', () => {
+    const parsed = semesterConfigSchema.safeParse({ ...baseConfig, semesterStart: '0000-01-01', semesterEnd: '0001-01-01' });
+    expect(parsed.success).toBe(false);
+  });
+
+  it('rejects duplicate daily exam overrides', () => {
+    const parsed = semesterConfigSchema.safeParse({
+      ...baseConfig,
+      exams: [{ name: 'Exam', start: '2026-08-01', end: '2026-08-03', periodsPerDay: 2, dailyPeriods: [{ date: '2026-08-02', periodsPerDay: 2 }, { date: '2026-08-02', periodsPerDay: 4 }] }],
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it('rejects overlapping exams and timetable periods', () => {
+    const parsed = semesterConfigSchema.safeParse({
+      ...baseConfig,
+      timetable: [{ weekday: 1, sequence: 1, start: '09:00', end: '10:00' }, { weekday: 1, sequence: 2, start: '09:30', end: '10:30' }],
+      exams: [{ name: 'First', start: '2026-08-01', end: '2026-08-03', periodsPerDay: 2 }, { name: 'Second', start: '2026-08-03', end: '2026-08-04', periodsPerDay: 2 }],
+    });
+    expect(parsed.success).toBe(false);
+  });
+
   it('accepts exceptions exactly on the semester boundaries', () => {
     const parsed = semesterConfigSchema.safeParse({
       ...baseConfig,

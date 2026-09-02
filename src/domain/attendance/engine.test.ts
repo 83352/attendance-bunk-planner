@@ -66,6 +66,11 @@ describe('calendar engine', () => {
 });
 
 describe('attendance engine', () => {
+  it('rejects non-finite and out-of-range percentages', () => {
+    expect(() => calculateAttendance({ config, now, currentPercentage: Number.NaN, targetPercentage: 75 })).toThrow('Current attendance must be between 0 and 100.');
+    expect(() => calculateAttendance({ config, now, currentPercentage: 80, targetPercentage: 101 })).toThrow('Target attendance must be between 0 and 100.');
+  });
+
   it('calculates conservative maximum bunks and recovery periods', () => {
     const result = calculateAttendance({ config, now, currentPercentage: 80, targetPercentage: 75 });
     expect(result.heldPeriods).toBe(26);

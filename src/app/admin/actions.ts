@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { semesterConfigSchema } from '@/lib/validation/config';
 
-export type SaveConfigState = { error?: string; success?: string };
+export type SaveConfigState = { error?: string; success?: string; sectionId?: string };
 
 export async function saveSemesterConfig(_: SaveConfigState, formData: FormData): Promise<SaveConfigState> {
   const supabase = await createSupabaseServerClient();
@@ -42,7 +42,7 @@ export async function saveSemesterConfig(_: SaveConfigState, formData: FormData)
   // The entire swap runs inside one Postgres transaction (migration
   // 005_atomic_save.sql), so a failure part-way through can no longer leave
   // half-saved state behind. The function re-checks admin rights itself.
-  const { error } = await supabase.rpc('save_semester_config', {
+  const { data: savedSectionId, error } = await supabase.rpc('save_semester_config_with_id', {
     p_section_id: activeSectionId || null,
     p_section_name: sectionName,
     p_semester_start: config.semesterStart,
@@ -58,7 +58,7 @@ export async function saveSemesterConfig(_: SaveConfigState, formData: FormData)
 
   if (error) {
     const missingRpc = error.message.includes('schema cache') || error.message.includes('function public.save_semester_config');
-    if (missingRpc) return { error: 'Configuration saving is not installed yet. Run migrations 005_atomic_save.sql through 011_safe_configuration_save.sql in Supabase, then try again.' };
+    if (missingRpc) return { error: 'Configuration saving is not installed yet. Run migrations 005_atomic_save.sql through 014_database_validation_and_indexes.sql in Supabase, then try again.' };
     if (error.code === '23505') return { error: 'A section with that name already exists.' };
     if (error.code === '40001' || error.message.includes('changed by someone else')) {
       return { error: 'This schedule was saved from somewhere else while you were editing. Reload the page to get the latest version, then apply your changes again.' };
@@ -70,7 +70,7 @@ export async function saveSemesterConfig(_: SaveConfigState, formData: FormData)
 
   revalidatePath('/');
   revalidatePath('/admin');
-  return { success: 'Configuration saved.' };
+  return { success: 'Configuration saved.', sectionId: typeof savedSectionId === 'string' ? savedSectionId : undefined };
 }
 
 export async function deleteSection(_: SaveConfigState, formData: FormData): Promise<SaveConfigState> {
@@ -86,7 +86,7 @@ export async function deleteSection(_: SaveConfigState, formData: FormData): Pro
 
   // Deleting a section cascades to its semesters and every schedule row.
   // Universal holidays and special Saturdays are intentionally kept.
-  const { error } = await supabase.from('sections').delete().eq('id', sectionId);
+  const { error } = await supabase.rpc('delete_section', { p_section_id: sectionId });
   if (error) {
     console.error('delete section failed', error);
     return { error: 'Could not delete the section. Try again.' };

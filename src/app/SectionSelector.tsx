@@ -40,7 +40,7 @@ const BRANCH_GROUPS: BranchGroup[] = [
   { label: 'CSE & Allied', members: ['CSB', 'CSD', 'CSE 1', 'CSE 2', 'CSE 3', 'CSE 4', 'CSE 5', 'CSM', 'IT'] },
   { label: 'ECE',          members: ['ECE 1', 'ECE 2', 'ECE 3'] },
   { label: 'EEE',          members: ['EEE'] },
-  { label: 'Mechnical',    members: ['MECH', 'MCT'] },
+  { label: 'Mechanical',   members: ['MECH', 'MCT'] },
   { label: 'MME',          members: ['MME'] },
 ];
 

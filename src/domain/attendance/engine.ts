@@ -56,8 +56,10 @@ function recoveryFor(
     let periodsSeen = 0;
     let collegeDays = 0;
     const dates = [...new Set(futurePeriods.map((period) => period.date))];
+    const periodsByDate = new Map<string, number>();
+    for (const period of futurePeriods) periodsByDate.set(period.date, (periodsByDate.get(period.date) ?? 0) + 1);
     for (const date of dates) {
-      periodsSeen += futurePeriods.filter((period) => period.date === date).length;
+      periodsSeen += periodsByDate.get(date) ?? 0;
       collegeDays += 1;
       if (periodsSeen >= required) break;
     }
@@ -92,6 +94,12 @@ function distributeBunks(totalBunks: number, weeks: number, weeklyPeriods: numbe
 }
 
 export function calculateAttendance(request: CalculationRequest): AttendanceResult {
+  if (!Number.isFinite(request.currentPercentage) || request.currentPercentage < 0 || request.currentPercentage > 100) {
+    throw new RangeError('Current attendance must be between 0 and 100.');
+  }
+  if (!Number.isFinite(request.targetPercentage) || request.targetPercentage < 0 || request.targetPercentage > 100) {
+    throw new RangeError('Target attendance must be between 0 and 100.');
+  }
   const calendar = buildCalendar(request.config, request.now);
   const heldPeriods = calendar.heldThroughYesterday.length;
   const attendedPeriods = estimateAttendedPeriods(request.currentPercentage, heldPeriods);

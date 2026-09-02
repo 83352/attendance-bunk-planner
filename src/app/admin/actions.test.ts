@@ -149,7 +149,7 @@ describe('saveSemesterConfig', () => {
     expect(result.success).toMatch(/saved/i);
     expect(result.error).toBeUndefined();
     expect(rpc).toHaveBeenCalledTimes(1);
-    expect(rpc).toHaveBeenCalledWith('save_semester_config', expect.objectContaining({
+    expect(rpc).toHaveBeenCalledWith('save_semester_config_with_id', expect.objectContaining({
       p_section_name: 'CSE 5',
       p_semester_start: '2026-07-06',
       p_semester_end: '2026-11-07',

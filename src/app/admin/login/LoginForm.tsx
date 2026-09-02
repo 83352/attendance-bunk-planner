@@ -20,14 +20,19 @@ export function LoginForm() {
       return;
     }
     setBusy(true);
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-    if (signInError) {
-      setError('Sign-in failed. Check your credentials.');
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) {
+        setError('Sign-in failed. Check your credentials.');
+        return;
+      }
+      router.replace('/admin');
+      router.refresh();
+    } catch {
+      setError('Sign-in failed. Check your connection and try again.');
+    } finally {
       setBusy(false);
-      return;
     }
-    router.replace('/admin');
-    router.refresh();
   }
 
   return <form className="mt-7 grid max-w-[420px] gap-[18px]" onSubmit={submit}>

@@ -62,10 +62,16 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
   // reload, no remount flash, no leftover ?section= in the URL.
   function handleHomeClick() {
     setActiveId('');
+    setCalculating(false);
     if (typeof window !== 'undefined' && window.location.search) {
       window.history.replaceState(null, '', window.location.pathname);
     }
     return true;
+  }
+
+  function handleSectionSelect(sectionId: string) {
+    setCalculating(false);
+    setActiveId(sectionId);
   }
 
   const active = sections.find((section) => section.id === activeId);
@@ -81,6 +87,10 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
     if (!activeId || !config) return;
     if (current.trim() === '') {
       setError('Enter your attendance to find out.');
+      return;
+    }
+    if (target.trim() === '') {
+      setError('Enter a target attendance between 0 and 100.');
       return;
     }
     const currentValue = Number(current);
@@ -117,7 +127,7 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
             <h1 className="m-0 font-display text-[clamp(27px,4.4vw,40px)] leading-[.95] font-black tracking-[.2px] uppercase">Can I bunk?</h1>
           </div>
 
-          <SectionSelector sections={sections} selectedSectionId={activeId} onSelect={setActiveId} />
+          <SectionSelector sections={sections} selectedSectionId={activeId} onSelect={handleSectionSelect} />
 
           {active ? (
             <>

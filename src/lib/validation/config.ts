@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const dateSchema = z.string().refine((value) => {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value.startsWith('0000')) return false;
   const date = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }, 'Use a valid date in YYYY-MM-DD format.');
@@ -19,7 +19,7 @@ export const specialSaturdaySchema = z.object({ date: dateSchema, copiedWeekday:
   (item) => new Date(`${item.date}T00:00:00Z`).getUTCDay() === 6,
   'Special Saturday dates must be Saturdays.',
 );
-export const examSchema = z.object({ id: z.string().uuid().optional(), name: z.string().trim().min(1, 'Exam name is required.').max(80, 'Exam name must be 80 characters or fewer.'), start: dateSchema, end: dateSchema, periodsPerDay: z.union([z.literal(2), z.literal(4)]), dailyPeriods: z.array(z.object({ date: dateSchema, periodsPerDay: z.union([z.literal(2), z.literal(4)]) })).optional() }).refine((item) => item.start <= item.end, 'Exam end must be on or after its start.').refine((item) => (item.dailyPeriods ?? []).every((day) => day.date >= item.start && day.date <= item.end), 'Daily exam overrides must be inside the exam range.');
+export const examSchema = z.object({ id: z.string().uuid().optional(), name: z.string().trim().min(1, 'Exam name is required.').max(80, 'Exam name must be 80 characters or fewer.'), start: dateSchema, end: dateSchema, periodsPerDay: z.union([z.literal(2), z.literal(4)]), dailyPeriods: z.array(z.object({ date: dateSchema, periodsPerDay: z.union([z.literal(2), z.literal(4)]) })).optional() }).refine((item) => item.start <= item.end, 'Exam end must be on or after its start.').refine((item) => (item.dailyPeriods ?? []).every((day) => day.date >= item.start && day.date <= item.end), 'Daily exam overrides must be inside the exam range.').refine((item) => new Set((item.dailyPeriods ?? []).map((day) => day.date)).size === (item.dailyPeriods ?? []).length, 'Each exam date can only have one override.');
 
 export const semesterConfigSchema = z.object({
   semesterStart: dateSchema,
@@ -32,6 +32,18 @@ export const semesterConfigSchema = z.object({
   .refine(
     (config) => config.exams.every((exam) => exam.start >= config.semesterStart && exam.end <= config.semesterEnd),
     'Exam dates must be inside the semester.',
+  )
+  .refine(
+    (config) => config.exams.every((exam, index) => config.exams.every((other, otherIndex) => index === otherIndex || exam.end < other.start || other.end < exam.start)),
+    'Exam date ranges cannot overlap.',
+  )
+  .refine(
+    (config) => config.timetable.every((period, index) => config.timetable.every((other, otherIndex) => index === otherIndex || period.weekday !== other.weekday || period.sequence !== other.sequence)),
+    'Each weekday period sequence must be unique.',
+  )
+  .refine(
+    (config) => config.timetable.every((period, index) => config.timetable.every((other, otherIndex) => index === otherIndex || period.weekday !== other.weekday || period.end <= other.start || other.end <= period.start)),
+    'Periods on the same weekday cannot overlap.',
   )
   .refine(
     (config) => config.holidays.every((holiday) => holiday.start >= config.semesterStart && holiday.end <= config.semesterEnd),

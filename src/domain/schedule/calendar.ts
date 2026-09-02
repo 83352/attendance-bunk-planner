@@ -8,6 +8,7 @@ import type {
 } from './types';
 
 const TIME_ZONE = 'Asia/Kolkata';
+const timetableCache = new WeakMap<object, Map<Weekday, TimetablePeriod[]>>();
 
 function parseDate(date: string): Date {
   return new Date(`${date}T00:00:00Z`);
@@ -40,9 +41,14 @@ export function dateInRange(date: string, start: string, end: string): boolean {
 }
 
 function timetableFor(config: ScheduleConfig, weekday: Weekday): TimetablePeriod[] {
-  return config.timetable
-    .filter((period) => period.weekday === weekday)
-    .sort((a, b) => a.sequence - b.sequence);
+  let byWeekday = timetableCache.get(config);
+  if (!byWeekday) {
+    byWeekday = new Map();
+    for (const period of config.timetable) byWeekday.set(period.weekday, [...(byWeekday.get(period.weekday) ?? []), period]);
+    for (const periods of byWeekday.values()) periods.sort((a, b) => a.sequence - b.sequence);
+    timetableCache.set(config, byWeekday);
+  }
+  return byWeekday.get(weekday) ?? [];
 }
 
 function examFor(config: ScheduleConfig, date: string): ExamPeriod | undefined {

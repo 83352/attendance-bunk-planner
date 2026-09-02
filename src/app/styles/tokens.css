@@ -168,6 +168,14 @@ html { color-scheme: light; }
   50%      { transform: translateX(3px); }
   75%      { transform: translateX(-2px); }
 }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 @utility eyebrow-text {
   font-family: var(--font-term);
   text-transform: uppercase;
