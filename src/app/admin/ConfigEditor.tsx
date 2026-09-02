@@ -4,7 +4,7 @@ import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ScheduleConfig, TimetablePeriod, Weekday } from '@/domain/schedule/types';
 import { buildCalendar, currentIstDate, dateInRange, periodsForDate } from '@/domain/schedule/calendar';
-import { deleteSection, renameSection, saveSemesterConfig } from './actions';
+import { deleteSection, saveSemesterConfig } from './actions';
 
 const days: [Weekday, string][] = [[1, 'Monday'], [2, 'Tuesday'], [3, 'Wednesday'], [4, 'Thursday'], [5, 'Friday']];
 type SectionOption = { id: string; name: string };
@@ -27,12 +27,12 @@ export function ConfigEditor({ initialConfig, sections, initialSectionId, initia
   // outer page already loaded every section's config up front.
   const [activeSectionId, setActiveSectionId] = useState(initialSectionId);
   const [config, setConfig] = useState(initialConfig);
+  // Section name is editable: typing a new name and pressing Save changes
+  // renames the section through saveSemesterConfig. Seeded from the active
+  // section's name and reset whenever the user switches sections.
+  const [sectionName, setSectionName] = useState(initialSectionName);
   const [draggedPeriod, setDraggedPeriod] = useState<number | null>(null);
   const [state, action, pending] = useActionState(saveSemesterConfig, {});
-  // Section name is derived from the active section (not editable in
-  // place — that's what the rename form is for). Falls back to the prop
-  // for the initial empty-section case.
-  const activeSectionName = sections.find((section) => section.id === activeSectionId)?.name ?? initialSectionName;
   // Active section's optimistic-lock timestamp. Used by the save action
   // so concurrent edits from another tab/session are rejected.
   const activeUpdatedAt = updatedAtBySection[activeSectionId] ?? null;
@@ -57,6 +57,9 @@ export function ConfigEditor({ initialConfig, sections, initialSectionId, initia
   const handleSectionChange = (choice: string) => {
     setActiveSectionId(choice);
     setConfig(configsBySection[choice] ?? initialConfig);
+    // Reset the editable name to the new section's name so the user
+    // doesn't carry a draft rename over from the previous section.
+    setSectionName(sections.find((section) => section.id === choice)?.name ?? '');
   };
   const update = (changes: Partial<ScheduleConfig>) => setConfig((current) => ({ ...current, ...changes }));
   const updatePeriod = (index: number, changes: Partial<TimetablePeriod>) => update({ timetable: config.timetable.map((period, periodIndex) => periodIndex === index ? { ...period, ...changes } : period) });
@@ -86,12 +89,12 @@ export function ConfigEditor({ initialConfig, sections, initialSectionId, initia
     {state.success && <p className="border-2 border-black bg-lime p-2 font-term text-[11px] leading-[1.3] font-bold text-black" role="status">{state.success}</p>}
     <div className="grid gap-3.5 border-[3px] border-black bg-paper p-[18px] shadow-hard">
 <label className={fieldLabel}>Choose section<select className="w-full border-2 border-black bg-surface px-2.5 py-2.5 font-term text-[13px] font-bold text-black outline-none focus:border-orange" value={activeSectionId} onChange={(event) => handleSectionChange(event.target.value)}><option value="" disabled>{sections.length === 0 ? 'No sections saved yet' : 'Choose a section'}</option>{sections.map((section) => <option key={section.id} value={section.id}>{section.name}</option>)}</select></label>
-      <label className={fieldLabel}>Section name<input className={adminInput} value={activeSectionName} readOnly aria-readonly /><small className={fieldHelp}>Rename via the section manager below. Saving here always updates the currently selected section.</small></label>
+      <label className={fieldLabel}>Section name<input className={adminInput} value={sectionName} onChange={(event) => setSectionName(event.target.value)} maxLength={80} required /><small className={fieldHelp}>Renames the section when you press Save changes. Saving always updates the currently selected section.</small></label>
       <label className={fieldLabel}>Semester starts<DateInput value={config.semesterStart} onChange={(value) => update({ semesterStart: value })} /></label>
       <label className={fieldLabel}>Semester ends<DateInput value={config.semesterEnd} onChange={(value) => update({ semesterEnd: value })} /></label>
       <SectionManager sections={sections} selectedSectionId={activeSectionId} />
     </div>
-    <input type="hidden" name="sectionName" value={activeSectionName} /><input type="hidden" name="config" value={JSON.stringify(config)} /><input type="hidden" name="updatedAt" value={activeUpdatedAt ?? ''} />
+<input type="hidden" name="sectionName" value={sectionName} /><input type="hidden" name="activeSectionId" value={activeSectionId} /><input type="hidden" name="config" value={JSON.stringify(config)} /><input type="hidden" name="updatedAt" value={activeUpdatedAt ?? ''} />
     <section className="grid gap-4 pt-[22px] border-t-[3px] border-dotted border-red">
       <div className={adminHeading}><div><p className="eyebrow-text mb-[7px] text-[10px] text-muted">Weekly timetable</p><h2 className={adminH2}>Periods by weekday</h2></div><div className="flex items-start gap-[18px] phone:flex-wrap"><div className="grid shrink-0 justify-items-center gap-0.5"><strong className="font-display text-[25px] leading-none font-black text-teal">{config.timetable.length}</strong><span className="whitespace-nowrap font-term text-[10px] text-muted">regular / week</span></div><div className="grid shrink-0 justify-items-center gap-0.5"><strong className="font-display text-[25px] leading-none font-black text-teal">{semesterPeriodCount}</strong><span className="whitespace-nowrap font-term text-[10px] text-muted">periods this semester</span></div></div></div>
       {days.map(([weekday, label]) => <div className="grid gap-2" key={weekday}><div className="flex items-center justify-between text-[14px]"><strong>{label}</strong><button className={adminButton} type="button" onClick={() => addPeriod(weekday)}>+ period</button></div>{config.timetable.map((period, index) => period.weekday === weekday && <div className="grid grid-cols-[24px_minmax(0,1fr)_12px_minmax(0,1fr)_22px_22px_25px] items-center gap-1" key={`${weekday}-${index}`} draggable onDragStart={() => setDraggedPeriod(index)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedPeriod !== null) movePeriod(draggedPeriod, index); setDraggedPeriod(null); }}><span className="font-term text-[11px] text-muted">#{period.sequence}</span><input className={`${adminInput} min-h-11`} aria-label={`${label} period start`} type="time" value={period.start} onChange={(event) => updatePeriod(index, { start: event.target.value })} /><span className="text-center">→</span><input className={`${adminInput} min-h-11`} aria-label={`${label} period end`} type="time" value={period.end} onChange={(event) => updatePeriod(index, { end: event.target.value })} /><button className={`${adminButton} !p-0 text-center text-[16px]`} type="button" aria-label={`Move ${label} period up`} onClick={() => movePeriod(index, index - 1)}>↑</button><button className={`${adminButton} !p-0 text-center text-[16px]`} type="button" aria-label={`Move ${label} period down`} onClick={() => movePeriod(index, index + 1)}>↓</button><button className={`${adminButton} !p-0 text-center text-[16px]`} type="button" aria-label={`Remove ${label} period`} onClick={() => removePeriod(index)}>×</button></div>)}</div>)}
@@ -198,26 +201,11 @@ function ConfigList({ title, actionLabel, onAdd, children }: { title: string; ac
 
 function SectionManager({ sections, selectedSectionId }: { sections: SectionOption[]; selectedSectionId: string }) {
   const router = useRouter();
-  const [renameState, renameAction, renamePending] = useActionState(renameSection, {});
   const [deleteState, deleteAction, deletePending] = useActionState(deleteSection, {});
-  useEffect(() => { router.refresh(); }, [router, renameState.success, deleteState.success]);
+  useEffect(() => { router.refresh(); }, [router, deleteState.success]);
   if (sections.length === 0) return null;
 
   return <div className="grid gap-3.5">
-    <form className="grid max-w-none gap-3.5 phone:grid-cols-2 phone:items-end phone:gap-2.5" action={renameAction}>
-      <label className={fieldLabel}>
-        Rename section
-        <select className="border-2 border-black bg-surface p-2.5 font-sans text-[13px] text-black outline-none focus:border-orange" name="sectionId" defaultValue={selectedSectionId || ''} required>
-          {sections.map((section) => <option key={section.id} value={section.id}>{section.name}</option>)}
-        </select>
-      </label>
-      <label className={fieldLabel}>
-        New name
-        <input className={adminInput} name="newName" required maxLength={80} placeholder="e.g. CSE 6" />
-      </label>
-      <button className="min-h-11 justify-self-start border-[3px] border-black bg-orange px-4 py-2.5 font-term text-[12px] font-black uppercase text-white cursor-pointer shadow-[2px_2px_0_var(--shadow-color)] disabled:cursor-wait disabled:opacity-65" type="submit" disabled={renamePending}>{renamePending ? 'Renaming...' : 'Rename'}</button>
-      {renameState.error && <p className="border-2 border-black bg-danger-bg p-2 font-term text-[11px] leading-[1.3] font-bold text-error" role="alert">{renameState.error}</p>}
-    </form>
     <form className="grid max-w-none gap-2.5 border-t border-line pt-3.5 phone:grid-cols-[minmax(0,1fr)_auto] phone:items-center" action={deleteAction} onSubmit={(event) => {
       if (!confirm('Delete this section? Its timetable, exams and semester dates are removed permanently. Holidays shared by all sections are kept.')) event.preventDefault();
     }}>

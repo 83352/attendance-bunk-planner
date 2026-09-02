@@ -4,11 +4,27 @@ import type { ScheduleConfig } from '@/domain/schedule/types';
 const rpc = vi.hoisted(() => vi.fn());
 const getUser = vi.hoisted(() => vi.fn());
 const singleProfile = vi.hoisted(() => vi.fn());
+// sectionLookupMock: mocks from('sections').select('name').eq('id', x).single().
+// Tests reset it with mockResolvedValueOnce({ data: { name: 'CSE 5' }, error: null }).
+const sectionLookupMock = vi.hoisted(() => vi.fn());
+// sectionUpdateMock: mocks from('sections').update({ name }).eq('id', x).
+// Tests reset it with mockResolvedValueOnce({ error: null }) to allow the rename,
+// or { error: { code: '23505', message: 'duplicate' } } to simulate a conflict.
+const sectionUpdateMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/supabase/server', () => ({
   createSupabaseServerClient: vi.fn(async () => ({
     auth: { getUser },
-    from: () => ({ select: () => ({ eq: () => ({ single: singleProfile }) }) }),
+    from: (table: string) => {
+      if (table === 'admin_profiles') return { select: () => ({ eq: () => ({ single: singleProfile }) }) };
+      if (table === 'sections') {
+        return {
+          select: () => ({ eq: () => ({ single: sectionLookupMock }) }),
+          update: () => ({ eq: sectionUpdateMock }),
+        };
+      }
+      throw new Error(`Unexpected table in test: ${table}`);
+    },
     rpc,
   })),
 }));
@@ -28,6 +44,7 @@ function validFormData(overrides: Record<string, string> = {}) {
   };
   const formData = new FormData();
   formData.set('sectionName', 'CSE 5');
+  formData.set('activeSectionId', 'section-1');
   formData.set('config', JSON.stringify(config));
   for (const [key, value] of Object.entries(overrides)) formData.set(key, value);
   return formData;
@@ -38,6 +55,10 @@ describe('saveSemesterConfig', () => {
     rpc.mockReset();
     getUser.mockReset().mockResolvedValue({ data: { user: { id: 'user-1', email: 'admin@example.com' } } });
     singleProfile.mockReset().mockResolvedValue({ data: { role: 'admin' } });
+    // Default: the existing section name matches the submitted one, so
+    // saveSemesterConfig skips the rename and goes straight to the RPC.
+    sectionLookupMock.mockReset().mockResolvedValue({ data: { name: 'CSE 5' }, error: null });
+    sectionUpdateMock.mockReset().mockResolvedValue({ error: null });
   });
 
   it('rejects when Supabase is not configured', async () => {
@@ -138,5 +159,58 @@ describe('saveSemesterConfig', () => {
     expect(payload.p_exams).toEqual([]);
     expect(payload.p_holidays).toEqual([]);
     expect(payload.p_special_saturdays).toEqual([]);
+  });
+
+  it('renames the section in place when the submitted name differs from the row', async () => {
+    // The on-disk name is the old one; the form submits a new one.
+    sectionLookupMock.mockResolvedValueOnce({ data: { name: 'CSE 5' }, error: null });
+    sectionUpdateMock.mockResolvedValueOnce({ error: null });
+    rpc.mockResolvedValueOnce({ error: null });
+    const result = await saveSemesterConfig({}, validFormData({ sectionName: 'CSE 5 (revised)' }));
+    expect(result.success).toMatch(/saved/i);
+    expect(sectionUpdateMock).toHaveBeenCalledTimes(1);
+    expect(sectionUpdateMock).toHaveBeenCalledWith('id', 'section-1');
+    // The RPC receives the new name so the upsert finds the row by name.
+    expect(rpc.mock.calls[0][1].p_section_name).toBe('CSE 5 (revised)');
+  });
+
+  it('skips the rename update when the name is unchanged', async () => {
+    sectionLookupMock.mockResolvedValueOnce({ data: { name: 'CSE 5' }, error: null });
+    rpc.mockResolvedValueOnce({ error: null });
+    await saveSemesterConfig({}, validFormData());
+    expect(sectionUpdateMock).not.toHaveBeenCalled();
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips the rename when no activeSectionId is supplied (brand new section)', async () => {
+    rpc.mockResolvedValueOnce({ error: null });
+    await saveSemesterConfig({}, validFormData({ activeSectionId: '' }));
+    expect(sectionLookupMock).not.toHaveBeenCalled();
+    expect(sectionUpdateMock).not.toHaveBeenCalled();
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+
+  it('maps a duplicate-name rename to a friendly error and skips the rpc', async () => {
+    sectionLookupMock.mockResolvedValueOnce({ data: { name: 'CSE 5' }, error: null });
+    sectionUpdateMock.mockResolvedValueOnce({ error: { code: '23505', message: 'duplicate key value violates unique constraint' } });
+    const result = await saveSemesterConfig({}, validFormData({ sectionName: 'CSE 6' }));
+    expect(result.error).toMatch(/already exists/i);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('short-circuits on a generic rename error and skips the rpc', async () => {
+    sectionLookupMock.mockResolvedValueOnce({ data: { name: 'CSE 5' }, error: null });
+    sectionUpdateMock.mockResolvedValueOnce({ error: { code: 'P0001', message: 'boom' } });
+    const result = await saveSemesterConfig({}, validFormData({ sectionName: 'CSE 6' }));
+    expect(result.error).toMatch(/could not rename the section/i);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('returns an error when the current section name cannot be read', async () => {
+    sectionLookupMock.mockResolvedValueOnce({ data: null, error: { code: 'PGRST116', message: 'not found' } });
+    const result = await saveSemesterConfig({}, validFormData());
+    expect(result.error).toMatch(/could not load the current section name/i);
+    expect(sectionUpdateMock).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
   });
 });
