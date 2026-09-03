@@ -218,15 +218,11 @@ function Results({ result, endDate, heldLabel }: { result: AttendanceResult; end
         )}
         <span className="absolute right-[7%] bottom-[-70px] size-[180px] rounded-full border-[30px] border-white/25" aria-hidden="true" />
       </div>
-      <div className="grid grid-cols-4 border-[3px] border-t-0 border-black bg-paper phone:grid-cols-1">
+      <div className="grid grid-cols-3 border-[3px] border-t-0 border-black bg-paper phone:grid-cols-1">
         <article className="min-h-[120px] border-r-2 border-black p-[17px] phone:min-h-0 phone:border-r-0 phone:border-b-2">
           <span className="block font-term text-[10px] leading-[1.3] uppercase tracking-[.55px] text-muted">Held so far</span>
           <strong className="mb-[5px] mt-[13px] block font-display text-[23px] leading-none font-black">{result.heldPeriods}</strong>
           <small className="block font-term text-[10px] leading-[1.3] text-muted">{heldLabel.replace(/^\d+ periods? held through /, 'through ')}</small>
-        </article>
-        <article className="min-h-[120px] border-r-2 border-black p-[17px] phone:min-h-0 phone:border-r-0 phone:border-b-2">
-          <span className="block font-term text-[10px] leading-[1.3] uppercase tracking-[.55px] text-muted">Mathematical pace</span>
-          <strong className="mb-[5px] mt-[13px] block font-display text-[23px] leading-none font-black">{result.periodsPerWeek.toFixed(2)} <small className="font-term text-[10px] leading-[1.3] font-normal text-muted">periods / week</small></strong>
         </article>
         <article className="min-h-[120px] border-r-2 border-black p-[17px] phone:min-h-0 phone:border-r-0 phone:border-b-2">
           <span className="block font-term text-[10px] leading-[1.3] uppercase tracking-[.55px] text-muted">Future periods</span>
