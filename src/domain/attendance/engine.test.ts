@@ -122,4 +122,16 @@ describe('attendance engine', () => {
     expect(result.practicalBunksByWeek.reduce((sum, value) => sum + value, 0)).toBe(result.maximumBunks);
     expect(result.practicalBunksByWeek.every((value) => value >= 0)).toBe(true);
   });
+
+  it('reports heldPeriods matching the calendar builder (excludes today)', () => {
+    const result = calculateAttendance({ config, now, currentPercentage: 80, targetPercentage: 75 });
+    const calendar = buildCalendar(config, now);
+    expect(result.heldPeriods).toBe(calendar.heldThroughYesterday.length);
+  });
+
+  it('reports zero heldPeriods before the semester starts', () => {
+    const future = { ...config, semesterStart: '2026-12-01', semesterEnd: '2026-12-15' };
+    const result = calculateAttendance({ config: future, now, currentPercentage: 80, targetPercentage: 75 });
+    expect(result.heldPeriods).toBe(0);
+  });
 });

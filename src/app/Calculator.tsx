@@ -1,14 +1,34 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { calculateAttendance } from '@/domain/attendance/engine';
 import type { AttendanceResult } from '@/domain/attendance/types';
+import { buildCalendar, currentIstDate } from '@/domain/schedule/calendar';
 import type { ScheduleConfig } from '@/domain/schedule/types';
 import { SectionSelector, type SectionOption } from './SectionSelector';
 import { SiteHeader } from './SiteHeader';
 
 const formatter = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 const percentage = (value: number) => `${value.toFixed(2)}%`;
+
+/** Human-friendly "held through yesterday" caption for the Current attendance input. */
+function heldThroughYesterdayLabel(config: ScheduleConfig, now: Date): string {
+  const today = currentIstDate(now);
+  const calendar = buildCalendar(config, now);
+  const count = calendar.heldThroughYesterday.length;
+  if (today < config.semesterStart) {
+    const startsLabel = formatter.format(new Date(`${config.semesterStart}T00:00:00`));
+    return `Semester starts ${startsLabel} · 0 periods so far`;
+  }
+  if (calendar.future.length === 0 && count === 0) {
+    return 'Semester ended · 0 periods so far';
+  }
+  // Yesterday in IST, not the user's wall clock — matches the engine.
+  const yesterday = new Date(`${today}T00:00:00Z`);
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  const throughLabel = formatter.format(yesterday);
+  return `${count} period${count === 1 ? '' : 's'} held through ${throughLabel}`;
+}
 
 type CalculatorProps = {
   sections: SectionOption[];
@@ -81,6 +101,13 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
   // correct after a section switch.
   const resultSection = sections.find((section) => section.id === resultFor);
   const resultEndDate = resultSection ? configsBySection[resultSection.id]?.semesterEnd : undefined;
+  // Memoized on `config` alone — the helper is pure and cheap enough that
+  // we don't need to track `now` in React state. The day bucket will only
+  // change in practice when the user re-opens the page or switches sections.
+  const heldCaption = useMemo(
+    () => (config ? heldThroughYesterdayLabel(config, new Date()) : ''),
+    [config],
+  );
 
   function calculate() {
     if (calculating) return;
@@ -136,6 +163,7 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
                   Current attendance %
                   <input className={`input-placeholder relative z-[1] min-h-[clamp(60px,8vw,80px)] w-full border-[3px] border-black bg-surface px-[clamp(13px,1.6vw,18px)] py-2 pr-[clamp(38px,5vw,52px)] font-sans text-[clamp(30px,4vw,40px)] leading-[.95] font-black text-black shadow-[2px_2px_0_var(--shadow-color)] outline-none focus:border-orange focus:outline-2 focus:outline-lime focus:outline-offset-2 ${error ? 'input-error' : ''}`} inputMode="decimal" value={current} placeholder="Enter your attendance..." onChange={(event) => { setCurrent(event.target.value); if (error) setError(''); }} aria-invalid={error ? true : undefined} aria-label="Current attendance percentage" />
 <span className="absolute right-[clamp(12px,1.6vw,18px)] bottom-[clamp(13px,2.4vw,24px)] z-[2] font-term text-[clamp(16px,2vw,20px)] leading-none font-bold text-grey">%</span>
+                  {heldCaption ? <span className="font-term text-[10px] leading-[1.3] font-normal text-muted">{heldCaption}</span> : null}
                 </label>
                 <label className="relative grid gap-[clamp(7px,.8vw,10px)] text-[12px] leading-[1.1] font-black text-black">
                   Target attendance %
@@ -154,7 +182,7 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
           )}
         </section>
 
-        {result && resultEndDate ? <Results key={resultSeq} result={result} endDate={resultEndDate} /> : null}
+        {result && resultEndDate ? <Results key={resultSeq} result={result} endDate={resultEndDate} heldLabel={heldCaption} /> : null}
 
 <a className="show-desktop mx-auto mt-[clamp(10px,1.6vw,16px)] min-h-11 w-full max-w-[680px] items-center justify-center py-[3px] text-center font-term text-[9px] font-black uppercase tracking-[.55px] text-muted underline decoration-link decoration-dotted decoration-[3px] underline-offset-[3px] hover:text-black" href="/admin">Owner? Admin panel</a>
       </main>
@@ -164,7 +192,7 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
 
 const DANGER_ATTENDANCE_RATIO = 0.9;
 
-function Results({ result, endDate }: { result: AttendanceResult; endDate: string }) {
+function Results({ result, endDate, heldLabel }: { result: AttendanceResult; endDate: string; heldLabel: string }) {
   const { recoveryTo75 } = result;
   const unreachable = recoveryTo75.reachable === false;
   const brutal = recoveryTo75.reachable
@@ -190,7 +218,12 @@ function Results({ result, endDate }: { result: AttendanceResult; endDate: strin
         )}
         <span className="absolute right-[7%] bottom-[-70px] size-[180px] rounded-full border-[30px] border-white/25" aria-hidden="true" />
       </div>
-      <div className="grid grid-cols-3 border-[3px] border-t-0 border-black bg-paper phone:grid-cols-1">
+      <div className="grid grid-cols-4 border-[3px] border-t-0 border-black bg-paper phone:grid-cols-1">
+        <article className="min-h-[120px] border-r-2 border-black p-[17px] phone:min-h-0 phone:border-r-0 phone:border-b-2">
+          <span className="block font-term text-[10px] leading-[1.3] uppercase tracking-[.55px] text-muted">Held so far</span>
+          <strong className="mb-[5px] mt-[13px] block font-display text-[23px] leading-none font-black">{result.heldPeriods}</strong>
+          <small className="block font-term text-[10px] leading-[1.3] text-muted">{heldLabel.replace(/^\d+ periods? held through /, 'through ')}</small>
+        </article>
         <article className="min-h-[120px] border-r-2 border-black p-[17px] phone:min-h-0 phone:border-r-0 phone:border-b-2">
           <span className="block font-term text-[10px] leading-[1.3] uppercase tracking-[.55px] text-muted">Mathematical pace</span>
           <strong className="mb-[5px] mt-[13px] block font-display text-[23px] leading-none font-black">{result.periodsPerWeek.toFixed(2)} <small className="font-term text-[10px] leading-[1.3] font-normal text-muted">periods / week</small></strong>
