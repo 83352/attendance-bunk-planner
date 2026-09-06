@@ -48,7 +48,7 @@ Never commit `.env.local`, database passwords or service-role keys.
 
 ## Supabase Setup
 
-Run migrations `001` through `013` in order in the Supabase SQL Editor. Then create an administrator in **Authentication > Users** and grant access:
+Run migrations `001` through `015` in order in the Supabase SQL Editor. Then create an administrator in **Authentication > Users** and grant access:
 
 ```sql
 insert into public.admin_profiles (user_id)
@@ -56,7 +56,7 @@ select id from auth.users
 where email = 'your-admin-email@example.com';
 ```
 
-Migration 011 adds safe section saves, shared-calendar locking, atomic renames and stable exam IDs. Migration 012 enforces exam/semester integrity, adds foreign-key indexes and makes the RPC the write path for schedule data. Migrations 013 and 014 add admin-only section workflows and database-side validation. Migration 013 adds admin-only section workflows.
+Migration 011 adds safe section saves, shared-calendar locking, atomic renames and stable exam IDs. Migration 012 enforces exam/semester integrity, adds foreign-key indexes and makes the RPC the write path for schedule data. Migrations 013 and 014 add admin-only section workflows and database-side validation. Migration 013 adds admin-only section workflows. Migration 015 closes the last direct-write path on the sections table, so every write goes through the RPCs above.
 
 ## Calculation Rules
 
@@ -96,7 +96,7 @@ npm run build
 
 1. Import the repository into Vercel.
 2. Set the three environment variables in Vercel.
-3. Run all 13 migrations in the production Supabase project.
+3. Run all 15 migrations in the production Supabase project.
 4. Configure the Vercel URL in Supabase Authentication URL Configuration.
 5. Create or grant the production administrator.
 6. Test `/`, `/admin/login` and `/admin`.

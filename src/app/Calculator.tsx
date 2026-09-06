@@ -23,10 +23,16 @@ function heldThroughYesterdayLabel(config: ScheduleConfig, now: Date): string {
   if (calendar.future.length === 0 && count === 0) {
     return 'Semester ended · 0 periods so far';
   }
-  // Yesterday in IST, not the user's wall clock — matches the engine.
-  const yesterday = new Date(`${today}T00:00:00Z`);
-  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-  const throughLabel = formatter.format(yesterday);
+  // Yesterday in IST, not the user's wall clock — matches the engine. The
+  // subtraction uses UTC arithmetic on the IST calendar date (safe: it's a
+  // plain date, no time-of-day or DST involved), then the result is
+  // re-parsed as a local midnight before formatting — the same pattern the
+  // other labels in this file use — so the displayed date is always the
+  // correct IST day regardless of the viewer's own timezone.
+  const yesterdayUtc = new Date(`${today}T00:00:00Z`);
+  yesterdayUtc.setUTCDate(yesterdayUtc.getUTCDate() - 1);
+  const yesterdayIso = yesterdayUtc.toISOString().slice(0, 10);
+  const throughLabel = formatter.format(new Date(`${yesterdayIso}T00:00:00`));
   return `${count} period${count === 1 ? '' : 's'} held through ${throughLabel}`;
 }
 

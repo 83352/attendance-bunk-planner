@@ -58,7 +58,7 @@ export async function saveSemesterConfig(_: SaveConfigState, formData: FormData)
 
   if (error) {
     const missingRpc = error.message.includes('schema cache') || error.message.includes('function public.save_semester_config');
-    if (missingRpc) return { error: 'Configuration saving is not installed yet. Run migrations 005_atomic_save.sql through 014_database_validation_and_indexes.sql in Supabase, then try again.' };
+    if (missingRpc) return { error: 'Configuration saving is not installed yet. Run migrations 005_atomic_save.sql through 015_lock_down_sections_writes.sql in Supabase, then try again.' };
     if (error.code === '23505') return { error: 'A section with that name already exists.' };
     if (error.code === '40001' || error.message.includes('changed by someone else')) {
       return { error: 'This schedule was saved from somewhere else while you were editing. Reload the page to get the latest version, then apply your changes again.' };
