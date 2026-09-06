@@ -3,8 +3,9 @@
 import { startTransition, useActionState, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ScheduleConfig, TimetablePeriod, Weekday } from '@/domain/schedule/types';
-import { buildCalendar, currentIstDate, dateInRange, periodsForDate } from '@/domain/schedule/calendar';
+import { buildCalendar, currentIstDate, monthCalendarData } from '@/domain/schedule/calendar';
 import { deleteSection, saveSemesterConfig } from './actions';
+import { CalendarLegend, MonthGrid } from '../MonthGrid';
 
 const days: [Weekday, string][] = [[1, 'Monday'], [2, 'Tuesday'], [3, 'Wednesday'], [4, 'Thursday'], [5, 'Friday']];
 type SectionOption = { id: string; name: string };
@@ -257,8 +258,6 @@ function SectionManager({ sections, selectedSectionId, onDeleted }: { sections: 
   </div>;
 }
 
-const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
 function SemesterCalendar({ config }: { config: ScheduleConfig }) {
   const startDate = new Date(`${config.semesterStart}T00:00:00Z`);
   const endDate = new Date(`${config.semesterEnd}T00:00:00Z`);
@@ -273,67 +272,15 @@ function SemesterCalendar({ config }: { config: ScheduleConfig }) {
     months.push({ year: y, month: m });
   }
 
-  let totalPeriods = 0;
-
-  const monthGrids = months.map(({ year, month }) => {
-    const firstDay = new Date(Date.UTC(year, month, 1)).getUTCDay();
-    const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-    const blanks = firstDay; // Sunday-start
-
-    const dayCells = Array.from({ length: daysInMonth }, (_, i) => {
-      const day = i + 1;
-      const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      const inSemester = iso >= config.semesterStart && iso <= config.semesterEnd;
-      const periods = inSemester ? periodsForDate(config, iso) : [];
-      const count = periods.length;
-      if (inSemester) totalPeriods += count;
-      const isHoliday = inSemester && config.holidays.some((h) => dateInRange(iso, h.start, h.end));
-      const isExam = inSemester && config.exams.some((e) => dateInRange(iso, e.start, e.end));
-      const isSpecialSaturday = inSemester && config.specialSaturdays.some((s) => s.date === iso);
-      const isToday = iso === todayIso;
-
-      let className = 'relative flex h-[38px] flex-col items-center justify-center border-2 text-[12px] transition-transform hover:-translate-y-px';
-      if (!inSemester || count === 0 && !isHoliday && !isExam && !isSpecialSaturday) className += ' border-transparent bg-transparent text-muted opacity-40';
-      else if (isHoliday) className += ' bg-holiday-bg border-holiday-border text-holiday-ink';
-      else if (isExam) className += ' bg-exam-bg border-exam-border text-exam-ink';
-      else if (isSpecialSaturday) className += ' bg-special-bg border-special-border text-special-ink';
-      else className += ' bg-cal-cell border-cal-cell-border text-black';
-      if (isToday) className += ' !border-today font-extrabold';
-
-      let title = `${iso}: ${count} period${count !== 1 ? 's' : ''}`;
-      if (isHoliday) { const holiday = config.holidays.find((h) => dateInRange(iso, h.start, h.end)); title += ` — ${holiday?.name ?? 'Holiday'}`; }
-      else if (isExam) { const exam = config.exams.find((e) => dateInRange(iso, e.start, e.end)); title += ` — ${exam?.name ?? 'Exam'}`; }
-      else if (isSpecialSaturday) { title += ' — Working Saturday'; }
-
-      return { day, iso, count, className, title, isHoliday, isExam, isSpecialSaturday, inSemester };
-    });
-
-    return { year, month, blanks, dayCells };
-  });
+  const monthGrids = months.map(({ year, month }) => monthCalendarData(config, year, month, todayIso));
+  const totalPeriods = monthGrids.reduce((sum, grid) => sum + grid.totalPeriods, 0);
 
   return <section className={configSection}>
     <div className={adminHeading}>
       <div><p className="eyebrow-text mb-[7px] text-[10px] text-teal">Semester overview</p><h2 className={adminH2}>Period calendar</h2></div>
 <div className="grid shrink-0 justify-items-center gap-0.5"><strong className="font-display text-[25px] leading-none font-black text-teal">{totalPeriods}</strong><span className="whitespace-nowrap font-term text-[10px] text-muted">total periods</span></div>
     </div>
-    {monthGrids.map(({ year, month, blanks, dayCells }) => <div className="mt-5 border-[3px] border-black bg-surface p-5 shadow-hard" key={`${year}-${month}`}>
-      <div className="mb-3 font-term text-[13px] leading-[1.2] font-extrabold uppercase tracking-[.5px] text-teal">{MONTH_NAMES[month]} {year}</div>
-      <div className="grid grid-cols-7 gap-1">
-        {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => <span key={d} className="py-1 text-center font-term text-[9px] font-bold uppercase text-muted">{d}</span>)}
-        {Array.from({ length: blanks }).map((_, i) => <span key={`b${i}`} />)}
-        {dayCells.map(({ day, className, title, count, isHoliday, isExam, isSpecialSaturday, inSemester }) => <div key={day} className={className} title={title}>
-          <span className="text-[11px] leading-none font-bold">{day}</span>
-          {inSemester && count > 0 && <span className="mt-0.5 font-term text-[9px] leading-none font-bold opacity-70">{count}</span>}
-          {isHoliday && <span className="mt-0.5 block size-[5px] rounded-full bg-holiday-ink" />}
-          {isExam && <span className="mt-0.5 block size-[5px] rounded-full bg-exam-ink" />}
-          {isSpecialSaturday && !isHoliday && !isExam && <span className="mt-0.5 block size-[5px] rounded-full bg-special-ink" />}
-        </div>)}
-      </div>
-    </div>)}
-    <div className="mt-4 flex justify-center gap-4 text-[11px] font-bold text-muted">
-      <span className="inline-flex items-center gap-1.5"><span className="inline-block size-[5px] rounded-full bg-holiday-ink" /> Holiday</span>
-      <span className="inline-flex items-center gap-1.5"><span className="inline-block size-[5px] rounded-full bg-exam-ink" /> Exam</span>
-      <span className="inline-flex items-center gap-1.5"><span className="inline-block size-[5px] rounded-full bg-special-ink" /> Working Sat</span>
-    </div>
+    {monthGrids.map((grid) => <div className="mt-5" key={`${grid.year}-${grid.month}`}><MonthGrid data={grid} /></div>)}
+    <CalendarLegend />
   </section>;
 }

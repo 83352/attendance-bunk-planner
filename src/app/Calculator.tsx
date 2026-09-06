@@ -5,6 +5,7 @@ import { calculateAttendance } from '@/domain/attendance/engine';
 import type { AttendanceResult } from '@/domain/attendance/types';
 import { buildCalendar, currentIstDate } from '@/domain/schedule/calendar';
 import type { ScheduleConfig } from '@/domain/schedule/types';
+import { MonthCalendar } from './MonthCalendar';
 import { SectionSelector, type SectionOption } from './SectionSelector';
 import { SiteHeader } from './SiteHeader';
 
@@ -170,6 +171,8 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
           </div>
 
           <SectionSelector sections={sections} selectedSectionId={activeId} onSelect={handleSectionSelect} />
+
+          {active && config ? <MonthCalendar config={config} /> : null}
 
           {active ? (
             <form onSubmit={(event) => { event.preventDefault(); calculate(); }}>

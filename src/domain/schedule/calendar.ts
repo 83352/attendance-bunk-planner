@@ -123,3 +123,60 @@ export function buildCalendar(config: ScheduleConfig, now: Date): CalendarSummar
 export function currentIstDate(now: Date): string {
   return istDate(now);
 }
+
+export type MonthDayCell = {
+  day: number;
+  iso: string;
+  count: number;
+  inSemester: boolean;
+  isHoliday: boolean;
+  isExam: boolean;
+  isSpecialSaturday: boolean;
+  isToday: boolean;
+  holidayName?: string;
+  examName?: string;
+};
+
+export type MonthCalendarData = {
+  year: number;
+  /** 0-indexed, matches Date#getUTCMonth(). */
+  month: number;
+  /** Leading blank cells so day 1 lands on the correct weekday column (Sunday-start). */
+  blanks: number;
+  dayCells: MonthDayCell[];
+  totalPeriods: number;
+};
+
+/**
+ * One calendar month's worth of day cells for a section's schedule, shared by
+ * the admin's stacked semester view and the public single-month calendar so
+ * both always agree on which days are holidays/exams/working Saturdays.
+ */
+export function monthCalendarData(config: ScheduleConfig, year: number, month: number, todayIso: string): MonthCalendarData {
+  const blanks = new Date(Date.UTC(year, month, 1)).getUTCDay();
+  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  let totalPeriods = 0;
+
+  const dayCells: MonthDayCell[] = Array.from({ length: daysInMonth }, (_, index) => {
+    const day = index + 1;
+    const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const inSemester = dateInRange(iso, config.semesterStart, config.semesterEnd);
+    const count = inSemester ? periodsForDate(config, iso).length : 0;
+    if (inSemester) totalPeriods += count;
+    const holiday = inSemester ? config.holidays.find((item) => dateInRange(iso, item.start, item.end)) : undefined;
+    const exam = inSemester ? config.exams.find((item) => dateInRange(iso, item.start, item.end)) : undefined;
+    const isSpecialSaturday = inSemester && config.specialSaturdays.some((special) => special.date === iso);
+
+    return {
+      day, iso, count, inSemester,
+      isHoliday: holiday !== undefined,
+      isExam: exam !== undefined,
+      isSpecialSaturday,
+      isToday: iso === todayIso,
+      holidayName: holiday?.name,
+      examName: exam?.name,
+    };
+  });
+
+  return { year, month, blanks, dayCells, totalPeriods };
+}
