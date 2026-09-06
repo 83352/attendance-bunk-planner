@@ -12,7 +12,7 @@
   --color-red: #f21d2f;
   --color-lime: #b7f14a;
   --color-green: #46e34d;
-  --color-grey: #9a9aa0;         /* muted text on inputs */
+  --color-grey: #707076;         /* muted text on inputs; darkened from #9a9aa0 to clear 4.5:1 contrast on white */
   --color-line: #d8d4ca;         /* hairlines */
   --color-surface: #ffffff;
   --color-muted: #66666a;
@@ -31,7 +31,10 @@
   --color-warning-bg: #fff0e8;
   --color-link: #087d42;
   --color-error: #a00d1e;
-  --color-hero-danger: #f21d2f;  --color-hero-danger-ink: #ffffff;
+  --color-hero-danger: #d81a2a;  --color-hero-danger-ink: #ffffff; /* darkened from #f21d2f so white body text clears 4.5:1 */
+  /* Result hero severity tiers: lime (safe) -> yellow -> orange -> red (hero-danger, above). Both new tiers use black ink at 8:1+ contrast. */
+  --color-hero-yellow: #f4d035; --color-hero-yellow-ink: #111111;
+  --color-hero-orange: #ff8c1a; --color-hero-orange-ink: #111111;
   --color-code-bg: #111111;      --color-code-border: #111111;
   /* Active section chip: a neon block with black type and a hard shadow. */
   --color-chip-bg: #b7f14a;

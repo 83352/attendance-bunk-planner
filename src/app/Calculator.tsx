@@ -63,6 +63,15 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
   // reconcile the previous numbers — switching clears them.
   const [resultFor, setResultFor] = useState<string>('');
   const calculationTimer = useRef<number | null>(null);
+  const resultsRef = useRef<HTMLDivElement | null>(null);
+
+  // Scroll the result into view on every fresh calculation (resultSeq only
+  // bumps inside calculate(), never on mount), so a student who taps the
+  // button on a short viewport isn't left staring at an unchanged screen.
+  useEffect(() => {
+    if (resultSeq === 0) return;
+    resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [resultSeq]);
 
   // Section switch: drop the per-section inputs and any result so the user
   // never sees stale numbers from a different timetable.
@@ -163,52 +172,100 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
           <SectionSelector sections={sections} selectedSectionId={activeId} onSelect={handleSectionSelect} />
 
           {active ? (
-            <>
+            <form onSubmit={(event) => { event.preventDefault(); calculate(); }}>
               <div className="mb-[clamp(17px,2vw,22px)] grid gap-[clamp(16px,1.8vw,20px)]">
                 <label className="relative grid gap-[clamp(7px,.8vw,10px)] text-[12px] leading-[1.1] font-black text-black">
                   Current attendance %
-                  <input className={`input-placeholder relative z-[1] min-h-[clamp(60px,8vw,80px)] w-full border-[3px] border-black bg-surface px-[clamp(13px,1.6vw,18px)] py-2 pr-[clamp(38px,5vw,52px)] font-sans text-[clamp(30px,4vw,40px)] leading-[.95] font-black text-black shadow-[2px_2px_0_var(--shadow-color)] outline-none focus:border-orange focus:outline-2 focus:outline-lime focus:outline-offset-2 ${error ? 'input-error' : ''}`} inputMode="decimal" value={current} placeholder="Enter your attendance..." onChange={(event) => { setCurrent(event.target.value); if (error) setError(''); }} aria-invalid={error ? true : undefined} aria-label="Current attendance percentage" />
+                  <input className={`input-placeholder relative z-[1] min-h-[clamp(60px,8vw,80px)] w-full border-[3px] border-black bg-surface px-[clamp(13px,1.6vw,18px)] py-2 pr-[clamp(38px,5vw,52px)] font-sans text-[clamp(30px,4vw,40px)] leading-[.95] font-black text-black shadow-[2px_2px_0_var(--shadow-color)] outline-none focus:border-orange focus:outline-2 focus:outline-lime focus:outline-offset-2 ${error ? 'input-error' : ''}`} inputMode="decimal" value={current} placeholder="Enter your attendance..." onChange={(event) => { setCurrent(event.target.value); if (error) setError(''); }} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); calculate(); } }} aria-invalid={error ? true : undefined} aria-label="Current attendance percentage" />
 <span className="absolute right-[clamp(12px,1.6vw,18px)] bottom-[clamp(13px,2.4vw,24px)] z-[2] font-term text-[clamp(16px,2vw,20px)] leading-none font-bold text-grey">%</span>
                   {heldCaption ? <span className="font-term text-[10px] leading-[1.3] font-normal text-muted">{heldCaption}</span> : null}
                 </label>
                 <label className="relative grid gap-[clamp(7px,.8vw,10px)] text-[12px] leading-[1.1] font-black text-black">
                   Target attendance %
-                  <input className={`relative z-[1] min-h-[clamp(60px,8vw,80px)] w-full border-[3px] border-black bg-surface px-[clamp(13px,1.6vw,18px)] py-2 pr-[clamp(38px,5vw,52px)] font-sans text-[clamp(30px,4vw,40px)] leading-[.95] font-black text-black shadow-[2px_2px_0_var(--shadow-color)] outline-none focus:border-orange focus:outline-2 focus:outline-lime focus:outline-offset-2 ${error ? 'input-error' : ''}`} inputMode="decimal" value={target} onChange={(event) => { setTarget(event.target.value); if (error) setError(''); }} aria-invalid={error ? true : undefined} aria-label="Target attendance percentage" />
+                  <input className={`relative z-[1] min-h-[clamp(60px,8vw,80px)] w-full border-[3px] border-black bg-surface px-[clamp(13px,1.6vw,18px)] py-2 pr-[clamp(38px,5vw,52px)] font-sans text-[clamp(30px,4vw,40px)] leading-[.95] font-black text-black shadow-[2px_2px_0_var(--shadow-color)] outline-none focus:border-orange focus:outline-2 focus:outline-lime focus:outline-offset-2 ${error ? 'input-error' : ''}`} inputMode="decimal" value={target} onChange={(event) => { setTarget(event.target.value); if (error) setError(''); }} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); calculate(); } }} aria-invalid={error ? true : undefined} aria-label="Target attendance percentage" />
                   <span className="absolute right-[clamp(12px,1.6vw,18px)] bottom-[clamp(13px,2.4vw,24px)] z-[2] font-term text-[clamp(16px,2vw,20px)] leading-none font-bold text-grey">%</span>
                 </label>
               </div>
               {error && <p className="mb-[13px] border-2 border-black bg-danger-bg p-2 font-term text-[11px] leading-[1.3] font-bold text-error" role="alert">{error}</p>}
 
-              <button className="btn-calculate btn-calculate-hover" type="button" onClick={calculate} disabled={calculating} aria-busy={calculating}>
+              <button className="btn-calculate btn-calculate-hover" type="submit" disabled={calculating} aria-busy={calculating}>
                 {calculating ? 'Calculating…' : <>Can I bunk? <span aria-hidden="true">↗</span></>}
               </button>
-            </>
+            </form>
           ) : (
             <p className="mt-[6px] font-term text-[12px] leading-[1.4] text-muted">Pick your section above to load its timetable.</p>
           )}
         </section>
 
-        {result && resultEndDate ? <Results key={resultSeq} result={result} endDate={resultEndDate} heldLabel={heldCaption} /> : null}
+        {result && resultEndDate ? <div ref={resultsRef}><Results key={resultSeq} result={result} endDate={resultEndDate} heldLabel={heldCaption} /></div> : null}
 
-<a className="show-desktop mx-auto mt-[clamp(10px,1.6vw,16px)] min-h-11 w-full max-w-[680px] items-center justify-center py-[3px] text-center font-term text-[9px] font-black uppercase tracking-[.55px] text-muted underline decoration-link decoration-dotted decoration-[3px] underline-offset-[3px] hover:text-black" href="/admin">Owner? Admin panel</a>
+<a className="show-desktop mx-auto mt-[clamp(10px,1.6vw,16px)] min-h-11 w-full max-w-[680px] items-center justify-center py-[3px] text-center font-term text-[9px] font-black uppercase tracking-[.55px] text-muted underline decoration-link decoration-dotted decoration-[3px] underline-offset-[3px] hover:text-black" href="/admin">Admin panel</a>
       </main>
     </>
   );
 }
 
 const DANGER_ATTENDANCE_RATIO = 0.9;
+const CAUTION_ATTENDANCE_RATIO = 0.5;
+
+type ResultTier = 'lime' | 'yellow' | 'orange' | 'red';
+
+// Result hero severity: lime (safe) -> yellow (recoverable, or zero bunks
+// left but still on track) -> orange (recovery is tight) -> red (unreachable
+// or recovery needs 90%+ of everything left). This is deliberately keyed
+// ONLY on the fixed 75% recovery figure (recoveryTo75), never on a custom
+// target — a student who has already cleared 75% but is behind a stricter
+// personal goal still gets lime/yellow here, even though the Recovery mode
+// section below may still show a card for their own target.
+const TIER_STYLES: Record<ResultTier, string> = {
+  lime: 'bg-lime text-[#14261c]',
+  yellow: 'bg-hero-yellow text-hero-yellow-ink',
+  orange: 'bg-hero-orange text-hero-orange-ink',
+  red: 'bg-hero-danger text-hero-danger-ink',
+};
+
+function resultTier(result: AttendanceResult, needsRecoveryTo75: boolean): ResultTier {
+  if (!needsRecoveryTo75) return result.maximumBunks === 0 ? 'yellow' : 'lime';
+  const { recoveryTo75 } = result;
+  if (recoveryTo75.reachable === false || recoveryTo75.periodsRequired === null || result.remainingPeriods === 0) return 'red';
+  const ratio = recoveryTo75.periodsRequired / result.remainingPeriods;
+  if (ratio > DANGER_ATTENDANCE_RATIO) return 'red';
+  if (ratio >= CAUTION_ATTENDANCE_RATIO) return 'orange';
+  return 'yellow';
+}
 
 function Results({ result, endDate, heldLabel }: { result: AttendanceResult; endDate: string; heldLabel: string }) {
   const { recoveryTo75 } = result;
   const unreachable = recoveryTo75.reachable === false;
-  const brutal = recoveryTo75.reachable
-    && recoveryTo75.periodsRequired !== null
-    && result.remainingPeriods > 0
-    && recoveryTo75.periodsRequired / result.remainingPeriods > DANGER_ATTENDANCE_RATIO;
-  const isDanger = unreachable || brutal;
+  // Whether Recovery mode is SHOWN AT ALL considers both the fixed 75% floor
+  // and a custom target — a student clear of 75% but behind a stricter
+  // personal goal still sees this section (with only the "To reach {target}%"
+  // card, since the 75% one already reads 0). But whether it LEADS the page
+  // (above the hero) and the hero's color tier both consider only the fixed
+  // 75% figure — a custom-target-only shortfall doesn't get the urgent
+  // treatment, it just sits in its normal spot below the hero.
+  const recoveryVisible = (result.recoveryTo75.periodsRequired ?? 0) > 0 || (result.recoveryToTarget.periodsRequired ?? 0) > 0;
+  const recoveryLeadsPage = (result.recoveryTo75.periodsRequired ?? 0) > 0;
+  const tier = resultTier(result, recoveryLeadsPage);
+  const isDanger = tier === 'red';
+  // Styled like the hero (same border/shadow/padding language). When it
+  // leads the page it also shares the hero's tier color, so the two boxes
+  // read as one urgent unit; when it only trails (custom-target-only case)
+  // it stays a neutral paper box, since that case isn't meant to alarm.
+  const recoveryBlock = recoveryVisible && (
+    <div className={`grid grid-cols-1 gap-[18px] border-[3px] border-black px-5 pt-[22px] pb-[22px] shadow-hard phone:px-[17px] phone:pt-5 phone:pb-5 ${recoveryLeadsPage ? `mb-9 phone:mb-[30px] ${TIER_STYLES[tier]}` : 'mt-9 phone:mt-[30px] bg-paper text-black'}`}>
+      <div><p className="eyebrow-text mb-3 text-[10px]">Recovery mode</p><h3 className="m-0 max-w-[320px] font-display text-[22px] leading-[1.05] font-black uppercase">Build your attendance back, one day at a time.</h3></div>
+      <p className={`-mt-2 font-term text-[11px] leading-[1.4] ${recoveryLeadsPage ? 'font-bold' : 'text-muted'}`}>Assumes zero bunks from today.</p>
+      <RecoveryCard recovery={result.recoveryTo75} label="To reach 75%" />
+      {result.targetPercentage !== 75 && (
+        <RecoveryCard recovery={result.recoveryToTarget} label={`To reach ${percentage(result.targetPercentage)}`} />
+      )}
+    </div>
+  );
   return (
     <section className="mx-auto mt-9 w-full max-w-[680px] animate-rise phone:mt-[30px]" aria-live="polite">
-      <div className={`relative overflow-hidden border-[3px] border-black px-5 pt-[22px] pb-[22px] shadow-hard [animation:var(--animate-flash)] phone:px-[17px] phone:pt-5 phone:pb-5 ${isDanger ? 'bg-hero-danger text-hero-danger-ink' : 'bg-lime text-[#14261c]'}`}>
+      {recoveryLeadsPage && recoveryBlock}
+      <div className={`relative overflow-hidden border-[3px] border-black px-5 pt-[22px] pb-[22px] shadow-hard [animation:var(--animate-flash)] phone:px-[17px] phone:pt-5 phone:pb-5 ${TIER_STYLES[tier]}`}>
         <p className={`eyebrow-text mb-3 text-[10px] ${isDanger ? 'text-hero-danger-ink' : 'text-black'}`}>Your semester runway</p>
         <div className="relative z-[1] font-display text-[88px] leading-[.8] font-black tracking-[-2px] phone:text-[clamp(74px,24vw,100px)]">{result.maximumBunks}</div>
         {isDanger ? (
@@ -218,42 +275,25 @@ function Results({ result, endDate, heldLabel }: { result: AttendanceResult; end
           </>
         ) : (
           <>
-            <h2 className="mt-[14px] mb-[5px] font-display text-[25px] leading-none font-black uppercase">periods you can bunk</h2>
-            <p className="m-0 font-term text-[13px] leading-[1.4] font-bold">and still finish at <strong>{percentage(result.targetPercentage)}</strong></p>
+            <h2 className="mt-[14px] mb-[5px] font-display text-[25px] leading-none font-black uppercase">periods you can bunk this sem</h2>
+            <p className="m-0 font-term text-[13px] leading-[1.4] font-bold">and still land at <strong>{percentage(result.finalPercentageAtMaximumBunks)}</strong></p>
           </>
         )}
         <span className="absolute right-[7%] bottom-[-70px] size-[180px] rounded-full border-[30px] border-white/25" aria-hidden="true" />
       </div>
-      <div className="grid grid-cols-3 border-[3px] border-t-0 border-black bg-paper phone:grid-cols-1">
+      <div className="grid grid-cols-2 border-[3px] border-t-0 border-black bg-paper phone:grid-cols-1">
         <article className="min-h-[120px] border-r-2 border-black p-[17px] phone:min-h-0 phone:border-r-0 phone:border-b-2">
           <span className="block font-term text-[10px] leading-[1.3] uppercase tracking-[.55px] text-muted">Held so far</span>
           <strong className="mb-[5px] mt-[13px] block font-display text-[23px] leading-none font-black">{result.heldPeriods}</strong>
           <small className="block font-term text-[10px] leading-[1.3] text-muted">{heldLabel.replace(/^\d+ periods? held through /, 'through ')}</small>
         </article>
-        <article className="min-h-[120px] border-r-2 border-black p-[17px] phone:min-h-0 phone:border-r-0 phone:border-b-2">
-          <span className="block font-term text-[10px] leading-[1.3] uppercase tracking-[.55px] text-muted">Future periods</span>
+        <article className="min-h-[120px] p-[17px] phone:min-h-0">
+          <span className="block font-term text-[10px] leading-[1.3] uppercase tracking-[.55px] text-muted">Periods left</span>
           <strong className="mb-[5px] mt-[13px] block font-display text-[23px] leading-none font-black">{result.remainingPeriods}</strong>
           <small className="block font-term text-[10px] leading-[1.3] text-muted">until semester end</small>
         </article>
-        <article className="min-h-[120px] p-[17px] phone:min-h-0">
-          <span className="block font-term text-[10px] leading-[1.3] uppercase tracking-[.55px] text-muted">At the finish line</span>
-          <strong className="mb-[5px] mt-[13px] block font-display text-[23px] leading-none font-black">{percentage(result.finalPercentageAtMaximumBunks)}</strong>
-          <small className="block font-term text-[10px] leading-[1.3] text-muted">with every safe bunk used</small>
-        </article>
       </div>
-      <div className="grid grid-cols-1 gap-[18px] border-b-[3px] border-dotted border-red py-6">
-        <div><p className="eyebrow-text mb-3 text-[10px]">A practical rhythm</p><h3 className="m-0 max-w-[320px] font-display text-[22px] leading-[1.05] font-black uppercase">Spread the bunks, keep your options open.</h3></div>
-        <div className="flex flex-wrap content-center gap-2">{result.practicalBunksByWeek.map((bunks, index) => <div className="grid min-w-[48px] border-2 border-black bg-surface p-[9px_7px] text-center shadow-[2px_2px_0_var(--shadow-color)] phone:min-h-[52px] phone:min-w-[52px]" key={`${index}-${bunks}`}><span className="font-term text-[9px] text-muted">W{index + 1}</span><strong className="mt-1 font-display text-[21px] leading-none font-black">{bunks}</strong></div>)}</div>
-      </div>
-      {((result.recoveryTo75.periodsRequired ?? 0) > 0 || (result.recoveryToTarget.periodsRequired ?? 0) > 0) && (
-        <div className="grid grid-cols-1 gap-[18px] border-b-[3px] border-dotted border-red py-6">
-          <div><p className="eyebrow-text mb-3 text-[10px]">Recovery mode</p><h3 className="m-0 max-w-[320px] font-display text-[22px] leading-[1.05] font-black uppercase">Build your attendance back, one day at a time.</h3></div>
-          <RecoveryCard recovery={result.recoveryTo75} label="To reach 75%" />
-          {result.targetPercentage !== 75 && (
-            <RecoveryCard recovery={result.recoveryToTarget} label={`To reach ${percentage(result.targetPercentage)}`} />
-          )}
-        </div>
-      )}
+      {!recoveryLeadsPage && recoveryBlock}
       <p className="mt-5 font-term text-[10px] leading-[1.5] uppercase tracking-[.55px] text-muted">Planning through <strong>{formatter.format(new Date(`${endDate}T00:00:00`))}</strong>. Today is excluded until reliable attendance is available.</p>
     </section>
   );
@@ -263,7 +303,7 @@ function RecoveryCard({ recovery, label }: { recovery: AttendanceResult['recover
   return (
     <article className="border-2 border-black bg-paper p-3.5 shadow-[2px_2px_0_var(--shadow-color)]">
       <span className="block font-term text-[10px] leading-[1.3] uppercase tracking-[.55px] text-muted">{label}</span>
-      {recovery.reachable && recovery.periodsRequired !== null ? <><strong className="mb-[5px] mt-[13px] block font-display text-[19px] leading-none font-black">{recovery.periodsRequired} periods</strong><small className="block font-term text-[10px] leading-[1.3] text-muted">minimum {recovery.minimumCollegeDays} college days</small></> : <><strong className="mb-[5px] mt-[13px] block font-display text-[19px] leading-none font-black">Not reachable</strong><small className="block font-term text-[10px] leading-[1.3] text-muted">best finish: {percentage(recovery.bestAchievablePercentage)}</small></>}
+      {recovery.reachable && recovery.periodsRequired !== null ? <><strong className="mb-[5px] mt-[13px] block font-display text-[19px] leading-none font-black">{recovery.periodsRequired} periods</strong><small className="block font-term text-[10px] leading-[1.3] text-muted">/ {recovery.minimumCollegeDays} college days</small></> : <><strong className="mb-[5px] mt-[13px] block font-display text-[19px] leading-none font-black">Not reachable</strong><small className="block font-term text-[10px] leading-[1.3] text-muted">best finish: {percentage(recovery.bestAchievablePercentage)}</small></>}
     </article>
   );
 }
