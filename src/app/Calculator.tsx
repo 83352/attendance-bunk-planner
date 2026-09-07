@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { calculateAttendance } from '@/domain/attendance/engine';
 import type { AttendanceResult } from '@/domain/attendance/types';
 import { buildCalendar, currentIstDate } from '@/domain/schedule/calendar';
@@ -11,6 +11,41 @@ import { SiteHeader } from './SiteHeader';
 
 const formatter = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 const percentage = (value: number) => `${value.toFixed(2)}%`;
+
+// Device-local memory of the last-picked section, so a returning visitor
+// lands straight on their inputs instead of re-picking every time. This is
+// separate from (and doesn't undo) the deliberate choice elsewhere to ignore
+// a shareable ?section= URL param on load.
+const SECTION_STORAGE_KEY = 'dontbunk:lastSectionId';
+
+function readStoredSectionId(): string | null {
+  try {
+    return window.localStorage.getItem(SECTION_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function storeSectionId(sectionId: string) {
+  try {
+    window.localStorage.setItem(SECTION_STORAGE_KEY, sectionId);
+  } catch {
+    // Ignore — e.g. private browsing with storage disabled.
+  }
+}
+
+// localStorage never changes from outside this tab, so there's nothing to
+// subscribe to — this just lets useSyncExternalStore read it safely without
+// a server/client hydration mismatch (server snapshot is always '').
+function subscribeToNothing() {
+  return () => {};
+}
+function getStoredSectionSnapshot(): string {
+  return readStoredSectionId() ?? '';
+}
+function getServerSectionSnapshot(): string {
+  return '';
+}
 
 /** Human-friendly "held through yesterday" caption for the Current attendance input. */
 function heldThroughYesterdayLabel(config: ScheduleConfig, now: Date): string {
@@ -49,7 +84,14 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
   // The active section lives here, not in the parent, so the card stays
   // mounted when the user switches chips. That means the rise-in animation
   // only plays once (on first load), and there is no remount flash.
-  const [activeId, setActiveId] = useState('');
+  // `explicitSectionId` is null until the user (or a restored preference)
+  // has actually chosen something; `activeId` falls back to the stored
+  // last-picked section (via useSyncExternalStore, which is hydration-safe:
+  // the server snapshot is always '', so the first client render matches
+  // the server before the real localStorage value is synced in).
+  const [explicitSectionId, setExplicitSectionId] = useState<string | null>(null);
+  const storedSectionId = useSyncExternalStore(subscribeToNothing, getStoredSectionSnapshot, getServerSectionSnapshot);
+  const activeId = explicitSectionId ?? (sections.some((section) => section.id === storedSectionId) ? storedSectionId : '');
   const [current, setCurrent] = useState('');
   const [target, setTarget] = useState('75');
   const [result, setResult] = useState<AttendanceResult | null>(null);
@@ -99,7 +141,7 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
   // Link's default navigation and clear state in place — no full page
   // reload, no remount flash, no leftover ?section= in the URL.
   function handleHomeClick() {
-    setActiveId('');
+    setExplicitSectionId('');
     setCalculating(false);
     if (typeof window !== 'undefined' && window.location.search) {
       window.history.replaceState(null, '', window.location.pathname);
@@ -109,7 +151,8 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
 
   function handleSectionSelect(sectionId: string) {
     setCalculating(false);
-    setActiveId(sectionId);
+    setExplicitSectionId(sectionId);
+    if (sectionId) storeSectionId(sectionId);
   }
 
   const active = sections.find((section) => section.id === activeId);
