@@ -300,7 +300,12 @@ function Results({ result, endDate, heldLabel }: { result: AttendanceResult; end
   // (above the hero) and the hero's color tier both consider only the fixed
   // 75% figure — a custom-target-only shortfall doesn't get the urgent
   // treatment, it just sits in its normal spot below the hero.
-  const recoveryVisible = (result.recoveryTo75.periodsRequired ?? 0) > 0 || (result.recoveryToTarget.periodsRequired ?? 0) > 0;
+  // When recovery to 75% is flat-out unreachable, the engine's periodsRequired
+  // is still a number (just one bigger than the periods actually left), which
+  // would otherwise render a nonsensical "N periods to reach 75%" box right
+  // next to the hero's own "recovery is out of reach" message. In that case,
+  // skip the whole Recovery mode section — the hero alone says it clearly.
+  const recoveryVisible = !unreachable && ((result.recoveryTo75.periodsRequired ?? 0) > 0 || (result.recoveryToTarget.periodsRequired ?? 0) > 0);
   const recoveryLeadsPage = (result.recoveryTo75.periodsRequired ?? 0) > 0;
   const tier = resultTier(result, recoveryLeadsPage);
   const isDanger = tier === 'red';
@@ -327,7 +332,7 @@ function Results({ result, endDate, heldLabel }: { result: AttendanceResult; end
   );
   return (
     <section className="mx-auto mt-9 w-full max-w-[680px] animate-rise phone:mt-[30px]" aria-live="polite">
-      {recoveryLeadsPage && (
+      {recoveryLeadsPage && recoveryVisible && (
         <div className="mb-9 phone:mb-[30px]">
           {recoveryBlock}
           <p className="mt-3 text-center font-term text-[12px] font-black uppercase tracking-[.55px] text-muted">↓ then, for the rest of the semester</p>
