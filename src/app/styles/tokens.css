@@ -26,7 +26,10 @@
      bordered box on the site rather than a colored one. */
   --color-holiday-bg: var(--color-danger-bg); --color-holiday-ink: var(--color-danger-ink);
   --color-exam-bg: #dcf0ec;      --color-exam-ink: #1b6b5f;
-  --color-special-bg: var(--color-mint); --color-special-ink: var(--color-success);
+  /* Neutral grey rather than another green/teal tint — a working Saturday
+     is an administrative fact, not "good" or "bad" like the other two, and
+     grey keeps it from being confused with the exam color at a glance. */
+  --color-special-bg: #ececea;   --color-special-ink: #54545a;
   --color-teal: #218575;
   --color-today: #55ad9b;
   --color-success: #087d42;
