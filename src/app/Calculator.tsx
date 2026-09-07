@@ -330,7 +330,7 @@ function Results({ result, endDate, heldLabel }: { result: AttendanceResult; end
       {recoveryLeadsPage && (
         <div className="mb-9 phone:mb-[30px]">
           {recoveryBlock}
-          <p className="mt-3 text-center font-term text-[10px] font-black uppercase tracking-[.55px] text-muted">↓ then, for the rest of the semester</p>
+          <p className="mt-3 text-center font-term text-[12px] font-black uppercase tracking-[.55px] text-muted">↓ then, for the rest of the semester</p>
         </div>
       )}
       <div className={`relative overflow-hidden border-[3px] border-black px-5 pt-[22px] pb-[22px] shadow-hard [animation:var(--animate-flash)] phone:px-[17px] phone:pt-5 phone:pb-5 ${TIER_STYLES[tier]}`}>
