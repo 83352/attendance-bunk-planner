@@ -21,9 +21,12 @@
   --color-cal-off: #f3f7f6;
   --color-cal-cell: #ffffff;     /* raised day cell inside a month panel */
   --color-cal-cell-border: #111111;
-  --color-holiday-bg: #fee2e2;   --color-holiday-border: #fca5a5;  --color-holiday-ink: #991b1b;
-  --color-exam-bg: #dbeafe;      --color-exam-border: #93c5fd;     --color-exam-ink: #1e40af;
-  --color-special-bg: #d1fae5;   --color-special-border: #6ee7b7;  --color-special-ink: #065f46;
+  /* Calendar exception days: tints of the site's own palette (not generic
+     pastel defaults), all reusing a solid black cell border like every other
+     bordered box on the site rather than a colored one. */
+  --color-holiday-bg: var(--color-danger-bg); --color-holiday-ink: var(--color-danger-ink);
+  --color-exam-bg: #dcf0ec;      --color-exam-ink: #1b6b5f;
+  --color-special-bg: var(--color-mint); --color-special-ink: var(--color-success);
   --color-teal: #218575;
   --color-today: #55ad9b;
   --color-success: #087d42;
@@ -77,6 +80,16 @@
     0%   { transform: scale(1); }
     50%  { transform: scale(.96); }
     100% { transform: scale(1); }
+  }
+  --animate-month-in-next: month-in-next 0.22s ease-out both;
+  @keyframes month-in-next {
+    from { opacity: 0; transform: translateX(16px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  --animate-month-in-prev: month-in-prev 0.22s ease-out both;
+  @keyframes month-in-prev {
+    from { opacity: 0; transform: translateX(-16px); }
+    to { opacity: 1; transform: translateX(0); }
   }
 }
 

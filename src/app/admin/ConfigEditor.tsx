@@ -3,9 +3,9 @@
 import { startTransition, useActionState, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ScheduleConfig, TimetablePeriod, Weekday } from '@/domain/schedule/types';
-import { buildCalendar, currentIstDate, monthCalendarData } from '@/domain/schedule/calendar';
+import { buildCalendar, currentIstDate } from '@/domain/schedule/calendar';
 import { deleteSection, saveSemesterConfig } from './actions';
-import { CalendarLegend, MonthGrid } from '../MonthGrid';
+import { MonthCalendar } from '../MonthCalendar';
 
 const days: [Weekday, string][] = [[1, 'Monday'], [2, 'Tuesday'], [3, 'Wednesday'], [4, 'Thursday'], [5, 'Friday']];
 type SectionOption = { id: string; name: string };
@@ -259,28 +259,5 @@ function SectionManager({ sections, selectedSectionId, onDeleted }: { sections: 
 }
 
 function SemesterCalendar({ config }: { config: ScheduleConfig }) {
-  const startDate = new Date(`${config.semesterStart}T00:00:00Z`);
-  const endDate = new Date(`${config.semesterEnd}T00:00:00Z`);
-  const startMonth = startDate.getUTCMonth();
-  const startYear = startDate.getUTCFullYear();
-  const endMonth = endDate.getUTCMonth();
-  const endYear = endDate.getUTCFullYear();
-
-  const months: { year: number; month: number }[] = [];
-  for (let y = startYear, m = startMonth; y < endYear || (y === endYear && m <= endMonth); m++) {
-    if (m > 11) { m = 0; y++; }
-    months.push({ year: y, month: m });
-  }
-
-  const monthGrids = months.map(({ year, month }) => monthCalendarData(config, year, month, todayIso));
-  const totalPeriods = monthGrids.reduce((sum, grid) => sum + grid.totalPeriods, 0);
-
-  return <section className={configSection}>
-    <div className={adminHeading}>
-      <div><p className="eyebrow-text mb-[7px] text-[10px] text-teal">Semester overview</p><h2 className={adminH2}>Period calendar</h2></div>
-<div className="grid shrink-0 justify-items-center gap-0.5"><strong className="font-display text-[25px] leading-none font-black text-teal">{totalPeriods}</strong><span className="whitespace-nowrap font-term text-[10px] text-muted">total periods</span></div>
-    </div>
-    {monthGrids.map((grid) => <div className="mt-5" key={`${grid.year}-${grid.month}`}><MonthGrid data={grid} /></div>)}
-    <CalendarLegend />
-  </section>;
+  return <section className={configSection}><MonthCalendar config={config} /></section>;
 }

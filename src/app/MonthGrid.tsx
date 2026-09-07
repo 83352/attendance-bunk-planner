@@ -11,20 +11,20 @@ const dayLabelFormatter = new Intl.DateTimeFormat('en-IN', { weekday: 'short', d
  * exams, and working Saturdays. Shared by the admin's stacked semester view
  * and the public single-month calendar so both always look identical.
  */
-export function MonthGrid({ data }: { data: MonthCalendarData }) {
+export function MonthGrid({ data, showHeading = true }: { data: MonthCalendarData; showHeading?: boolean }) {
   const { year, month, blanks, dayCells } = data;
   return (
     <div className="border-[3px] border-black bg-surface p-5 shadow-hard">
-      <div className="mb-3 font-term text-[13px] leading-[1.2] font-extrabold uppercase tracking-[.5px] text-teal">{MONTH_NAMES[month]} {year}</div>
+      {showHeading && <div className="mb-3 font-term text-[13px] leading-[1.2] font-extrabold uppercase tracking-[.5px] text-teal">{MONTH_NAMES[month]} {year}</div>}
       <div className="grid grid-cols-7 gap-1">
         {WEEKDAY_LABELS.map((label) => <span key={label} className="py-1 text-center font-term text-[9px] font-bold uppercase text-muted">{label}</span>)}
         {Array.from({ length: blanks }).map((_, index) => <span key={`b${index}`} />)}
         {dayCells.map(({ day, iso, count, inSemester, isHoliday, isExam, isSpecialSaturday, isToday, holidayName, examName }) => {
           let className = 'group relative flex h-[38px] flex-col items-center justify-center border-2 text-[12px] transition-transform hover:-translate-y-px';
           if (!inSemester || (count === 0 && !isHoliday && !isExam && !isSpecialSaturday)) className += ' border-transparent bg-transparent text-muted opacity-40';
-          else if (isHoliday) className += ' bg-holiday-bg border-holiday-border text-holiday-ink';
-          else if (isExam) className += ' bg-exam-bg border-exam-border text-exam-ink';
-          else if (isSpecialSaturday) className += ' bg-special-bg border-special-border text-special-ink';
+          else if (isHoliday) className += ' bg-holiday-bg border-black text-holiday-ink';
+          else if (isExam) className += ' bg-exam-bg border-black text-exam-ink';
+          else if (isSpecialSaturday) className += ' bg-special-bg border-black text-special-ink';
           else className += ' bg-cal-cell border-cal-cell-border text-black';
           if (isToday) className += ' !border-today font-extrabold';
 
@@ -44,9 +44,9 @@ export function MonthGrid({ data }: { data: MonthCalendarData }) {
             <div key={day} className={className}>
               <span className="text-[11px] leading-none font-bold">{day}</span>
               {inSemester && count > 0 && <span className="mt-0.5 font-term text-[9px] leading-none font-bold opacity-70">{count}</span>}
-              {isHoliday && <span className="mt-0.5 block size-[5px] rounded-full bg-holiday-ink" />}
-              {isExam && <span className="mt-0.5 block size-[5px] rounded-full bg-exam-ink" />}
-              {isSpecialSaturday && !isHoliday && !isExam && <span className="mt-0.5 block size-[5px] rounded-full bg-special-ink" />}
+              {detailKind === 'holiday' && <span className="mt-0.5 block size-[5px] rounded-full bg-holiday-ink" />}
+              {detailKind === 'exam' && <span className="mt-0.5 block size-[5px] rounded-full bg-exam-ink" />}
+              {detailKind === 'special' && <span className="mt-0.5 block size-[5px] rounded-full bg-special-ink" />}
               {inSemester && (
                 <>
                   <span className="sr-only">{srDetail}</span>

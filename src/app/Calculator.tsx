@@ -63,6 +63,7 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
   // right `config.semesterEnd` even after a switch. We don't try to
   // reconcile the previous numbers — switching clears them.
   const [resultFor, setResultFor] = useState<string>('');
+  const [showCalendar, setShowCalendar] = useState(false);
   const calculationTimer = useRef<number | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
 
@@ -87,6 +88,7 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
     setError('');
     setResult(null);
     setResultFor('');
+    setShowCalendar(false);
   }, [activeId]);
 
   useEffect(() => () => {
@@ -172,8 +174,6 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
 
           <SectionSelector sections={sections} selectedSectionId={activeId} onSelect={handleSectionSelect} />
 
-          {active && config ? <MonthCalendar config={config} /> : null}
-
           {active ? (
             <form onSubmit={(event) => { event.preventDefault(); calculate(); }}>
               <div className="mb-[clamp(17px,2vw,22px)] grid gap-[clamp(16px,1.8vw,20px)]">
@@ -201,6 +201,16 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
         </section>
 
         {result && resultEndDate ? <div ref={resultsRef}><Results key={resultSeq} result={result} endDate={resultEndDate} heldLabel={heldCaption} /></div> : null}
+
+        {active && config ? (
+          <div className="mx-auto mt-9 w-full max-w-[680px] phone:mt-[30px]">
+            <button type="button" onClick={() => setShowCalendar((value) => !value)} className="flex w-full cursor-pointer items-center justify-between border-[3px] border-black bg-paper px-5 py-[18px] shadow-hard phone:px-[17px]" aria-expanded={showCalendar}>
+              <span className="font-term text-[11px] font-black uppercase tracking-[.55px] text-black">{showCalendar ? 'Hide' : 'View'} semester calendar</span>
+              <span aria-hidden="true" className="font-display text-[20px] leading-none font-black">{showCalendar ? '−' : '+'}</span>
+            </button>
+            {showCalendar && <div className="border-[3px] border-t-0 border-black bg-paper px-5 pt-[18px] pb-1 phone:px-[17px]"><MonthCalendar config={config} /></div>}
+          </div>
+        ) : null}
 
 <a className="show-desktop mx-auto mt-[clamp(10px,1.6vw,16px)] min-h-11 w-full max-w-[680px] items-center justify-center py-[3px] text-center font-term text-[9px] font-black uppercase tracking-[.55px] text-muted underline decoration-link decoration-dotted decoration-[3px] underline-offset-[3px] hover:text-black" href="/admin">Admin panel</a>
       </main>
@@ -257,9 +267,16 @@ function Results({ result, endDate, heldLabel }: { result: AttendanceResult; end
   // it stays a neutral paper box, since that case isn't meant to alarm.
   const recoveryBlock = recoveryVisible && (
     <div className={`grid grid-cols-1 gap-[18px] border-[3px] border-black px-5 pt-[22px] pb-[22px] shadow-hard phone:px-[17px] phone:pt-5 phone:pb-5 ${recoveryLeadsPage ? `mb-9 phone:mb-[30px] ${TIER_STYLES[tier]}` : 'mt-9 phone:mt-[30px] bg-paper text-black'}`}>
-      <div><p className="eyebrow-text mb-3 text-[10px]">Recovery mode</p><h3 className="m-0 max-w-[320px] font-display text-[22px] leading-[1.05] font-black uppercase">Build your attendance back, one day at a time.</h3></div>
-      <p className={`-mt-2 font-term text-[11px] leading-[1.4] ${recoveryLeadsPage ? 'font-bold' : 'text-muted'}`}>Assumes zero bunks from today.</p>
-      <RecoveryCard recovery={result.recoveryTo75} label="To reach 75%" />
+      <p className={`font-term text-[11px] leading-[1.4] ${recoveryLeadsPage ? 'font-bold' : 'text-muted'}`}><span className="eyebrow-text">Recovery mode</span> | Assumes zero bunks from today.</p>
+      {recoveryLeadsPage ? (
+        <div>
+          <div className="font-display text-[88px] leading-[.8] font-black tracking-[-2px] phone:text-[clamp(74px,24vw,100px)]">{result.recoveryTo75.periodsRequired}</div>
+          <h3 className="mt-[14px] mb-[5px] font-display text-[25px] leading-none font-black uppercase">periods to reach 75%</h3>
+          <p className="m-0 font-term text-[13px] leading-[1.4] font-bold">over the next <strong>{result.recoveryTo75.minimumCollegeDays} college days</strong></p>
+        </div>
+      ) : (
+        <RecoveryCard recovery={result.recoveryTo75} label="To reach 75%" />
+      )}
       {result.targetPercentage !== 75 && (
         <RecoveryCard recovery={result.recoveryToTarget} label={`To reach ${percentage(result.targetPercentage)}`} />
       )}
@@ -273,13 +290,13 @@ function Results({ result, endDate, heldLabel }: { result: AttendanceResult; end
         <div className="relative z-[1] font-display text-[88px] leading-[.8] font-black tracking-[-2px] phone:text-[clamp(74px,24vw,100px)]">{result.maximumBunks}</div>
         {isDanger ? (
           <>
-            <h2 className="mt-[14px] mb-[5px] font-display text-[25px] leading-none font-black uppercase">{unreachable ? 'recovery is out of reach' : "you're in deep trouble"}</h2>
-            <p className="m-0 font-term text-[13px] leading-[1.4] font-bold">even attending everything leaves you at <strong>{percentage(recoveryTo75.bestAchievablePercentage)}</strong> vs the 75% bar</p>
+            <h2 className="relative z-[1] mt-[14px] mb-[5px] font-display text-[25px] leading-none font-black uppercase">{unreachable ? 'recovery is out of reach' : "you're in deep trouble"}</h2>
+            <p className="relative z-[1] m-0 font-term text-[13px] leading-[1.4] font-bold">even attending everything leaves you at <strong>{percentage(recoveryTo75.bestAchievablePercentage)}</strong> vs the 75% bar</p>
           </>
         ) : (
           <>
-            <h2 className="mt-[14px] mb-[5px] font-display text-[25px] leading-none font-black uppercase">periods you can bunk this sem</h2>
-            <p className="m-0 font-term text-[13px] leading-[1.4] font-bold">and still land at <strong>{percentage(result.finalPercentageAtMaximumBunks)}</strong></p>
+            <h2 className="relative z-[1] mt-[14px] mb-[5px] font-display text-[25px] leading-none font-black uppercase">periods you can bunk this sem</h2>
+            <p className="relative z-[1] m-0 font-term text-[13px] leading-[1.4] font-bold">and still land at <strong>{percentage(result.finalPercentageAtMaximumBunks)}</strong></p>
           </>
         )}
         <span className="absolute right-[7%] bottom-[-70px] size-[180px] rounded-full border-[30px] border-white/25" aria-hidden="true" />
