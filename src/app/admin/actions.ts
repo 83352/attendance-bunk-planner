@@ -71,8 +71,11 @@ export async function saveSemesterConfig(_: SaveConfigState, formData: FormData)
     console.error('save_semester_config failed', error);
     // This page is admin-only, so it's safe to surface the actual database
     // error instead of a vague generic message — it's the difference
-    // between guessing at the cause and knowing it immediately.
-    return { error: `Could not save the configuration: ${error.message}` };
+    // between guessing at the cause and knowing it immediately. Postgrest
+    // errors often carry extra context in `details`/`hint`/`code` beyond
+    // `message`, so include those too when present.
+    const parts = [error.message, error.details, error.hint, error.code ? `code ${error.code}` : null].filter(Boolean);
+    return { error: `Could not save the configuration: ${parts.join(' | ')}` };
   }
 
   revalidatePath('/');
