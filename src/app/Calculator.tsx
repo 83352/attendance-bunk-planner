@@ -335,9 +335,9 @@ function Results({ result, endDate, heldLabel }: { result: AttendanceResult; end
       {recoveryLeadsPage && recoveryVisible && (
         <div className="mb-4">
           {recoveryBlock}
-          <div className="mt-2 mb-2 text-center font-term text-[clamp(16px,4.5vw,22px)] leading-[1.3] font-black uppercase tracking-[.55px] text-muted">
-            <p className="m-0">then, for the rest of the semester</p>
-            <p className="m-0" aria-hidden="true">↓</p>
+          <div className="mt-2 mb-2 text-center font-term font-black uppercase tracking-[.55px] text-muted">
+            <p className="m-0 text-[clamp(14px,4vw,19px)] leading-[1.3]">then, for the rest of the semester</p>
+            <p className="m-0 text-[clamp(20px,5.5vw,27px)] leading-[1.3]" aria-hidden="true">↓</p>
           </div>
         </div>
       )}
