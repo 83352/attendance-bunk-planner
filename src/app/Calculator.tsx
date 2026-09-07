@@ -215,7 +215,7 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
             <h1 className="m-0 font-display text-[clamp(27px,4.4vw,40px)] leading-[.95] font-black tracking-[.2px] uppercase">Can I bunk?</h1>
           </div>
 
-          {!active && <SectionSelector sections={sections} selectedSectionId={activeId} onSelect={handleSectionSelect} />}
+          <SectionSelector sections={sections} selectedSectionId={activeId} onSelect={handleSectionSelect} />
 
           {active ? (
             <form onSubmit={(event) => { event.preventDefault(); calculate(); }}>

@@ -58,7 +58,12 @@ function groupOf(name: string): string | null {
 type BranchStep = { kind: 'branches' } | { kind: 'group'; label: string };
 
 function BranchPicker({ sections, selectedSectionId, onSelect }: { sections: SectionOption[]; selectedSectionId: string; onSelect: (id: string) => void }) {
-  const [step, setStep] = useState<BranchStep>({ kind: 'branches' });
+  // null means "no explicit navigation yet" — the step then follows
+  // `selectedSectionId` automatically (e.g. a section restored from
+  // localStorage opens straight to its group). Once the user explicitly
+  // taps a branch chip or Back, their choice sticks regardless of prop
+  // changes.
+  const [step, setStep] = useState<BranchStep | null>(null);
 
   // Build the buckets once per `sections` change. Single-member branches are
   // listed as `singleSections` so step 1 can render their lone section as a
@@ -91,12 +96,20 @@ function BranchPicker({ sections, selectedSectionId, onSelect }: { sections: Sec
     }
   }, [unmatched]);
 
+  // With no explicit navigation yet, default to the group containing the
+  // active section (if any) so a restored or externally-set selection opens
+  // straight to its group instead of the top-level branch list.
+  const autoGroup = selectedSectionId
+    ? multiGroups.find((group) => group.list.some((section) => section.id === selectedSectionId))
+    : undefined;
+  const autoStep: BranchStep = autoGroup ? { kind: 'group', label: autoGroup.label } : { kind: 'branches' };
+  const rawStep = step ?? autoStep;
   // If `sections` changes such that the current step-2 group no longer has 2+
   // members, fall back to step 1 at render time instead of syncing state in
   // an effect (avoids the react-hooks/set-state-in-effect rule).
-  const effectiveStep: BranchStep = step.kind === 'group' && !multiGroups.some((g) => g.label === step.label)
+  const effectiveStep: BranchStep = rawStep.kind === 'group' && !multiGroups.some((g) => g.label === rawStep.label)
     ? { kind: 'branches' }
-    : step;
+    : rawStep;
   const activeGroup = effectiveStep.kind === 'group' ? multiGroups.find((g) => g.label === effectiveStep.label) : undefined;
 
   return (
