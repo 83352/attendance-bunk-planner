@@ -266,7 +266,7 @@ function Results({ result, endDate, heldLabel }: { result: AttendanceResult; end
   // read as one urgent unit; when it only trails (custom-target-only case)
   // it stays a neutral paper box, since that case isn't meant to alarm.
   const recoveryBlock = recoveryVisible && (
-    <div className={`grid grid-cols-1 gap-[18px] border-[3px] border-black px-5 pt-[22px] pb-[22px] shadow-hard phone:px-[17px] phone:pt-5 phone:pb-5 ${recoveryLeadsPage ? `mb-9 phone:mb-[30px] ${TIER_STYLES[tier]}` : 'mt-9 phone:mt-[30px] bg-paper text-black'}`}>
+    <div className={`grid grid-cols-1 gap-[18px] border-[3px] border-black px-5 pt-[22px] pb-[22px] shadow-hard phone:px-[17px] phone:pt-5 phone:pb-5 ${recoveryLeadsPage ? TIER_STYLES[tier] : 'bg-paper text-black'}`}>
       <p className={`font-term text-[11px] leading-[1.4] ${recoveryLeadsPage ? 'font-bold' : 'text-muted'}`}><span className="eyebrow-text">Recovery mode</span> | Assumes zero bunks from today.</p>
       {recoveryLeadsPage ? (
         <div>
@@ -284,7 +284,12 @@ function Results({ result, endDate, heldLabel }: { result: AttendanceResult; end
   );
   return (
     <section className="mx-auto mt-9 w-full max-w-[680px] animate-rise phone:mt-[30px]" aria-live="polite">
-      {recoveryLeadsPage && recoveryBlock}
+      {recoveryLeadsPage && (
+        <div className="mb-9 phone:mb-[30px]">
+          {recoveryBlock}
+          <p className="mt-3 text-center font-term text-[10px] font-black uppercase tracking-[.55px] text-muted">↓ then, for the rest of the semester</p>
+        </div>
+      )}
       <div className={`relative overflow-hidden border-[3px] border-black px-5 pt-[22px] pb-[22px] shadow-hard [animation:var(--animate-flash)] phone:px-[17px] phone:pt-5 phone:pb-5 ${TIER_STYLES[tier]}`}>
         <p className={`eyebrow-text mb-3 text-[10px] ${isDanger ? 'text-hero-danger-ink' : 'text-black'}`}>Your semester runway</p>
         <div className="relative z-[1] font-display text-[88px] leading-[.8] font-black tracking-[-2px] phone:text-[clamp(74px,24vw,100px)]">{result.maximumBunks}</div>
@@ -313,7 +318,7 @@ function Results({ result, endDate, heldLabel }: { result: AttendanceResult; end
           <small className="block font-term text-[10px] leading-[1.3] text-muted">until semester end</small>
         </article>
       </div>
-      {!recoveryLeadsPage && recoveryBlock}
+      {!recoveryLeadsPage && recoveryVisible && <div className="mt-9 phone:mt-[30px]">{recoveryBlock}</div>}
       <p className="mt-5 font-term text-[10px] leading-[1.5] uppercase tracking-[.55px] text-muted">Planning through <strong>{formatter.format(new Date(`${endDate}T00:00:00`))}</strong>. Today is excluded until reliable attendance is available.</p>
     </section>
   );
