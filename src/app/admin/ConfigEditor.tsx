@@ -77,9 +77,15 @@ export function ConfigEditor({ initialConfig, sections, initialSectionId, initia
       // starting template (timetable, exams, dates all copied). Only the
       // name is cleared, and activeSectionId becomes '' so saving creates
       // a new row instead of updating the one we copied from.
+      // Exam ids are stripped so the server generates fresh ones for the
+      // new section — otherwise it tries to insert exam_periods rows
+      // reusing the source section's own primary keys, which fails with a
+      // duplicate-key error that surfaces (misleadingly) as "a section
+      // with that name already exists".
       setIsCreatingNew(true);
       setActiveSectionId('');
       setSectionName('');
+      setConfig((current) => ({ ...current, exams: current.exams.map((exam) => ({ ...exam, id: undefined })) }));
       return;
     }
     setIsCreatingNew(false);
