@@ -314,7 +314,7 @@ function Results({ result, endDate, heldLabel }: { result: AttendanceResult; end
   // read as one urgent unit; when it only trails (custom-target-only case)
   // it stays a neutral paper box, since that case isn't meant to alarm.
   const recoveryBlock = recoveryVisible && (
-    <div className={`grid grid-cols-1 gap-[18px] border-[3px] border-black px-5 pt-[22px] pb-[22px] shadow-hard phone:px-[17px] phone:pt-5 phone:pb-5 ${recoveryLeadsPage ? TIER_STYLES[tier] : 'bg-paper text-black'}`}>
+    <div className={`grid grid-cols-1 gap-[18px] px-5 pt-[22px] pb-[22px] phone:px-[17px] phone:pt-5 phone:pb-5 ${recoveryLeadsPage ? TIER_STYLES[tier] : 'border-[3px] border-black shadow-hard bg-paper text-black'}`}>
       <p className={`font-term text-[11px] leading-[1.4] ${recoveryLeadsPage ? 'font-bold' : 'text-muted'}`}><span className="eyebrow-text">Recovery mode</span> | Assumes zero bunks from today.</p>
       {recoveryLeadsPage ? (
         <div>
@@ -330,33 +330,45 @@ function Results({ result, endDate, heldLabel }: { result: AttendanceResult; end
       )}
     </div>
   );
+  // Shared between the merged (recovery-leads) and standalone hero
+  // renderings below, so the two never drift out of sync.
+  const heroContent = (
+    <>
+      <p className={`eyebrow-text mb-3 text-[10px] ${isDanger ? 'text-hero-danger-ink' : 'text-black'}`}>Your semester runway</p>
+      <div className="relative z-[1] font-display text-[88px] leading-[.8] font-black tracking-[-2px] phone:text-[clamp(74px,24vw,100px)]">{result.maximumBunks}</div>
+      {isDanger ? (
+        <>
+          <h2 className="relative z-[1] mt-[14px] mb-[5px] font-display text-[25px] leading-none font-black uppercase">{unreachable ? 'recovery is out of reach' : "you're in deep trouble"}</h2>
+          <p className="relative z-[1] m-0 font-term text-[13px] leading-[1.4] font-bold">even attending everything leaves you at <strong>{percentage(recoveryTo75.bestAchievablePercentage)}</strong> vs the 75% bar</p>
+        </>
+      ) : (
+        <>
+          <h2 className="relative z-[1] mt-[14px] mb-[5px] font-display text-[25px] leading-none font-black uppercase">periods you can bunk this sem</h2>
+          <p className="relative z-[1] m-0 font-term text-[13px] leading-[1.4] font-bold">and still land at <strong>{percentage(result.finalPercentageAtMaximumBunks)}</strong></p>
+        </>
+      )}
+      <span className="absolute right-[7%] bottom-[-70px] size-[180px] rounded-full border-[30px] border-white/25" aria-hidden="true" />
+    </>
+  );
   return (
     <section className="mx-auto mt-9 w-full max-w-[680px] animate-rise phone:mt-[30px]" aria-live="polite">
-      {recoveryLeadsPage && recoveryVisible && (
-        <div className="mb-4">
+      {recoveryLeadsPage && recoveryVisible ? (
+        <div className={`border-[3px] border-black shadow-hard ${TIER_STYLES[tier]}`}>
           {recoveryBlock}
-          <div className="mt-2 mb-2 text-center font-term font-black uppercase tracking-[.55px] text-muted">
-            <p className="m-0 text-[clamp(14px,4vw,19px)] leading-[1.3]">then, for the rest of the semester</p>
-            <p className="m-0 text-[clamp(20px,5.5vw,27px)] leading-[1.3]" aria-hidden="true">↓</p>
+          <div className="flex items-center gap-3 px-5 py-2.5 phone:px-[17px]">
+            <span className="h-px flex-1 bg-black/20" aria-hidden="true" />
+            <span className="font-term text-[11px] font-black uppercase tracking-[.55px]">then, for the rest of the semester</span>
+            <span className="h-px flex-1 bg-black/20" aria-hidden="true" />
+          </div>
+          <div className="relative overflow-hidden px-5 pt-[22px] pb-[22px] [animation:var(--animate-flash)] phone:px-[17px] phone:pt-5 phone:pb-5">
+            {heroContent}
           </div>
         </div>
+      ) : (
+        <div className={`relative overflow-hidden border-[3px] border-black px-5 pt-[22px] pb-[22px] shadow-hard [animation:var(--animate-flash)] phone:px-[17px] phone:pt-5 phone:pb-5 ${TIER_STYLES[tier]}`}>
+          {heroContent}
+        </div>
       )}
-      <div className={`relative overflow-hidden border-[3px] border-black px-5 pt-[22px] pb-[22px] shadow-hard [animation:var(--animate-flash)] phone:px-[17px] phone:pt-5 phone:pb-5 ${TIER_STYLES[tier]}`}>
-        <p className={`eyebrow-text mb-3 text-[10px] ${isDanger ? 'text-hero-danger-ink' : 'text-black'}`}>Your semester runway</p>
-        <div className="relative z-[1] font-display text-[88px] leading-[.8] font-black tracking-[-2px] phone:text-[clamp(74px,24vw,100px)]">{result.maximumBunks}</div>
-        {isDanger ? (
-          <>
-            <h2 className="relative z-[1] mt-[14px] mb-[5px] font-display text-[25px] leading-none font-black uppercase">{unreachable ? 'recovery is out of reach' : "you're in deep trouble"}</h2>
-            <p className="relative z-[1] m-0 font-term text-[13px] leading-[1.4] font-bold">even attending everything leaves you at <strong>{percentage(recoveryTo75.bestAchievablePercentage)}</strong> vs the 75% bar</p>
-          </>
-        ) : (
-          <>
-            <h2 className="relative z-[1] mt-[14px] mb-[5px] font-display text-[25px] leading-none font-black uppercase">periods you can bunk this sem</h2>
-            <p className="relative z-[1] m-0 font-term text-[13px] leading-[1.4] font-bold">and still land at <strong>{percentage(result.finalPercentageAtMaximumBunks)}</strong></p>
-          </>
-        )}
-        <span className="absolute right-[7%] bottom-[-70px] size-[180px] rounded-full border-[30px] border-white/25" aria-hidden="true" />
-      </div>
       <div className="grid grid-cols-2 border-[3px] border-t-0 border-black bg-paper phone:grid-cols-1">
         <article className="min-h-[120px] border-r-2 border-black p-[17px] phone:min-h-0 phone:border-r-0 phone:border-b-2">
           <span className="block font-term text-[10px] leading-[1.3] uppercase tracking-[.55px] text-muted">Held so far</span>
