@@ -208,7 +208,7 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
               <span className="font-term text-[11px] font-black uppercase tracking-[.55px] text-black">{showCalendar ? 'Hide' : 'View'} semester calendar</span>
               <span aria-hidden="true" className="font-display text-[20px] leading-none font-black">{showCalendar ? '−' : '+'}</span>
             </button>
-            {showCalendar && <div className="border-[3px] border-t-0 border-black bg-paper px-5 pt-[18px] pb-1 phone:px-[17px]"><MonthCalendar config={config} /></div>}
+            {showCalendar && <div className="mt-3"><MonthCalendar config={config} /></div>}
           </div>
         ) : null}
 
