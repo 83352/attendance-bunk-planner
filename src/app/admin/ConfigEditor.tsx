@@ -36,6 +36,11 @@ export function ConfigEditor({ initialConfig, sections, initialSectionId, initia
   // a pure state update — no router navigation, no server re-render. The
   // outer page already loaded every section's config up front.
   const [activeSectionId, setActiveSectionId] = useState(initialSectionId);
+  // True while the "+ Create new section from this one" option is active:
+  // activeSectionId is '' (so saving creates instead of updating) but the
+  // dropdown itself must keep showing the create option, not fall back to
+  // the disabled placeholder that also has an empty value.
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [config, setConfig] = useState(initialConfig);
   // Section name is editable: typing a new name and pressing Save changes
   // renames the section through saveSemesterConfig. Seeded from the active
@@ -56,7 +61,7 @@ export function ConfigEditor({ initialConfig, sections, initialSectionId, initia
   // so the next save uses the new lock timestamp.
   useEffect(() => {
     if (!state.success) return;
-    if (state.sectionId && state.sectionId !== activeSectionId) startTransition(() => setActiveSectionId(state.sectionId!));
+    if (state.sectionId && state.sectionId !== activeSectionId) startTransition(() => { setActiveSectionId(state.sectionId!); setIsCreatingNew(false); });
     // Re-run the server component so the `updatedAtBySection` map is
     // refreshed and the next save uses the new lock timestamp. The draft
     // `config` doesn't need a reset — the user just saved it, so the
@@ -67,6 +72,17 @@ export function ConfigEditor({ initialConfig, sections, initialSectionId, initia
   // config so unsaved edits don't leak across. Server pre-loaded every
   // config, so this is a synchronous state update.
   const handleSectionChange = (choice: string) => {
+    if (choice === '__new__') {
+      // Keep the current `config` as-is — it becomes the new section's
+      // starting template (timetable, exams, dates all copied). Only the
+      // name is cleared, and activeSectionId becomes '' so saving creates
+      // a new row instead of updating the one we copied from.
+      setIsCreatingNew(true);
+      setActiveSectionId('');
+      setSectionName('');
+      return;
+    }
+    setIsCreatingNew(false);
     setActiveSectionId(choice);
     setConfig(configsBySection[choice] ?? initialConfig);
     setExamIds((configsBySection[choice] ?? initialConfig).exams.map(() => crypto.randomUUID()));
@@ -77,6 +93,7 @@ export function ConfigEditor({ initialConfig, sections, initialSectionId, initia
   const handleSectionDeleted = () => {
     const nextSection = sections.find((section) => section.id !== activeSectionId);
     const nextConfig = nextSection ? (configsBySection[nextSection.id] ?? initialConfig) : initialConfig;
+    setIsCreatingNew(false);
     setActiveSectionId(nextSection?.id ?? '');
     setConfig(nextConfig);
     setExamIds(nextConfig.exams.map(() => crypto.randomUUID()));
@@ -121,8 +138,8 @@ export function ConfigEditor({ initialConfig, sections, initialSectionId, initia
     {state.error && <p className="border-2 border-black bg-danger-bg p-2 font-term text-[11px] leading-[1.3] font-bold text-error" role="alert">{state.error}</p>}
     {state.success && <p className="border-2 border-black bg-lime p-2 font-term text-[11px] leading-[1.3] font-bold text-black" role="status">{state.success}</p>}
     <div className="grid gap-3.5 border-[3px] border-black bg-paper p-[18px] shadow-hard">
-<label className={fieldLabel}>Choose section<select className="w-full border-2 border-black bg-surface px-2.5 py-2.5 font-term text-[13px] font-bold text-black outline-none focus:border-orange" value={activeSectionId} onChange={(event) => handleSectionChange(event.target.value)}><option value="" disabled>{sections.length === 0 ? 'No sections saved yet' : 'Choose a section'}</option>{sections.map((section) => <option key={section.id} value={section.id}>{section.name}</option>)}</select></label>
-      <label className={fieldLabel}>Section name<input className={adminInput} value={sectionName} onChange={(event) => setSectionName(event.target.value)} maxLength={80} required /><small className={fieldHelp}>Renames the section when you press Save changes. Saving always updates the currently selected section.</small></label>
+<label className={fieldLabel}>Choose section<select className="w-full border-2 border-black bg-surface px-2.5 py-2.5 font-term text-[13px] font-bold text-black outline-none focus:border-orange" value={isCreatingNew ? '__new__' : activeSectionId} onChange={(event) => handleSectionChange(event.target.value)}><option value="" disabled>{sections.length === 0 ? 'No sections saved yet' : 'Choose a section'}</option>{sections.map((section) => <option key={section.id} value={section.id}>{section.name}</option>)}<option value="__new__">+ Create new section from this one</option></select></label>
+      <label className={fieldLabel}>Section name<input className={adminInput} value={sectionName} onChange={(event) => setSectionName(event.target.value)} maxLength={80} required /><small className={fieldHelp}>{isCreatingNew ? 'Creates a new section, copying the timetable, exams, and dates shown below. Enter a name and save.' : 'Renames the section when you press Save changes. Saving always updates the currently selected section.'}</small></label>
       <label className={fieldLabel}>Semester starts<DateInput value={config.semesterStart} onChange={(value) => update({ semesterStart: value })} /></label>
       <label className={fieldLabel}>Semester ends<DateInput value={config.semesterEnd} onChange={(value) => update({ semesterEnd: value })} /></label>
     </div>
