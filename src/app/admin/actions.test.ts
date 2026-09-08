@@ -176,8 +176,15 @@ describe('saveSemesterConfig', () => {
   });
 
   it('maps duplicate section names to a friendly error', async () => {
-    rpc.mockResolvedValueOnce({ error: { code: '23505', message: 'duplicate key value violates unique constraint' } });
+    rpc.mockResolvedValueOnce({ error: { code: '23505', message: 'duplicate key value violates unique constraint "sections_name_key"' } });
     const result = await saveSemesterConfig({}, validFormData({ sectionName: 'CSE 6' }));
     expect(result.error).toMatch(/already exists/i);
+  });
+
+  it('maps other unique-violations to a generic conflict error, not a name collision', async () => {
+    rpc.mockResolvedValueOnce({ error: { code: '23505', message: 'duplicate key value violates unique constraint "exam_periods_pkey"' } });
+    const result = await saveSemesterConfig({}, validFormData({ sectionName: 'CSE 6' }));
+    expect(result.error).not.toMatch(/already exists/i);
+    expect(result.error).toMatch(/conflicts with existing records/i);
   });
 });
