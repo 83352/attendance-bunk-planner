@@ -42,6 +42,7 @@ const BRANCH_GROUPS: BranchGroup[] = [
   { label: 'EEE',          members: ['EEE'] },
   { label: 'Mechanical',   members: ['MECH', 'MCT'] },
   { label: 'MME',          members: ['MME'] },
+  { label: 'CIVIL',        members: ['CIVIL'] },
 ];
 
 /** Index section names to their group label in O(1). Built once at module load. */
