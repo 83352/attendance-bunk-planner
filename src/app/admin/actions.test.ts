@@ -46,6 +46,7 @@ function validFormData(overrides: Record<string, string> = {}) {
   formData.set('sectionName', 'CSE 5');
   formData.set('activeSectionId', 'section-1');
   formData.set('config', JSON.stringify(config));
+  formData.set('year', '2');
   for (const [key, value] of Object.entries(overrides)) formData.set(key, value);
   return formData;
 }
@@ -179,6 +180,26 @@ describe('saveSemesterConfig', () => {
     rpc.mockResolvedValueOnce({ error: { code: '23505', message: 'duplicate key value violates unique constraint "sections_name_key"' } });
     const result = await saveSemesterConfig({}, validFormData({ sectionName: 'CSE 6' }));
     expect(result.error).toMatch(/already exists/i);
+  });
+
+  it('rejects a save whose academic year is missing, before touching the database', async () => {
+    const formData = validFormData();
+    formData.delete('year');
+    const result = await saveSemesterConfig({}, formData);
+    expect(result.error).toMatch(/academic year is missing or invalid/i);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('rejects an out-of-range academic year', async () => {
+    const result = await saveSemesterConfig({}, validFormData({ year: '7' }));
+    expect(result.error).toMatch(/academic year is missing or invalid/i);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('passes the academic year through to the save RPC', async () => {
+    rpc.mockResolvedValueOnce({ data: 'section-1', error: null });
+    await saveSemesterConfig({}, validFormData({ year: '3' }));
+    expect(rpc).toHaveBeenCalledWith('save_semester_config_with_id', expect.objectContaining({ p_year: 3 }));
   });
 
   it('maps other unique-violations to a generic conflict error, not a name collision', async () => {

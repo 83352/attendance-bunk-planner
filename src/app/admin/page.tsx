@@ -19,23 +19,40 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const { data: profile } = await supabase.from('admin_profiles').select('role').eq('user_id', user.id).single();
   if (!profile || profile.role !== 'admin') redirect('/');
 
-  const { data: sections, error: sectionsError } = await supabase.from('sections').select('id, name').order('name');
+  const { data: sections, error: sectionsError } = await supabase
+    .from('sections')
+    .select('id, name, year, is_ready')
+    .order('year')
+    .order('name');
   if (sectionsError) throw new Error('Unable to load sections.');
-  const availableSections = sections ?? [];
+  const availableSections = (sections ?? []).map((section) => ({
+    id: section.id as string,
+    name: section.name as string,
+    year: section.year as number,
+    isReady: section.is_ready as boolean,
+  }));
   // Pre-load every section's config so the client can switch sections
   // without a server round-trip. The dropdown update becomes a pure
   // client-side state change instead of a full RSC re-render.
   const configsBySection = await loadAllSectionConfigs(supabase, availableSections);
   const updatedAtBySection: Record<string, string | null> = await loadUpdatedAtBySection(supabase, availableSections);
-  const { data: calendarVersion, error: calendarVersionError } = await supabase.from('universal_calendar_version').select('updated_at').eq('id', true).single();
+  // One calendar version per academic year (migration 017). The editor sends
+  // back the version for whichever year the open section belongs to, so an
+  // edit to 2nd year's holidays cannot reject a 3rd-year save.
+  const { data: calendarVersions, error: calendarVersionError } = await supabase
+    .from('universal_calendar_version')
+    .select('year, updated_at');
   if (calendarVersionError) throw new Error('Unable to load the shared calendar version.');
+  const calendarUpdatedAtByYear: Record<number, string> = Object.fromEntries(
+    (calendarVersions ?? []).map((row) => [row.year as number, row.updated_at as string]),
+  );
   const requestedSectionId = (await searchParams).section;
   const initialSection = availableSections.find((section) => section.id === requestedSectionId) ?? availableSections[0] ?? null;
   const initialSectionId = initialSection?.id ?? '';
   const initialConfig = initialSection ? (configsBySection[initialSection.id] ?? defaultConfig) : defaultConfig;
   const initialSectionName = initialSection?.name ?? 'CSE 5';
 
-return <AdminShell showLogout><p className="eyebrow-text mb-[7px] font-term text-[10px] uppercase tracking-[.55px] text-black">Admin configuration</p><h1 className="mb-3.5 font-display text-[40px] leading-[.95] font-black uppercase tracking-[.2px] phone:text-[clamp(32px,10vw,44px)]">Schedule control room</h1><p className="max-w-[620px] font-term text-[13px] leading-[1.55] text-muted">Authenticated as {user.email}. Keep the timetable current and the public calculation follows it.</p><ConfigEditor initialConfig={initialConfig} sections={availableSections} initialSectionId={initialSectionId} initialSectionName={initialSectionName} configsBySection={configsBySection} updatedAtBySection={updatedAtBySection} calendarUpdatedAt={calendarVersion.updated_at} /></AdminShell>;
+return <AdminShell showLogout><p className="eyebrow-text mb-[7px] font-term text-[10px] uppercase tracking-[.55px] text-black">Admin configuration</p><h1 className="mb-3.5 font-display text-[40px] leading-[.95] font-black uppercase tracking-[.2px] phone:text-[clamp(32px,10vw,44px)]">Schedule control room</h1><p className="max-w-[620px] font-term text-[13px] leading-[1.55] text-muted">Authenticated as {user.email}. Keep the timetable current and the public calculation follows it.</p><ConfigEditor initialConfig={initialConfig} sections={availableSections} initialSectionId={initialSectionId} initialSectionName={initialSectionName} configsBySection={configsBySection} updatedAtBySection={updatedAtBySection} calendarUpdatedAtByYear={calendarUpdatedAtByYear} /></AdminShell>;
 }
 
 /**

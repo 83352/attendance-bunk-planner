@@ -33,6 +33,15 @@ export async function saveSemesterConfig(_: SaveConfigState, formData: FormData)
   const updatedAt = updatedAtRaw === '' ? null : updatedAtRaw;
   if (calendarUpdatedAtRaw !== '' && Number.isNaN(new Date(calendarUpdatedAtRaw).getTime())) return { error: 'The shared calendar lock timestamp is invalid. Reload the page and try again.' };
   const calendarUpdatedAt = calendarUpdatedAtRaw === '' ? null : calendarUpdatedAtRaw;
+  // Which academic year this save belongs to. Only used when creating a
+  // section -- for an existing one the RPC reads the year from the row and
+  // rejects a mismatch, so a stale form cannot retarget another year's
+  // calendar.
+  const yearRaw = String(formData.get('year') ?? '').trim();
+  const year = Number.parseInt(yearRaw, 10);
+  if (!Number.isInteger(year) || year < 1 || year > 4) {
+    return { error: 'The academic year is missing or invalid. Reload the page and try again.' };
+  }
   const config = parsed.data;
 
   const examIds = config.exams.map((exam) => exam.id ?? randomUUID());
@@ -54,11 +63,12 @@ export async function saveSemesterConfig(_: SaveConfigState, formData: FormData)
     p_special_saturdays: config.specialSaturdays,
     p_expected_updated_at: updatedAt,
     p_expected_calendar_updated_at: calendarUpdatedAt,
+    p_year: year,
   });
 
   if (error) {
     const missingRpc = error.message.includes('schema cache') || error.message.includes('function public.save_semester_config');
-    if (missingRpc) return { error: 'Configuration saving is not installed yet. Run migrations 005_atomic_save.sql through 016_fix_unfiltered_calendar_deletes.sql in Supabase, then try again.' };
+    if (missingRpc) return { error: 'Configuration saving is not installed yet. Run migrations 005_atomic_save.sql through 017_academic_years.sql in Supabase, then try again.' };
     if (error.code === '23505') {
       if (error.message.includes('sections_name_key')) return { error: 'A section with that name already exists.' };
       console.error('save_semester_config unique violation', error);
@@ -105,4 +115,31 @@ export async function deleteSection(_: SaveConfigState, formData: FormData): Pro
   revalidatePath('/');
   revalidatePath('/admin');
   return { success: 'Section deleted.' };
+}
+
+/**
+ * Publishes or unpublishes a section. Sections seeded for a new academic year
+ * start hidden because they carry a copy of another year's timetable, so this
+ * is the deliberate "I have checked this one" switch rather than something a
+ * routine schedule save flips on its own.
+ */
+export async function setSectionReady(_: SaveConfigState, formData: FormData): Promise<SaveConfigState> {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { error: 'Supabase is not configured.' };
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Your session expired. Sign in again.' };
+
+  const sectionId = String(formData.get('sectionId') ?? '').trim();
+  if (!sectionId) return { error: 'No section selected.' };
+  const isReady = String(formData.get('isReady') ?? '') === 'true';
+
+  const { error } = await supabase.rpc('set_section_ready', { p_section_id: sectionId, p_is_ready: isReady });
+  if (error) {
+    console.error('set section ready failed', error);
+    return { error: 'Could not change who can see this section. Try again.' };
+  }
+
+  revalidatePath('/');
+  revalidatePath('/admin');
+  return { success: isReady ? 'Section is now visible to students.' : 'Section is now hidden from students.' };
 }

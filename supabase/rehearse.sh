@@ -78,4 +78,11 @@ begin
 end $$;
 SQL
 
+echo "== Running cross-year isolation checks"
+# save_semester_config rewrites a whole year's calendar. If any of its
+# delete/insert statements loses its year filter, saving one year's section
+# silently wipes another's holidays -- no error, just wrong attendance maths.
+# This asserts that cannot happen. It creates its own fixture and rolls back.
+psql -v ON_ERROR_STOP=1 -f "$script_dir/test_year_isolation.sql"
+
 echo "All migrations applied cleanly."

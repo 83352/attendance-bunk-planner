@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { yearLabel } from '@/lib/academic-year';
 
-export type SectionOption = { id: string; name: string };
+export type SectionOption = { id: string; name: string; year: number };
 
 type SectionSelectorProps = {
   sections: SectionOption[];
@@ -24,7 +25,58 @@ type SectionSelectorProps = {
  */
 export function SectionSelector({ sections, selectedSectionId, onSelect }: SectionSelectorProps) {
   if (sections.length === 0) return null;
-  return <BranchPicker sections={sections} selectedSectionId={selectedSectionId} onSelect={onSelect} />;
+  return <YearPicker sections={sections} selectedSectionId={selectedSectionId} onSelect={onSelect} />;
+}
+
+/**
+ * Step 0: which academic year. Skipped entirely when only one year has
+ * sections published, so while 3rd year is still being checked the picker
+ * behaves exactly as it always has -- no dead tap for a choice of one.
+ */
+function YearPicker({ sections, selectedSectionId, onSelect }: SectionSelectorProps) {
+  const years = useMemo(
+    () => [...new Set(sections.map((section) => section.year))].sort((a, b) => a - b),
+    [sections],
+  );
+  // null means "not navigated yet", matching BranchPicker: a section restored
+  // from localStorage opens straight to its own year.
+  const [chosenYear, setChosenYear] = useState<number | null>(null);
+  const selectedYear = sections.find((section) => section.id === selectedSectionId)?.year;
+  const activeYear = chosenYear ?? selectedYear ?? (years.length === 1 ? years[0] : null);
+
+  if (years.length <= 1) {
+    return <BranchPicker sections={sections} selectedSectionId={selectedSectionId} onSelect={onSelect} />;
+  }
+
+  if (activeYear == null) {
+    return (
+      <div className="mb-[17px]">
+        <span className="text-[12px] leading-[1.1] font-black text-black">Your year</span>
+        <div className="mt-[7px] flex flex-wrap gap-3" role="group" aria-label="Choose your year">
+          {years.map((year) => (
+            <button
+              key={year}
+              type="button"
+              onClick={() => setChosenYear(year)}
+              className="btn-section-hover inline-flex min-h-[clamp(44px,5.6vw,56px)] cursor-pointer items-center justify-center border-2 border-black bg-surface px-[clamp(16px,2vw,22px)] py-[clamp(10px,1.2vw,14px)] font-term text-[clamp(12px,1.5vw,14px)] font-bold uppercase tracking-[.55px] text-black shadow-[5px_5px_0_var(--shadow-color)]"
+            >
+              {yearLabel(year)} <span aria-hidden="true" className="ml-2 font-term text-[14px]">↗</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <BranchPicker
+      sections={sections.filter((section) => section.year === activeYear)}
+      selectedSectionId={selectedSectionId}
+      onSelect={onSelect}
+      onBack={() => { setChosenYear(null); onSelect(''); }}
+      backLabel={yearLabel(activeYear)}
+    />
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -58,7 +110,7 @@ function groupOf(name: string): string | null {
 
 type BranchStep = { kind: 'branches' } | { kind: 'group'; label: string };
 
-function BranchPicker({ sections, selectedSectionId, onSelect }: { sections: SectionOption[]; selectedSectionId: string; onSelect: (id: string) => void }) {
+function BranchPicker({ sections, selectedSectionId, onSelect, onBack, backLabel }: { sections: SectionOption[]; selectedSectionId: string; onSelect: (id: string) => void; onBack?: () => void; backLabel?: string }) {
   // null means "no explicit navigation yet" — the step then follows
   // `selectedSectionId` automatically (e.g. a section restored from
   // localStorage opens straight to its group). Once the user explicitly
@@ -116,8 +168,20 @@ function BranchPicker({ sections, selectedSectionId, onSelect }: { sections: Sec
   return (
     <div className="mb-[17px]">
       <span className="text-[12px] leading-[1.1] font-black text-black">Your section</span>
+      {effectiveStep.kind === 'branches' && onBack ? (
+        <div className="mt-[7px] mb-3 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex min-h-8 cursor-pointer items-center gap-1 border-2 border-black bg-surface px-2.5 py-1 font-term text-[10px] font-black uppercase tracking-[.55px] text-black shadow-[2px_2px_0_var(--shadow-color)] hover:bg-orange hover:text-white"
+          >
+            <span aria-hidden="true">←</span> back
+          </button>
+          <span className="font-term text-[12px] font-black uppercase tracking-[.55px] text-black">{backLabel}</span>
+        </div>
+      ) : null}
       {effectiveStep.kind === 'branches' ? (
-        <div className="mt-[7px] flex flex-wrap gap-3" role="group" aria-label="Choose your branch">
+        <div className="flex flex-wrap gap-3" role="group" aria-label="Choose your branch">
           {multiGroups.map((group) => (
             <button
               key={group.label}
@@ -159,7 +223,7 @@ function BranchPicker({ sections, selectedSectionId, onSelect }: { sections: Sec
             >
               <span aria-hidden="true">←</span> back
             </button>
-            <span className="font-term text-[12px] font-black uppercase tracking-[.55px] text-black">{activeGroup?.label}</span>
+            <span className="font-term text-[12px] font-black uppercase tracking-[.55px] text-black">{backLabel ? `${backLabel} · ${activeGroup?.label ?? ''}` : activeGroup?.label}</span>
           </div>
           <div className="flex flex-wrap gap-2" role="group" aria-label={`Choose your section in ${activeGroup?.label ?? ''}`}>
             {activeGroup?.list.map((section) => {

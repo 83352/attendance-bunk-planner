@@ -8,13 +8,21 @@ export default async function Home() {
 
   if (!supabase) {
     // No backend: fall back to a single hard-coded section so the UI still renders.
-    const sections = [{ id: '', name: 'CSE 5' }];
+    const sections = [{ id: '', name: 'CSE 5', year: 2 }];
     return <SectionCalculator sections={sections} configsBySection={{ '': defaultConfig }} namesBySection={{ '': 'CSE 5' }} />;
   }
 
-  const { data: sectionRows, error: sectionsError } = await supabase.from('sections').select('id, name').order('name');
+  // is_ready gates public visibility. Sections seeded for a new academic year
+  // start as a copy of another year's timetable, so until an admin has checked
+  // one it would hand students a precise, plausible, wrong bunk count.
+  const { data: sectionRows, error: sectionsError } = await supabase
+    .from('sections')
+    .select('id, name, year')
+    .eq('is_ready', true)
+    .order('year')
+    .order('name');
   if (sectionsError) throw new Error('Unable to load sections.');
-  const sections = (sectionRows ?? []).map((row) => ({ id: row.id, name: row.name }));
+  const sections = (sectionRows ?? []).map((row) => ({ id: row.id, name: row.name, year: row.year as number }));
 
   if (sections.length === 0) {
     return <SectionCalculator sections={[]} configsBySection={{}} namesBySection={{}} />;

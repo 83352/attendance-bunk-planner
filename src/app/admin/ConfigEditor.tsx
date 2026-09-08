@@ -2,13 +2,16 @@
 
 import { startTransition, useActionState, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { yearLabel } from '@/lib/academic-year';
 import type { ScheduleConfig, TimetablePeriod, Weekday } from '@/domain/schedule/types';
 import { buildCalendar, currentIstDate } from '@/domain/schedule/calendar';
-import { deleteSection, saveSemesterConfig } from './actions';
+import { deleteSection, saveSemesterConfig, setSectionReady } from './actions';
 import { MonthCalendar } from '../MonthCalendar';
 
 const days: [Weekday, string][] = [[1, 'Monday'], [2, 'Tuesday'], [3, 'Wednesday'], [4, 'Thursday'], [5, 'Friday']];
-type SectionOption = { id: string; name: string };
+type SectionOption = { id: string; name: string; year: number; isReady: boolean };
+
+
 type DateInputProps = { value: string; onChange: (value: string) => void; ariaLabel?: string };
 
 // Shared admin building blocks (were .admin-heading / .config-section etc.)
@@ -30,7 +33,7 @@ function renumberTimetable(timetable: TimetablePeriod[]): TimetablePeriod[] {
   });
 }
 
-export function ConfigEditor({ initialConfig, sections, initialSectionId, initialSectionName, configsBySection, updatedAtBySection, calendarUpdatedAt }: { initialConfig: ScheduleConfig; sections: SectionOption[]; initialSectionId: string; initialSectionName: string; configsBySection: Record<string, ScheduleConfig>; updatedAtBySection: Record<string, string | null>; calendarUpdatedAt: string }) {
+export function ConfigEditor({ initialConfig, sections, initialSectionId, initialSectionName, configsBySection, updatedAtBySection, calendarUpdatedAtByYear }: { initialConfig: ScheduleConfig; sections: SectionOption[]; initialSectionId: string; initialSectionName: string; configsBySection: Record<string, ScheduleConfig>; updatedAtBySection: Record<string, string | null>; calendarUpdatedAtByYear: Record<number, string> }) {
   const router = useRouter();
   // Active section lives in client state so picking a different section is
   // a pure state update — no router navigation, no server re-render. The
@@ -41,6 +44,12 @@ export function ConfigEditor({ initialConfig, sections, initialSectionId, initia
   // dropdown itself must keep showing the create option, not fall back to
   // the disabled placeholder that also has an empty value.
   const [isCreatingNew, setIsCreatingNew] = useState(false);
+  // The academic year being edited. It selects which year's calendar the
+  // save rewrites and which optimistic-lock version is sent back, so it has
+  // to follow the active section rather than being global to the page.
+  const [activeYear, setActiveYear] = useState<number>(
+    () => sections.find((section) => section.id === initialSectionId)?.year ?? 2,
+  );
   const [config, setConfig] = useState(initialConfig);
   // Section name is editable: typing a new name and pressing Save changes
   // renames the section through saveSemesterConfig. Seeded from the active
@@ -95,12 +104,14 @@ export function ConfigEditor({ initialConfig, sections, initialSectionId, initia
     // Reset the editable name to the new section's name so the user
     // doesn't carry a draft rename over from the previous section.
     setSectionName(sections.find((section) => section.id === choice)?.name ?? '');
+    setActiveYear(sections.find((section) => section.id === choice)?.year ?? activeYear);
   };
   const handleSectionDeleted = () => {
     const nextSection = sections.find((section) => section.id !== activeSectionId);
     const nextConfig = nextSection ? (configsBySection[nextSection.id] ?? initialConfig) : initialConfig;
     setIsCreatingNew(false);
     setActiveSectionId(nextSection?.id ?? '');
+    setActiveYear(nextSection?.year ?? activeYear);
     setConfig(nextConfig);
     setExamIds(nextConfig.exams.map(() => crypto.randomUUID()));
     setSectionName(nextSection?.name ?? '');
@@ -144,12 +155,12 @@ export function ConfigEditor({ initialConfig, sections, initialSectionId, initia
     {state.error && <p className="border-2 border-black bg-danger-bg p-2 font-term text-[11px] leading-[1.3] font-bold text-error" role="alert">{state.error}</p>}
     {state.success && <p className="border-2 border-black bg-lime p-2 font-term text-[11px] leading-[1.3] font-bold text-black" role="status">{state.success}</p>}
     <div className="grid gap-3.5 border-[3px] border-black bg-paper p-[18px] shadow-hard">
-<label className={fieldLabel}>Choose section<select className="w-full border-2 border-black bg-surface px-2.5 py-2.5 font-term text-[13px] font-bold text-black outline-none focus:border-orange" value={isCreatingNew ? '__new__' : activeSectionId} onChange={(event) => handleSectionChange(event.target.value)}><option value="" disabled>{sections.length === 0 ? 'No sections saved yet' : 'Choose a section'}</option>{sections.map((section) => <option key={section.id} value={section.id}>{section.name}</option>)}<option value="__new__">+ Create new section from this one</option></select></label>
+<label className={fieldLabel}>Choose section<select className="w-full border-2 border-black bg-surface px-2.5 py-2.5 font-term text-[13px] font-bold text-black outline-none focus:border-orange" value={isCreatingNew ? '__new__' : activeSectionId} onChange={(event) => handleSectionChange(event.target.value)}><option value="" disabled>{sections.length === 0 ? 'No sections saved yet' : 'Choose a section'}</option>{[...new Set(sections.map((section) => section.year))].sort((a, b) => a - b).map((year) => <optgroup key={year} label={`${yearLabel(year)}`}>{sections.filter((section) => section.year === year).map((section) => <option key={section.id} value={section.id}>{section.name}{section.isReady ? '' : ' — hidden from students'}</option>)}</optgroup>)}<option value="__new__">+ Create new section from this one</option></select></label>
       <label className={fieldLabel}>Section name<input className={adminInput} value={sectionName} onChange={(event) => setSectionName(event.target.value)} maxLength={80} required /><small className={fieldHelp}>{isCreatingNew ? 'Creates a new section, copying the timetable, exams, and dates shown below. Enter a name and save.' : 'Renames the section when you press Save changes. Saving always updates the currently selected section.'}</small></label>
       <label className={fieldLabel}>Semester starts<DateInput value={config.semesterStart} onChange={(value) => update({ semesterStart: value })} /></label>
       <label className={fieldLabel}>Semester ends<DateInput value={config.semesterEnd} onChange={(value) => update({ semesterEnd: value })} /></label>
     </div>
-<input type="hidden" name="sectionName" value={sectionName} /><input type="hidden" name="activeSectionId" value={activeSectionId} /><input type="hidden" name="config" value={JSON.stringify(config)} /><input type="hidden" name="updatedAt" value={activeUpdatedAt ?? ''} /><input type="hidden" name="calendarUpdatedAt" value={calendarUpdatedAt} />
+<input type="hidden" name="sectionName" value={sectionName} /><input type="hidden" name="activeSectionId" value={activeSectionId} /><input type="hidden" name="config" value={JSON.stringify(config)} /><input type="hidden" name="updatedAt" value={activeUpdatedAt ?? ''} /><input type="hidden" name="calendarUpdatedAt" value={calendarUpdatedAtByYear[activeYear] ?? ''} /><input type="hidden" name="year" value={activeYear} />
     <section className="grid gap-4 pt-[22px] border-t-[3px] border-dotted border-red">
       <div className={adminHeading}><div><p className="eyebrow-text mb-[7px] text-[10px] text-muted">Weekly timetable</p><h2 className={adminH2}>Periods by weekday</h2></div><div className="flex items-start gap-[18px] phone:flex-wrap"><div className="grid shrink-0 justify-items-center gap-0.5"><strong className="font-display text-[25px] leading-none font-black text-teal">{config.timetable.length}</strong><span className="whitespace-nowrap font-term text-[10px] text-muted">regular / week</span></div><div className="grid shrink-0 justify-items-center gap-0.5"><strong className="font-display text-[25px] leading-none font-black text-teal">{semesterPeriodCount}</strong><span className="whitespace-nowrap font-term text-[10px] text-muted">periods this semester</span></div></div></div>
       {days.map(([weekday, label]) => <div className="grid gap-2" key={weekday}><div className="flex items-center justify-between text-[14px]"><strong>{label}</strong><button className={adminButton} type="button" onClick={() => addPeriod(weekday)}>+ period</button></div>{config.timetable.map((period, index) => period.weekday === weekday && <div className="grid grid-cols-[24px_minmax(0,1fr)_12px_minmax(0,1fr)_22px_22px_25px] items-center gap-1" key={`${weekday}-${index}`} draggable onDragStart={() => setDraggedPeriod(index)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedPeriod !== null) movePeriod(draggedPeriod, index); setDraggedPeriod(null); }}><span className="font-term text-[11px] text-muted">#{period.sequence}</span><input className={`${adminInput} min-h-11`} aria-label={`${label} period start`} type="time" value={period.start} onChange={(event) => updatePeriod(index, { start: event.target.value })} /><span className="text-center">→</span><input className={`${adminInput} min-h-11`} aria-label={`${label} period end`} type="time" value={period.end} onChange={(event) => updatePeriod(index, { end: event.target.value })} /><button className={`${adminButton} !p-0 text-center text-[16px]`} type="button" aria-label={`Move ${label} period up`} onClick={() => movePeriod(index, index - 1)}>↑</button><button className={`${adminButton} !p-0 text-center text-[16px]`} type="button" aria-label={`Move ${label} period down`} onClick={() => movePeriod(index, index + 1)}>↓</button><button className={`${adminButton} !p-0 text-center text-[16px]`} type="button" aria-label={`Remove ${label} period`} onClick={() => removePeriod(index)}>×</button></div>)}</div>)}
@@ -158,7 +169,7 @@ export function ConfigEditor({ initialConfig, sections, initialSectionId, initia
     <ConfigList title="Universal holidays" actionLabel="+ holiday" onAdd={addHoliday}><p className={fieldHelp}>These holidays apply to every section.</p>{config.holidays.map((holiday, index) => <div className="grid grid-cols-[repeat(auto-fit,minmax(100px,1fr))] items-center gap-1.5" key={`${holiday.name}-${holiday.start}-${holiday.end}-${index}`}><input className={adminInput} aria-label="Holiday name" value={holiday.name} onChange={(event) => update({ holidays: config.holidays.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item) })} /><DateInput ariaLabel="Holiday start" value={holiday.start} onChange={(value) => update({ holidays: config.holidays.map((item, itemIndex) => itemIndex === index ? { ...item, start: value } : item) })} /><DateInput ariaLabel="Holiday end" value={holiday.end} onChange={(value) => update({ holidays: config.holidays.map((item, itemIndex) => itemIndex === index ? { ...item, end: value } : item) })} /><button className={removeButton} type="button" aria-label={`Remove ${holiday.name}`} onClick={() => removeHoliday(index)}>×</button></div>)}</ConfigList>
     <ConfigList title="Universal special Saturdays" actionLabel="+ Saturday" onAdd={addSaturday}><p className={fieldHelp}>These working Saturdays apply to every section.</p>{config.specialSaturdays.map((special, index) => <div className="grid grid-cols-[repeat(auto-fit,minmax(100px,1fr))] items-center gap-1.5" key={`${special.date}-${special.copiedWeekday}-${index}`}><DateInput ariaLabel="Special Saturday date" value={special.date} onChange={(value) => update({ specialSaturdays: config.specialSaturdays.map((item, itemIndex) => itemIndex === index ? { ...item, date: value } : item) })} /><select className={adminInput} aria-label="Copied weekday" value={special.copiedWeekday} onChange={(event) => update({ specialSaturdays: config.specialSaturdays.map((item, itemIndex) => itemIndex === index ? { ...item, copiedWeekday: Number(event.target.value) as Weekday } : item) })}><option value="1">Monday timetable</option><option value="2">Tuesday timetable</option><option value="3">Wednesday timetable</option><option value="4">Thursday timetable</option><option value="5">Friday timetable</option></select><button className={removeButton} type="button" aria-label="Remove special Saturday" onClick={() => removeSaturday(index)}>×</button></div>)}</ConfigList>
     <SemesterCalendar config={config} />
-  </form><SectionManager sections={sections} selectedSectionId={activeSectionId} onDeleted={handleSectionDeleted} /></>;
+  </form><SectionVisibility sections={sections} selectedSectionId={activeSectionId} /><SectionManager sections={sections} selectedSectionId={activeSectionId} onDeleted={handleSectionDeleted} /></>;
 }
 
 const todayIso = currentIstDate(new Date());
@@ -256,6 +267,33 @@ function ConfigList({ title, actionLabel, onAdd, children }: { title: string; ac
   return <section className={configSection}><div className={adminHeading}><div><p className="eyebrow-text mb-[7px] text-[10px] text-muted">Calendar exceptions</p><h2 className={adminH2}>{title}</h2></div><button className={adminButton} type="button" onClick={onAdd}>{actionLabel}</button></div>{children}</section>;
 }
 
+function SectionVisibility({ sections, selectedSectionId }: { sections: SectionOption[]; selectedSectionId: string }) {
+  const router = useRouter();
+  const [state, action, pending] = useActionState(setSectionReady, {});
+  const handled = useRef(false);
+  useEffect(() => {
+    if (!state.success) { handled.current = false; return; }
+    if (handled.current) return;
+    handled.current = true;
+    router.refresh();
+  }, [state.success, router]);
+
+  const section = sections.find((entry) => entry.id === selectedSectionId);
+  if (!section) return null;
+
+  return <form className="grid max-w-none gap-2.5 border-t border-line pt-3.5 phone:grid-cols-[minmax(0,1fr)_auto] phone:items-center" action={action}>
+    <input type="hidden" name="sectionId" value={section.id} />
+    <input type="hidden" name="isReady" value={section.isReady ? 'false' : 'true'} />
+    <p className={fieldHelp}>{section.isReady
+      ? `“${section.name}” (${yearLabel(section.year)}) is visible to students right now.`
+      : `“${section.name}” (${yearLabel(section.year)}) is hidden from students. Sections start hidden after being copied from another year — check the timetable, exams and semester dates above before showing it, because the numbers below are what students will act on.`}</p>
+    <button type="submit" className={`${adminButton} h-auto min-h-11 w-auto min-w-[120px] justify-self-start px-4 py-2.5 !text-[12px] disabled:cursor-wait disabled:opacity-65 phone:justify-self-end`} disabled={pending}>
+      {pending ? 'Saving...' : section.isReady ? 'Hide from students' : 'Show to students'}
+    </button>
+    {state.error && <p className="border-2 border-black bg-danger-bg p-2 font-term text-[11px] leading-[1.3] font-bold text-error" role="alert">{state.error}</p>}
+  </form>;
+}
+
 function SectionManager({ sections, selectedSectionId, onDeleted }: { sections: SectionOption[]; selectedSectionId: string; onDeleted: () => void }) {
   const router = useRouter();
   const [deleteState, deleteAction, deletePending] = useActionState(deleteSection, {});
@@ -271,7 +309,7 @@ function SectionManager({ sections, selectedSectionId, onDeleted }: { sections: 
 
   return <div className="grid gap-3.5">
     <form className="grid max-w-none gap-2.5 border-t border-line pt-3.5 phone:grid-cols-[minmax(0,1fr)_auto] phone:items-center" action={deleteAction} onSubmit={(event) => {
-      if (!confirm('Delete this section? Its timetable, exams and semester dates are removed permanently. Holidays shared by all sections are kept.')) event.preventDefault();
+      if (!confirm('Delete this section? Its timetable, exams and semester dates are removed permanently. Holidays shared by that year are kept.')) event.preventDefault();
     }}>
       <input type="hidden" name="sectionId" value={selectedSectionId || ''} />
       <p className={fieldHelp}>Deletes “{sections.find((section) => section.id === selectedSectionId)?.name ?? selectedSectionId}” — the section currently open above. This cannot be undone.</p>
