@@ -76,15 +76,16 @@ function recoveryFor(
 }
 
 /**
- * How many whole college days `budget` periods covers, walking future days in
- * calendar order from the next one. A day counts only if all of its periods
- * fit, so the number is always safe to act on.
+ * How many whole college days `budget` periods covers, taking the heaviest days
+ * first. A day counts only if all of its periods fit.
  *
- * Days are taken in date order rather than lightest-first. Picking out the
- * shortest days scattered across the semester would yield a larger, technically
- * correct count, but it answers a question nobody asks; a student planning to
- * skip wants to know how many days from here the budget lasts. This matches
- * how recoveryFor already counts minimumCollegeDays.
+ * Heaviest-first makes the count hold whichever days actually get skipped: the
+ * n it returns is the largest n whose n longest days still fit, so skipping any
+ * n days in any combination stays inside the budget. Counting in calendar order
+ * instead would report a larger number that only survives if days are skipped
+ * roughly in order -- a student who skipped only their longest day each week
+ * would run past the budget while the screen still said they were fine. This is
+ * a debarment calculator, so it reports the floor rather than the likely case.
  */
 function fullDaysWithinBudget(futurePeriods: DatedPeriod[], budget: number): number {
   if (budget <= 0) return 0;
@@ -93,8 +94,7 @@ function fullDaysWithinBudget(futurePeriods: DatedPeriod[], budget: number): num
 
   let spent = 0;
   let days = 0;
-  // futurePeriods is built in date order, so Map iteration is chronological.
-  for (const periodsThatDay of periodsByDate.values()) {
+  for (const periodsThatDay of [...periodsByDate.values()].sort((a, b) => b - a)) {
     if (spent + periodsThatDay > budget) break;
     spent += periodsThatDay;
     days += 1;

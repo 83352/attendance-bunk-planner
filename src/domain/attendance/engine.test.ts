@@ -125,8 +125,8 @@ describe('attendance engine', () => {
 
   it('converts the bunk budget into whole college days', () => {
     // 26 future periods across Mon-Fri; budget is 7 (see the test above).
-    // Remaining days from 2026-08-24 run 5, 6, 5, 5, 5 periods, so the budget
-    // covers Monday (5) but not Monday+Tuesday (5+6=11).
+    // The days left run 5, 6, 5, 5, 5 periods. Heaviest first takes the 6,
+    // and the next day (5) would reach 11, past the budget of 7.
     const result = calculateAttendance({ config, now, currentPercentage: 80, targetPercentage: 75 });
     expect(result.maximumBunks).toBe(7);
     expect(result.maximumFullDaysAbsent).toBe(1);
@@ -140,13 +140,48 @@ describe('attendance engine', () => {
     expect(result.maximumFullDaysAbsent).toBe(0);
   });
 
-  it('never counts a day the budget cannot cover in full', () => {
-    const result = calculateAttendance({ config, now, currentPercentage: 100, targetPercentage: 75 });
-    const calendar = buildCalendar(config, now);
+  // The guarantee the number carries: skipping ANY n days, in any combination,
+  // stays inside the budget. That holds exactly when the n longest days fit.
+  const longestDaysFit = (config: ScheduleConfig, currentPercentage: number) => {
+    const result = calculateAttendance({ config, now, currentPercentage, targetPercentage: 75 });
     const periodsByDate = new Map<string, number>();
-    for (const period of calendar.future) periodsByDate.set(period.date, (periodsByDate.get(period.date) ?? 0) + 1);
-    const counted = [...periodsByDate.values()].slice(0, result.maximumFullDaysAbsent);
-    expect(counted.reduce((sum, value) => sum + value, 0)).toBeLessThanOrEqual(result.maximumBunks);
+    for (const period of buildCalendar(config, now).future) periodsByDate.set(period.date, (periodsByDate.get(period.date) ?? 0) + 1);
+    const longestFirst = [...periodsByDate.values()].sort((a, b) => b - a);
+    const sum = (days: number[]) => days.reduce((total, value) => total + value, 0);
+    return {
+      worstCase: sum(longestFirst.slice(0, result.maximumFullDaysAbsent)),
+      oneMore: sum(longestFirst.slice(0, result.maximumFullDaysAbsent + 1)),
+      budget: result.maximumBunks,
+      days: result.maximumFullDaysAbsent,
+      daysAvailable: longestFirst.length,
+    };
+  };
+
+  it('stays within budget even if the longest days are the ones skipped', () => {
+    const { worstCase, budget } = longestDaysFit(config, 100);
+    expect(worstCase).toBeLessThanOrEqual(budget);
+  });
+
+  it('counts as many days as the budget allows, not fewer', () => {
+    const { oneMore, budget, days, daysAvailable } = longestDaysFit(config, 80);
+    expect(days).toBeLessThan(daysAvailable);
+    expect(oneMore).toBeGreaterThan(budget);
+  });
+
+  it('holds the guarantee on an uneven timetable', () => {
+    // Mon 4, Tue 5, Wed 6, Thu 6, Fri 3 -- a real section's spread, and the
+    // case where calendar order and heaviest-first disagree.
+    const uneven: ScheduleConfig = {
+      ...config,
+      semesterEnd: '2026-09-30',
+      timetable: Object.entries({ 1: 4, 2: 5, 3: 6, 4: 6, 5: 3 }).flatMap(([weekday, count]) =>
+        Array.from({ length: count }, (_, index) => ({ weekday: Number(weekday) as 1 | 2 | 3 | 4 | 5, sequence: index + 1, start: '09:00', end: '09:50' })),
+      ),
+    };
+    const { worstCase, oneMore, budget, days, daysAvailable } = longestDaysFit(uneven, 85);
+    expect(days).toBeGreaterThan(0);
+    expect(worstCase).toBeLessThanOrEqual(budget);
+    if (days < daysAvailable) expect(oneMore).toBeGreaterThan(budget);
   });
 
   it('reports zero absent days once the semester has no periods left', () => {
