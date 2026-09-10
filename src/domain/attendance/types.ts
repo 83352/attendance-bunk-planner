@@ -23,6 +23,8 @@ export type AttendanceResult = {
   remainingPeriods: number;
   maximumBunks: number;
   finalPercentageAtMaximumBunks: number;
+  /** Whole college days the bunk budget covers, counted forward from the next one. */
+  maximumFullDaysAbsent: number;
   periodsPerWeek: number;
   practicalBunksByWeek: number[];
   recoveryTo75: RecoveryResult;

@@ -123,6 +123,39 @@ describe('attendance engine', () => {
     expect(result.practicalBunksByWeek.every((value) => value >= 0)).toBe(true);
   });
 
+  it('converts the bunk budget into whole college days', () => {
+    // 26 future periods across Mon-Fri; budget is 7 (see the test above).
+    // Remaining days from 2026-08-24 run 5, 6, 5, 5, 5 periods, so the budget
+    // covers Monday (5) but not Monday+Tuesday (5+6=11).
+    const result = calculateAttendance({ config, now, currentPercentage: 80, targetPercentage: 75 });
+    expect(result.maximumBunks).toBe(7);
+    expect(result.maximumFullDaysAbsent).toBe(1);
+  });
+
+  it('reports zero absent days when nothing can be bunked', () => {
+    // 26 held + 26 left at a 75% target needs 39 attended; an estimated 13
+    // attended so far leaves exactly no slack, so the budget is 0 periods.
+    const result = calculateAttendance({ config, now, currentPercentage: 50, targetPercentage: 75 });
+    expect(result.maximumBunks).toBe(0);
+    expect(result.maximumFullDaysAbsent).toBe(0);
+  });
+
+  it('never counts a day the budget cannot cover in full', () => {
+    const result = calculateAttendance({ config, now, currentPercentage: 100, targetPercentage: 75 });
+    const calendar = buildCalendar(config, now);
+    const periodsByDate = new Map<string, number>();
+    for (const period of calendar.future) periodsByDate.set(period.date, (periodsByDate.get(period.date) ?? 0) + 1);
+    const counted = [...periodsByDate.values()].slice(0, result.maximumFullDaysAbsent);
+    expect(counted.reduce((sum, value) => sum + value, 0)).toBeLessThanOrEqual(result.maximumBunks);
+  });
+
+  it('reports zero absent days once the semester has no periods left', () => {
+    const ended = { ...config, semesterEnd: '2026-08-23' };
+    const result = calculateAttendance({ config: ended, now, currentPercentage: 80, targetPercentage: 75 });
+    expect(result.remainingPeriods).toBe(0);
+    expect(result.maximumFullDaysAbsent).toBe(0);
+  });
+
   it('reports heldPeriods matching the calendar builder (excludes today)', () => {
     const result = calculateAttendance({ config, now, currentPercentage: 80, targetPercentage: 75 });
     const calendar = buildCalendar(config, now);

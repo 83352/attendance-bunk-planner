@@ -11,6 +11,9 @@ import { SiteHeader } from './SiteHeader';
 
 const formatter = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 const percentage = (value: number) => `${value.toFixed(2)}%`;
+// Bunks per week divides into however many teaching weeks are left, so it is
+// rarely a whole number. One decimal, with a bare integer when it is exact.
+const perWeek = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(1));
 
 // Device-local memory of the last-picked section, so a returning visitor
 // lands straight on their inputs instead of re-picking every time. This is
@@ -378,16 +381,30 @@ function Results({ result, endDate, heldLabel }: { result: AttendanceResult; end
           {heroContent}
         </div>
       )}
-      <div className="grid grid-cols-2 border-[3px] border-t-0 border-black bg-paper phone:grid-cols-1">
-        <article className="min-h-[120px] border-r-2 border-black p-[17px] phone:min-h-0 phone:border-r-0 phone:border-b-2">
+      {/* Four stats as a 2x2. Deliberately NOT using the `phone:` variant here:
+          it is a min-width (>=650px) breakpoint, so a `phone:grid-cols-1`
+          would stack these into a four-tall column on desktop while leaving
+          real phones two-up. 2x2 reads correctly at both sizes. */}
+      <div className="grid grid-cols-2 border-[3px] border-t-0 border-black bg-paper">
+        <article className="min-h-[120px] border-r-2 border-b-2 border-black p-[17px]">
           <span className="block font-term text-[10px] leading-[1.3] uppercase tracking-[.55px] text-muted">Held so far</span>
           <strong className="mb-[5px] mt-[13px] block font-display text-[23px] leading-none font-black">{result.heldPeriods}</strong>
           <small className="block font-term text-[10px] leading-[1.3] text-muted">{heldLabel.replace(/^\d+ periods? held through /, 'through ')}</small>
         </article>
-        <article className="min-h-[120px] p-[17px] phone:min-h-0">
+        <article className="min-h-[120px] border-b-2 border-black p-[17px]">
           <span className="block font-term text-[10px] leading-[1.3] uppercase tracking-[.55px] text-muted">Periods left</span>
           <strong className="mb-[5px] mt-[13px] block font-display text-[23px] leading-none font-black">{result.remainingPeriods}</strong>
           <small className="block font-term text-[10px] leading-[1.3] text-muted">until semester end</small>
+        </article>
+        <article className="min-h-[120px] border-r-2 border-black p-[17px]">
+          <span className="block font-term text-[10px] leading-[1.3] uppercase tracking-[.55px] text-muted">Days you can miss</span>
+          <strong className="mb-[5px] mt-[13px] block font-display text-[23px] leading-none font-black">{result.maximumFullDaysAbsent}</strong>
+          <small className="block font-term text-[10px] leading-[1.3] text-muted">full college days off</small>
+        </article>
+        <article className="min-h-[120px] p-[17px]">
+          <span className="block font-term text-[10px] leading-[1.3] uppercase tracking-[.55px] text-muted">Bunks per week</span>
+          <strong className="mb-[5px] mt-[13px] block font-display text-[23px] leading-none font-black">{perWeek(result.periodsPerWeek)}</strong>
+          <small className="block font-term text-[10px] leading-[1.3] text-muted">periods, spread evenly</small>
         </article>
       </div>
       {!recoveryLeadsPage && recoveryVisible && <div className="mt-9 phone:mt-[30px]">{recoveryBlock}</div>}

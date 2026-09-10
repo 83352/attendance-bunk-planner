@@ -75,6 +75,33 @@ function recoveryFor(
   };
 }
 
+/**
+ * How many whole college days `budget` periods covers, walking future days in
+ * calendar order from the next one. A day counts only if all of its periods
+ * fit, so the number is always safe to act on.
+ *
+ * Days are taken in date order rather than lightest-first. Picking out the
+ * shortest days scattered across the semester would yield a larger, technically
+ * correct count, but it answers a question nobody asks; a student planning to
+ * skip wants to know how many days from here the budget lasts. This matches
+ * how recoveryFor already counts minimumCollegeDays.
+ */
+function fullDaysWithinBudget(futurePeriods: DatedPeriod[], budget: number): number {
+  if (budget <= 0) return 0;
+  const periodsByDate = new Map<string, number>();
+  for (const period of futurePeriods) periodsByDate.set(period.date, (periodsByDate.get(period.date) ?? 0) + 1);
+
+  let spent = 0;
+  let days = 0;
+  // futurePeriods is built in date order, so Map iteration is chronological.
+  for (const periodsThatDay of periodsByDate.values()) {
+    if (spent + periodsThatDay > budget) break;
+    spent += periodsThatDay;
+    days += 1;
+  }
+  return days;
+}
+
 function distributeBunks(totalBunks: number, weeks: number, weeklyPeriods: number[]): number[] {
   if (weeks === 0) return [];
   const result = Array.from({ length: weeks }, () => 0);
@@ -120,6 +147,7 @@ export function calculateAttendance(request: CalculationRequest): AttendanceResu
     remainingPeriods,
     maximumBunks,
     finalPercentageAtMaximumBunks: finalPercentageWithBunks(attendedPeriods, heldPeriods, remainingPeriods, maximumBunks),
+    maximumFullDaysAbsent: fullDaysWithinBudget(calendar.future, maximumBunks),
     periodsPerWeek: weeklyPeriods.length === 0 ? 0 : maximumBunks / weeklyPeriods.length,
     practicalBunksByWeek,
     recoveryTo75: recoveryFor(75, attendedPeriods, heldPeriods, calendar.future),
