@@ -48,8 +48,8 @@ function EmptyState() {
       <main className="mx-auto w-full max-w-[680px] min-h-[calc(100vh-47px)] px-5 pt-3 pb-[calc(56px+env(safe-area-inset-bottom))] phone:px-3 phone:pb-[calc(44px+env(safe-area-inset-bottom))]">
         <section className="mx-auto w-full max-w-[680px] border-[3px] border-black bg-paper px-[clamp(16px,2vw,24px)] pt-[clamp(17px,2vw,24px)] pb-[clamp(18px,2.2vw,26px)] shadow-hard animate-rise" aria-label="Attendance calculator">
           <div className="mb-[clamp(16px,2vw,22px)]">
-            <p className="eyebrow-text mb-[3px] text-[10px] text-black">attendance desk</p>
-            <h1 className="m-0 font-display text-[clamp(27px,4.4vw,40px)] leading-[.95] font-black tracking-[.2px] uppercase">Can I bunk?</h1>
+            <p className="eyebrow-text mb-[3px] text-[10px] text-black">academic attendance & eligibility desk</p>
+            <h1 className="m-0 font-display text-[clamp(27px,4.4vw,40px)] leading-[.95] font-black tracking-[.2px] uppercase">Attendance Runway</h1>
           </div>
           <div className="mb-[17px]">
             <span className="text-[12px] leading-[1.1] font-black text-black">Your section</span>

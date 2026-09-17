@@ -1,13 +1,13 @@
-﻿# Attendance Bunk Planner
+# Attendance Safety & Eligibility Planner (dontbunk)
 
-A timetable-aware attendance calculator for college students. Choose your section, enter your current attendance and target, and see how many future periods you can miss while still reaching that target.
+A timetable-aware attendance and academic eligibility planner for college students and faculty mentors. Choose your section, enter your current attendance and target, and see your safe absence buffer, emergency leave capacity, and recovery schedule to safeguard eligibility.
 
 The project includes a protected admin workspace for semester dates, timetables, exams, holidays and working Saturdays.
 
 ## Features
 
 - Branch-organized section picker
-- Safe bunk count, weekly planning and recovery calculations
+- Contingency absence buffer, weekly margin and academic recovery calculations
 - IST-aware calendar calculations using `Asia/Kolkata`
 - Universal holidays and working Saturdays
 - Section-specific timetables and exams

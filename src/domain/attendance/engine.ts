@@ -146,6 +146,7 @@ export function calculateAttendance(request: CalculationRequest): AttendanceResu
     attendedPeriods,
     remainingPeriods,
     maximumBunks,
+    absenceBuffer: maximumBunks,
     finalPercentageAtMaximumBunks: finalPercentageWithBunks(attendedPeriods, heldPeriods, remainingPeriods, maximumBunks),
     maximumFullDaysAbsent: fullDaysWithinBudget(calendar.future, maximumBunks),
     periodsPerWeek: weeklyPeriods.length === 0 ? 0 : maximumBunks / weeklyPeriods.length,

@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'dontbunk',
     short_name: 'dontbunk',
-    description: 'Check your safe bunk count in seconds.',
+    description: 'Calculate your semester attendance runway, contingency absence buffer, and academic recovery requirements.',
     start_url: '/',
     display: 'standalone',
     // The splash screen sits behind the page, so it matches the cream paper

@@ -21,9 +21,12 @@ export type AttendanceResult = {
   heldPeriods: number;
   attendedPeriods: number;
   remainingPeriods: number;
+  /** Maximum safe absence allowance (buffer periods) before dipping below target. */
   maximumBunks: number;
+  /** Alias for maximumBunks representing contingency absence buffer periods. */
+  absenceBuffer: number;
   finalPercentageAtMaximumBunks: number;
-  /** Whole college days the bunk budget covers, counted forward from the next one. */
+  /** Whole college days the absence buffer covers, counted forward from the next one. */
   maximumFullDaysAbsent: number;
   periodsPerWeek: number;
   practicalBunksByWeek: number[];
