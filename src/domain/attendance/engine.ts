@@ -128,29 +128,96 @@ export function calculateAttendance(request: CalculationRequest): AttendanceResu
     throw new RangeError('Target attendance must be between 0 and 100.');
   }
   const calendar = buildCalendar(request.config, request.now);
-  const heldPeriods = calendar.heldThroughYesterday.length;
-  const attendedPeriods = estimateAttendedPeriods(request.currentPercentage, heldPeriods);
-  const remainingPeriods = calendar.future.length;
+  let heldPeriods = calendar.heldThroughYesterday.length;
+  let attendedPeriods = estimateAttendedPeriods(request.currentPercentage, heldPeriods);
+
+
+  let futurePeriods = [...calendar.future];
+
+  // Apply calendar overrides for past periods whose attendance wasn't updated.
+  // The entered % is applied to all held periods naively. Each overridden period
+  // was implicitly counted as (currentPercentage / 100) attended. Marking it as
+  // "attended" means it's actually 1.0 → delta = +(1 - %/100).
+  // Marking it as "bunked" means it's actually 0.0 → delta = -(% /100).
+  if (request.adjustments) {
+    const pct = request.currentPercentage / 100;
+    const futureOverrides = new Map<string, 'attended' | 'bunked'>();
+
+    for (const override of request.adjustments.periodOverrides) {
+      // Check if this override is for a future period
+      const isFuture = calendar.future.some(p => p.date === override.date && p.sequence === override.sequence);
+      if (isFuture) {
+        futureOverrides.set(`${override.date}:${override.sequence}`, override.status);
+      } else {
+        if (override.status === 'attended') {
+          attendedPeriods += (1 - pct);
+        } else {
+          attendedPeriods -= pct;
+        }
+      }
+    }
+
+    if (futureOverrides.size > 0) {
+      const remainingFuture: DatedPeriod[] = [];
+      for (const p of calendar.future) {
+        const status = futureOverrides.get(`${p.date}:${p.sequence}`);
+        if (status) {
+          heldPeriods += 1;
+          if (status === 'attended') attendedPeriods += 1;
+        } else {
+          remainingFuture.push(p);
+        }
+      }
+      futurePeriods = remainingFuture;
+    }
+
+    // Today's periods: move from excluded "today" bucket into held/attended.
+    for (const todayPeriod of request.adjustments.todayPeriods) {
+      heldPeriods += 1;
+      if (todayPeriod.attending) {
+        attendedPeriods += 1;
+      }
+    }
+  }
+
+  // Clamp attended to [0, held] to prevent nonsensical results from edge cases.
+  attendedPeriods = Math.max(0, Math.min(attendedPeriods, heldPeriods));
+
+  const remainingPeriods = futurePeriods.length;
+
   const target = request.targetPercentage / 100;
   const maximumBunks = Math.max(
     0,
     Math.min(remainingPeriods, Math.floor(attendedPeriods + remainingPeriods - target * (heldPeriods + remainingPeriods) + EPSILON)),
   );
-  const weeklyPeriods = [...calendar.futureByWeek.values()].map((periods) => periods.length);
+  
+  const futureByWeek = new Map<string, DatedPeriod[]>();
+  for (const period of futurePeriods) {
+    const current = new Date(`${period.date}T00:00:00Z`);
+    const offset = (current.getUTCDay() + 6) % 7;
+    current.setUTCDate(current.getUTCDate() - offset);
+    const key = current.toISOString().slice(0, 10);
+    const list = futureByWeek.get(key) ?? [];
+    list.push(period);
+    futureByWeek.set(key, list);
+  }
+  
+  const weeklyPeriods = [...futureByWeek.values()].map((periods) => periods.length);
   const practicalBunksByWeek = distributeBunks(maximumBunks, weeklyPeriods.length, weeklyPeriods);
 
   return {
     currentPercentage: request.currentPercentage,
+    updatedCurrentPercentage: heldPeriods === 0 ? 0 : (attendedPeriods / heldPeriods) * 100,
     targetPercentage: request.targetPercentage,
     heldPeriods,
     attendedPeriods,
     remainingPeriods,
     maximumBunks,
     finalPercentageAtMaximumBunks: finalPercentageWithBunks(attendedPeriods, heldPeriods, remainingPeriods, maximumBunks),
-    maximumFullDaysAbsent: fullDaysWithinBudget(calendar.future, maximumBunks),
+    maximumFullDaysAbsent: fullDaysWithinBudget(futurePeriods, maximumBunks),
     periodsPerWeek: weeklyPeriods.length === 0 ? 0 : maximumBunks / weeklyPeriods.length,
     practicalBunksByWeek,
-    recoveryTo75: recoveryFor(75, attendedPeriods, heldPeriods, calendar.future),
-    recoveryToTarget: recoveryFor(request.targetPercentage, attendedPeriods, heldPeriods, calendar.future),
+    recoveryTo75: recoveryFor(75, attendedPeriods, heldPeriods, futurePeriods),
+    recoveryToTarget: recoveryFor(request.targetPercentage, attendedPeriods, heldPeriods, futurePeriods),
   };
 }
