@@ -162,10 +162,14 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
     const todayIst = currentIstDate(new Date());
     const saved = loadAdjustments(activeId, todayIst);
     if (saved) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOverrides(saved.overrides);
+       
       setTodayInput(saved.todayInput);
     } else {
+       
       setOverrides(new Map());
+       
       setTodayInput(new Map());
     }
   }, [activeId]);
@@ -251,6 +255,7 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
       targetPercentage: targetValue,
       adjustments,
     });
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setResult(updated);
     // Don't bump resultSeq — no flash animation on auto-recalc.
     // eslint-disable-next-line react-hooks/exhaustive-deps
