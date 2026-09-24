@@ -362,6 +362,32 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
                     <span className="absolute right-[clamp(12px,1.6vw,18px)] bottom-[clamp(13px,2.4vw,24px)] z-[2] font-term text-[clamp(20px,2.6vw,26px)] leading-none font-black text-grey">%</span>
                   </div>
                   {heldCaption ? <span className="font-term text-[10px] leading-[1.3] font-normal text-muted">{heldCaption}</span> : null}
+                  {/* Adjustment summary positioned directly under the input */}
+                  {result && (adjustmentSummary.total > 0 || Math.abs(result.updatedCurrentPercentage - result.currentPercentage) > 0.001) && (
+                    <div className="mt-2 flex items-start justify-between border-2 border-black/20 bg-surface px-4 py-2.5">
+                      <div className="grid gap-1">
+                        {adjustmentSummary.total > 0 && (
+                          <p className="m-0 font-term text-[10px] leading-[1.4] text-muted font-normal">
+                            <span className="font-bold text-black">Adjustments:</span>
+                            {adjustmentSummary.overrideAttended > 0 && <span className="ml-1 text-success">+{adjustmentSummary.overrideAttended} attended</span>}
+                            {adjustmentSummary.overrideBunked > 0 && <span className="ml-1 text-error">−{adjustmentSummary.overrideBunked} bunked</span>}
+                            {adjustmentSummary.todayBunking > 0 && <span className="ml-1 text-error">{adjustmentSummary.todayBunking} bunking today</span>}
+                            <span className="ml-1">({adjustmentSummary.total} period{adjustmentSummary.total !== 1 ? 's' : ''} adjusted)</span>
+                          </p>
+                        )}
+                        {Math.abs(result.updatedCurrentPercentage - result.currentPercentage) > 0.001 && (
+                          <p className="m-0 font-term text-[10px] leading-[1.4] text-muted font-normal">
+                            <span className="font-bold text-black">Updated current attendance:</span>
+                            <span className="ml-1 font-bold text-black">{percentage(result.updatedCurrentPercentage)}</span>
+                            <span className="ml-1">({Math.round(result.attendedPeriods)}/{result.heldPeriods} periods)</span>
+                          </p>
+                        )}
+                      </div>
+                      {adjustmentSummary.total > 0 && (
+                        <button type="button" onClick={handleResetAdjustments} className="cursor-pointer mt-0.5 font-term text-[10px] font-bold uppercase tracking-[.4px] text-link underline decoration-dotted underline-offset-2 hover:text-black">Reset</button>
+                      )}
+                    </div>
+                  )}
                 </label>
                 <label className="grid gap-[clamp(7px,.8vw,10px)] text-[12px] leading-[1.1] font-black text-black">
                   Target attendance %
@@ -396,41 +422,11 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
           </div>
         )}
 
-        {/* Adjustment summary */}
-        {result && (adjustmentSummary.total > 0 || Math.abs(result.updatedCurrentPercentage - result.currentPercentage) > 0.001) && (
-          <div className="mx-auto mt-3 w-full max-w-[680px]">
-            <div className="flex items-start justify-between border-2 border-black/20 bg-surface px-4 py-2.5">
-              <div className="grid gap-1">
-                {adjustmentSummary.total > 0 && (
-                  <p className="m-0 font-term text-[10px] leading-[1.4] text-muted">
-                    <span className="font-bold text-black">Adjustments:</span>
-                    {adjustmentSummary.overrideAttended > 0 && <span className="ml-1 text-success">+{adjustmentSummary.overrideAttended} attended</span>}
-                    {adjustmentSummary.overrideBunked > 0 && <span className="ml-1 text-error">−{adjustmentSummary.overrideBunked} bunked</span>}
-                    {adjustmentSummary.todayBunking > 0 && <span className="ml-1 text-error">{adjustmentSummary.todayBunking} bunking today</span>}
-                    <span className="ml-1">({adjustmentSummary.total} period{adjustmentSummary.total !== 1 ? 's' : ''} adjusted)</span>
-                  </p>
-                )}
-                {Math.abs(result.updatedCurrentPercentage - result.currentPercentage) > 0.001 && (
-                  <p className="m-0 font-term text-[10px] leading-[1.4] text-muted">
-                    <span className="font-bold text-black">Updated current attendance:</span>
-                    <span className="ml-1 font-bold text-black">{percentage(result.updatedCurrentPercentage)}</span>
-                    <span className="ml-1">({Math.round(result.attendedPeriods)}/{result.heldPeriods} periods)</span>
-                  </p>
-                )}
-              </div>
-              {adjustmentSummary.total > 0 && (
-                <button type="button" onClick={handleResetAdjustments} className="cursor-pointer mt-0.5 font-term text-[10px] font-bold uppercase tracking-[.4px] text-link underline decoration-dotted underline-offset-2 hover:text-black">Reset</button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {result && resultEndDate ? <div ref={resultsRef}><Results key={resultSeq} result={result} endDate={resultEndDate} heldLabel={heldCaption} hasAdjustments={adjustmentSummary.total > 0} /></div> : null}
-
+        {/* Collapsible Calendar for past/future adjustments */}
         {active && config ? (
-          <div className="mx-auto mt-9 w-full max-w-[680px] phone:mt-[30px]">
+          <div className="mx-auto mt-5 w-full max-w-[680px] phone:mt-4">
             <button type="button" onClick={() => setShowCalendar((value) => !value)} className="flex w-full cursor-pointer items-center justify-between border-[3px] border-black bg-paper px-5 py-[18px] shadow-hard phone:px-[17px]" aria-expanded={showCalendar}>
-              <span className="font-term text-[11px] font-black uppercase tracking-[.55px] text-black">{showCalendar ? 'Hide' : 'View'} semester calendar</span>
+              <span className="font-term text-[11px] font-black uppercase tracking-[.55px] text-black">{showCalendar ? 'Hide' : 'Plan past / future bunks'} on calendar</span>
               <span aria-hidden="true" className="font-display text-[20px] leading-none font-black">{showCalendar ? '−' : '+'}</span>
             </button>
             {showCalendar && (
@@ -444,6 +440,8 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
             )}
           </div>
         ) : null}
+
+        {result && resultEndDate ? <div ref={resultsRef} className="mt-9 phone:mt-[30px]"><Results key={resultSeq} result={result} endDate={resultEndDate} heldLabel={heldCaption} hasAdjustments={adjustmentSummary.total > 0} /></div> : null}
 
 <a className="show-desktop mx-auto mt-[clamp(10px,1.6vw,16px)] min-h-11 w-full max-w-[680px] items-center justify-center py-[3px] text-center font-term text-[9px] font-black uppercase tracking-[.55px] text-muted underline decoration-link decoration-dotted decoration-[3px] underline-offset-[3px] hover:text-black" href="/admin">Admin panel</a>
       </main>
