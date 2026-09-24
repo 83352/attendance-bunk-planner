@@ -77,6 +77,7 @@ export function TodayClasses({
           <PeriodToggles
             periods={completed}
             mode="two-state"
+            isPast={true}
             values={values}
             onChange={handleToggle}
           />

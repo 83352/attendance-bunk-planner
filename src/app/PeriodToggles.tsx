@@ -8,6 +8,7 @@ type PeriodTogglesProps = {
   periods: DatedPeriod[];
   mode: 'three-state' | 'two-state';
   isFuture?: boolean;
+  isPast?: boolean;
   /** three-state: map of sequence -> ThreeStateValue. Absent = 'updated'. */
   /** two-state: map of sequence -> boolean (true = attending). */
   values: Map<number, ThreeStateValue | boolean>;
@@ -29,6 +30,7 @@ export function PeriodToggles({
   periods,
   mode,
   isFuture,
+  isPast,
   values,
   onChange,
 }: PeriodTogglesProps) {
@@ -96,12 +98,12 @@ export function PeriodToggles({
         const attending = (values.get(seq) as boolean) ?? true;
         const chips: { label: string; value: boolean; style: string }[] = [
           {
-            label: 'Attending',
+            label: isPast ? 'Attended' : 'Attending',
             value: true,
             style: 'bg-lime border-black text-[#14261c]',
           },
           {
-            label: 'Bunking',
+            label: isPast ? 'Bunked' : 'Bunking',
             value: false,
             style: 'bg-danger-bg border-black text-error',
           },
