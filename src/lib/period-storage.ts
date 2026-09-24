@@ -23,13 +23,23 @@ export function loadAdjustments(
     const raw = window.localStorage.getItem(storageKey(sectionId));
     if (!raw) return null;
     const stored: StoredAdjustments = JSON.parse(raw);
-    // Auto-expire at midnight IST: if the stored date doesn't match today, discard.
-    if (stored.date !== todayIst) {
-      window.localStorage.removeItem(storageKey(sectionId));
-      return null;
+    const overrides = new Map(Object.entries(stored.overrides || {})) as Map<string, 'attended' | 'bunked'>;
+    const todayInput = new Map<number, boolean>();
+
+    if (stored.date === todayIst) {
+      for (const [k, v] of Object.entries(stored.todayInput || {})) {
+        todayInput.set(Number(k), v);
+      }
+    } else {
+      // The day has changed. Convert the old 'today' inputs into absolute calendar overrides.
+      for (const [seqStr, attending] of Object.entries(stored.todayInput || {})) {
+        const key = `${stored.date}:${seqStr}`;
+        if (!overrides.has(key)) {
+          overrides.set(key, attending ? 'attended' : 'bunked');
+        }
+      }
     }
-    const overrides = new Map(Object.entries(stored.overrides)) as Map<string, 'attended' | 'bunked'>;
-    const todayInput = new Map(Object.entries(stored.todayInput).map(([k, v]) => [Number(k), v]));
+
     return { overrides, todayInput };
   } catch {
     return null;
