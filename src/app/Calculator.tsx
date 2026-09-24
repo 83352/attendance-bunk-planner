@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { calculateAttendance } from '@/domain/attendance/engine';
-import type { AttendanceResult } from '@/domain/attendance/types';
+import type { AttendanceAdjustments, AttendanceResult } from '@/domain/attendance/types';
 import { buildCalendar, currentIstDate } from '@/domain/schedule/calendar';
-import type { ScheduleConfig } from '@/domain/schedule/types';
+import type { DatedPeriod, ScheduleConfig } from '@/domain/schedule/types';
+import { clearAdjustments, loadAdjustments, saveAdjustments } from '@/lib/period-storage';
 import { MonthCalendar } from './MonthCalendar';
 import { SectionSelector, type SectionOption } from './SectionSelector';
 import { SiteHeader } from './SiteHeader';
+import { TodayClasses } from './TodayClasses';
 
 const formatter = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 const percentage = (value: number) => `${value.toFixed(2)}%`;
@@ -50,6 +52,17 @@ function getServerSectionSnapshot(): string {
   return '';
 }
 
+/** Current IST time as HH:MM. */
+function currentIstTime(): string {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date());
+  return parts; // "HH:MM"
+}
+
 /** Human-friendly "held through yesterday" caption for the Current attendance input. */
 function heldThroughYesterdayLabel(config: ScheduleConfig, now: Date): string {
   const today = currentIstDate(now);
@@ -73,6 +86,25 @@ function heldThroughYesterdayLabel(config: ScheduleConfig, now: Date): string {
   const yesterdayIso = yesterdayUtc.toISOString().slice(0, 10);
   const throughLabel = formatter.format(new Date(`${yesterdayIso}T00:00:00`));
   return `${count} period${count === 1 ? '' : 's'} held through ${throughLabel}`;
+}
+
+/** Build AttendanceAdjustments from the component's override and today-input state. */
+function buildAdjustments(
+  overrides: Map<string, 'attended' | 'bunked'>,
+  todayInput: Map<number, boolean>,
+  todayPeriods: DatedPeriod[],
+): AttendanceAdjustments {
+  const periodOverrides = [...overrides.entries()].map(([key, status]) => {
+    const [date, seqStr] = key.split(':');
+    return { date, sequence: Number(seqStr), status };
+  });
+  // Build today's period list. Every scheduled period for today is included
+  // with the user's attending/bunking choice (defaults to attending=true).
+  const todayPeriodInputs = todayPeriods.map((period) => ({
+    sequence: period.sequence,
+    attending: todayInput.get(period.sequence) ?? true,
+  }));
+  return { periodOverrides, todayPeriods: todayPeriodInputs };
 }
 
 type CalculatorProps = {
@@ -112,6 +144,10 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
   const calculationTimer = useRef<number | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
 
+  // --- Adjustment state ---
+  const [overrides, setOverrides] = useState<Map<string, 'attended' | 'bunked'>>(new Map());
+  const [todayInput, setTodayInput] = useState<Map<number, boolean>>(new Map());
+
   // Scroll the result into view on every fresh calculation (resultSeq only
   // bumps inside calculate(), never on mount), so a student who taps the
   // button on a short viewport isn't left staring at an unchanged screen.
@@ -119,6 +155,20 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
     if (resultSeq === 0) return;
     resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [resultSeq]);
+
+  // Load persisted adjustments when section changes.
+  useEffect(() => {
+    if (!activeId) return;
+    const todayIst = currentIstDate(new Date());
+    const saved = loadAdjustments(activeId, todayIst);
+    if (saved) {
+      setOverrides(saved.overrides);
+      setTodayInput(saved.todayInput);
+    } else {
+      setOverrides(new Map());
+      setTodayInput(new Map());
+    }
+  }, [activeId]);
 
   // Section switch: drop the per-section inputs and any result so the user
   // never sees stale numbers from a different timetable.
@@ -140,6 +190,72 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
     if (calculationTimer.current !== null) window.clearTimeout(calculationTimer.current);
   }, []);
 
+  const active = sections.find((section) => section.id === activeId);
+  const config = active ? configsBySection[active.id] : undefined;
+  const sectionName = active ? (namesBySection[active.id] ?? active.name) : null;
+  // Use the section the result was computed for, so the footer date stays
+  // correct after a section switch.
+  const resultSection = sections.find((section) => section.id === resultFor);
+  const resultEndDate = resultSection ? configsBySection[resultSection.id]?.semesterEnd : undefined;
+  // Memoized on `config` alone — the helper is pure and cheap enough that
+  // we don't need to track `now` in React state. The day bucket will only
+  // change in practice when the user re-opens the page or switches sections.
+  const heldCaption = useMemo(
+    () => (config ? heldThroughYesterdayLabel(config, new Date()) : ''),
+    [config],
+  );
+
+  // Today's periods for the active section.
+  const todayPeriods = useMemo(
+    () => (config ? buildCalendar(config, new Date()).today : []),
+    [config],
+  );
+
+  const istTime = useMemo(() => currentIstTime(), []);
+
+  // Persist adjustments whenever they change.
+  useEffect(() => {
+    if (!activeId) return;
+    const todayIst = currentIstDate(new Date());
+    saveAdjustments(activeId, todayIst, overrides, todayInput);
+  }, [activeId, overrides, todayInput]);
+
+  // Adjustment counts for the summary line.
+  const adjustmentSummary = useMemo(() => {
+    let overrideAttended = 0;
+    let overrideBunked = 0;
+    for (const status of overrides.values()) {
+      if (status === 'attended') overrideAttended += 1;
+      else overrideBunked += 1;
+    }
+    let todayBunking = 0;
+    for (const period of todayPeriods) {
+      const val = todayInput.get(period.sequence);
+      if (val === false) todayBunking += 1;
+    }
+    const total = overrideAttended + overrideBunked + todayBunking;
+    return { overrideAttended, overrideBunked, todayBunking, total };
+  }, [overrides, todayInput, todayPeriods]);
+
+  // Auto-recalculate when adjustments change and a result already exists.
+  useEffect(() => {
+    if (!result || !config || !activeId) return;
+    const currentValue = Number(current);
+    const targetValue = Number(target);
+    if (!Number.isFinite(currentValue) || !Number.isFinite(targetValue)) return;
+    const adjustments = buildAdjustments(overrides, todayInput, todayPeriods);
+    const updated = calculateAttendance({
+      config,
+      now: new Date(),
+      currentPercentage: currentValue,
+      targetPercentage: targetValue,
+      adjustments,
+    });
+    setResult(updated);
+    // Don't bump resultSeq — no flash animation on auto-recalc.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overrides, todayInput]);
+
   // Logo click: send the user back to the blank picker. We prevent the
   // Link's default navigation and clear state in place — no full page
   // reload, no remount flash, no leftover ?section= in the URL.
@@ -158,20 +274,32 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
     if (sectionId) storeSectionId(sectionId);
   }
 
-  const active = sections.find((section) => section.id === activeId);
-  const config = active ? configsBySection[active.id] : undefined;
-  const sectionName = active ? (namesBySection[active.id] ?? active.name) : null;
-  // Use the section the result was computed for, so the footer date stays
-  // correct after a section switch.
-  const resultSection = sections.find((section) => section.id === resultFor);
-  const resultEndDate = resultSection ? configsBySection[resultSection.id]?.semesterEnd : undefined;
-  // Memoized on `config` alone — the helper is pure and cheap enough that
-  // we don't need to track `now` in React state. The day bucket will only
-  // change in practice when the user re-opens the page or switches sections.
-  const heldCaption = useMemo(
-    () => (config ? heldThroughYesterdayLabel(config, new Date()) : ''),
-    [config],
-  );
+  const handleOverrideChange = useCallback((date: string, sequence: number, status: 'attended' | 'bunked' | null) => {
+    setOverrides((prev) => {
+      const next = new Map(prev);
+      const key = `${date}:${sequence}`;
+      if (status === null) {
+        next.delete(key);
+      } else {
+        next.set(key, status);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleTodayChange = useCallback((sequence: number, attending: boolean) => {
+    setTodayInput((prev) => {
+      const next = new Map(prev);
+      next.set(sequence, attending);
+      return next;
+    });
+  }, []);
+
+  const handleResetAdjustments = useCallback(() => {
+    setOverrides(new Map());
+    setTodayInput(new Map());
+    if (activeId) clearAdjustments(activeId);
+  }, [activeId]);
 
   function calculate() {
     if (calculating) return;
@@ -201,7 +329,8 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
     calculationTimer.current = window.setTimeout(() => {
       calculationTimer.current = null;
       if (requestedSectionId !== activeId) return;
-      setResult(calculateAttendance({ config, now: new Date(), currentPercentage: currentValue, targetPercentage: targetValue }));
+      const adjustments = buildAdjustments(overrides, todayInput, todayPeriods);
+      setResult(calculateAttendance({ config, now: new Date(), currentPercentage: currentValue, targetPercentage: targetValue, adjustments }));
       setResultFor(activeId);
       setResultSeq((n) => n + 1);
       setCalculating(false);
@@ -255,7 +384,48 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
           )}
         </section>
 
-        {result && resultEndDate ? <div ref={resultsRef}><Results key={resultSeq} result={result} endDate={resultEndDate} heldLabel={heldCaption} /></div> : null}
+        {/* Today's classes section — always visible when today has periods */}
+        {active && config && todayPeriods.length > 0 && (
+          <div className="mx-auto mt-5 w-full max-w-[680px] phone:mt-4">
+            <TodayClasses
+              periods={todayPeriods}
+              currentIstTime={istTime}
+              values={todayInput}
+              onChange={handleTodayChange}
+            />
+          </div>
+        )}
+
+        {/* Adjustment summary */}
+        {result && (adjustmentSummary.total > 0 || Math.abs(result.updatedCurrentPercentage - result.currentPercentage) > 0.001) && (
+          <div className="mx-auto mt-3 w-full max-w-[680px]">
+            <div className="flex items-start justify-between border-2 border-black/20 bg-surface px-4 py-2.5">
+              <div className="grid gap-1">
+                {adjustmentSummary.total > 0 && (
+                  <p className="m-0 font-term text-[10px] leading-[1.4] text-muted">
+                    <span className="font-bold text-black">Adjustments:</span>
+                    {adjustmentSummary.overrideAttended > 0 && <span className="ml-1 text-success">+{adjustmentSummary.overrideAttended} attended</span>}
+                    {adjustmentSummary.overrideBunked > 0 && <span className="ml-1 text-error">−{adjustmentSummary.overrideBunked} bunked</span>}
+                    {adjustmentSummary.todayBunking > 0 && <span className="ml-1 text-error">{adjustmentSummary.todayBunking} bunking today</span>}
+                    <span className="ml-1">({adjustmentSummary.total} period{adjustmentSummary.total !== 1 ? 's' : ''} adjusted)</span>
+                  </p>
+                )}
+                {Math.abs(result.updatedCurrentPercentage - result.currentPercentage) > 0.001 && (
+                  <p className="m-0 font-term text-[10px] leading-[1.4] text-muted">
+                    <span className="font-bold text-black">Updated current attendance:</span>
+                    <span className="ml-1 font-bold text-black">{percentage(result.updatedCurrentPercentage)}</span>
+                    <span className="ml-1">({Math.round(result.attendedPeriods)}/{result.heldPeriods} periods)</span>
+                  </p>
+                )}
+              </div>
+              {adjustmentSummary.total > 0 && (
+                <button type="button" onClick={handleResetAdjustments} className="cursor-pointer mt-0.5 font-term text-[10px] font-bold uppercase tracking-[.4px] text-link underline decoration-dotted underline-offset-2 hover:text-black">Reset</button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {result && resultEndDate ? <div ref={resultsRef}><Results key={resultSeq} result={result} endDate={resultEndDate} heldLabel={heldCaption} hasAdjustments={adjustmentSummary.total > 0} /></div> : null}
 
         {active && config ? (
           <div className="mx-auto mt-9 w-full max-w-[680px] phone:mt-[30px]">
@@ -263,7 +433,15 @@ export function Calculator({ sections, configsBySection, namesBySection }: Calcu
               <span className="font-term text-[11px] font-black uppercase tracking-[.55px] text-black">{showCalendar ? 'Hide' : 'View'} semester calendar</span>
               <span aria-hidden="true" className="font-display text-[20px] leading-none font-black">{showCalendar ? '−' : '+'}</span>
             </button>
-            {showCalendar && <div className="mt-3"><MonthCalendar config={config} /></div>}
+            {showCalendar && (
+              <div className="mt-3">
+                <MonthCalendar
+                  config={config}
+                  overrides={overrides}
+                  onOverrideChange={handleOverrideChange}
+                />
+              </div>
+            )}
           </div>
         ) : null}
 
@@ -302,7 +480,7 @@ function resultTier(result: AttendanceResult, needsRecoveryTo75: boolean): Resul
   return 'yellow';
 }
 
-function Results({ result, endDate, heldLabel }: { result: AttendanceResult; endDate: string; heldLabel: string }) {
+function Results({ result, endDate, heldLabel, hasAdjustments }: { result: AttendanceResult; endDate: string; heldLabel: string; hasAdjustments?: boolean }) {
   const { recoveryTo75 } = result;
   const unreachable = recoveryTo75.reachable === false;
   // Whether Recovery mode is SHOWN AT ALL considers both the fixed 75% floor
@@ -413,7 +591,7 @@ function Results({ result, endDate, heldLabel }: { result: AttendanceResult; end
         </article>
       </div>
       {!recoveryLeadsPage && recoveryVisible && <div className="mt-9 phone:mt-[30px]">{recoveryBlock}</div>}
-      <p className="mt-5 font-term text-[10px] leading-[1.5] uppercase tracking-[.55px] text-muted">Planning through <strong>{formatter.format(new Date(`${endDate}T00:00:00`))}</strong>. Today is excluded until reliable attendance is available.</p>
+      <p className="mt-5 font-term text-[10px] leading-[1.5] uppercase tracking-[.55px] text-muted">Planning through <strong>{formatter.format(new Date(`${endDate}T00:00:00`))}</strong>.{hasAdjustments ? ' Includes your manual adjustments.' : ' Tap the calendar below to adjust periods not updated by your teacher.'}</p>
     </section>
   );
 }

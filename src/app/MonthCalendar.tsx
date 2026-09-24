@@ -14,12 +14,20 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
+type MonthCalendarProps = {
+  config: ScheduleConfig;
+  /** Period overrides keyed by "date:sequence" -> 'attended' | 'bunked'. */
+  overrides?: Map<string, 'attended' | 'bunked'>;
+  /** Called when user changes a period override. status=null means reset to 'updated'. */
+  onOverrideChange?: (date: string, sequence: number, status: 'attended' | 'bunked' | null) => void;
+};
+
 /**
  * Single-month calendar for the public calculator: shows the current month
  * (highlighting today) with Prev/Next arrows clamped to the section's own
  * semester range, so every month a student can reach actually has data.
  */
-export function MonthCalendar({ config }: { config: ScheduleConfig }) {
+export function MonthCalendar({ config, overrides, onOverrideChange }: MonthCalendarProps) {
   const startDate = new Date(`${config.semesterStart}T00:00:00Z`);
   const endDate = new Date(`${config.semesterEnd}T00:00:00Z`);
   const startKey = monthKey(startDate.getUTCFullYear(), startDate.getUTCMonth());
@@ -31,6 +39,7 @@ export function MonthCalendar({ config }: { config: ScheduleConfig }) {
 
   const [viewKey, setViewKey] = useState(initialKey);
   const [direction, setDirection] = useState<'next' | 'prev'>('next');
+  const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const clampedKey = clamp(viewKey, startKey, endKey);
   const viewYear = Math.floor(clampedKey / 12);
   const viewMonth = ((clampedKey % 12) + 12) % 12;
@@ -39,8 +48,18 @@ export function MonthCalendar({ config }: { config: ScheduleConfig }) {
   const atStart = clampedKey <= startKey;
   const atEnd = clampedKey >= endKey;
   const animateClass = direction === 'next' ? 'animate-month-in-next' : 'animate-month-in-prev';
+  const hasOverrides = overrides ? overrides.size > 0 : false;
 
-  const goTo = (nextKey: number, dir: 'next' | 'prev') => { setDirection(dir); setViewKey(nextKey); };
+  const goTo = (nextKey: number, dir: 'next' | 'prev') => {
+    setDirection(dir);
+    setViewKey(nextKey);
+    // Collapse expansion when navigating months.
+    setExpandedDay(null);
+  };
+
+  const handleDayClick = (iso: string) => {
+    setExpandedDay((prev) => (prev === iso ? null : iso));
+  };
 
   return (
     <div className="mb-[clamp(17px,2vw,22px)]">
@@ -52,9 +71,23 @@ export function MonthCalendar({ config }: { config: ScheduleConfig }) {
         </div>
       </div>
       <div key={clampedKey} className={animateClass}>
-        <MonthGrid data={data} showHeading={false} />
+        <MonthGrid
+          data={data}
+          showHeading={false}
+          expandedDay={expandedDay}
+          onDayClick={handleDayClick}
+          overrides={overrides}
+          onOverrideChange={onOverrideChange}
+          todayIso={todayIso}
+          config={config}
+        />
       </div>
-      <CalendarLegend />
+      <CalendarLegend hasOverrides={hasOverrides} />
+      {hasOverrides && (
+        <p className="mt-2 text-center font-term text-[9px] uppercase tracking-[.4px] text-muted">
+          Tap a day to adjust past periods or plan future bunks.
+        </p>
+      )}
     </div>
   );
 }
