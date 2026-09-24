@@ -32,11 +32,14 @@ export const viewport: Viewport = {
   themeColor: "#111111",
 };
 
+import { WhatsNewModal } from "./WhatsNewModal";
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en-GB">
       <body>
         {children}
+        <WhatsNewModal />
         <Analytics />
         <SpeedInsights />
       </body>
