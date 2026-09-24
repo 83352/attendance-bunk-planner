@@ -15,13 +15,17 @@ type PeriodTogglesProps = {
 };
 
 function formatTime(t: string) {
-  return t.slice(0, 5);
+  const [hStr, mStr] = t.split(':');
+  let h = parseInt(hStr, 10);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${mStr} ${ampm}`;
 }
 
 function isExamPeriod(period: DatedPeriod) {
   return (
-    formatTime(period.start) === '00:00' &&
-    formatTime(period.end) === '23:59'
+    period.start.startsWith('00:00') &&
+    period.end.startsWith('23:59')
   );
 }
 
@@ -96,12 +100,12 @@ export function PeriodToggles({
         const attending = (values.get(seq) as boolean) ?? true;
         const chips: { label: string; value: boolean; style: string }[] = [
           {
-            label: 'Attending',
+            label: isFuture === false ? 'Attended' : 'Attending',
             value: true,
             style: 'bg-lime border-black text-[#14261c]',
           },
           {
-            label: 'Bunking',
+            label: isFuture === false ? 'Bunked' : 'Bunking',
             value: false,
             style: 'bg-danger-bg border-black text-error',
           },

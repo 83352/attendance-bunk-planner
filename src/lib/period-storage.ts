@@ -23,13 +23,14 @@ export function loadAdjustments(
     const raw = window.localStorage.getItem(storageKey(sectionId));
     if (!raw) return null;
     const stored: StoredAdjustments = JSON.parse(raw);
-    // Auto-expire at midnight IST: if the stored date doesn't match today, discard.
-    if (stored.date !== todayIst) {
-      window.localStorage.removeItem(storageKey(sectionId));
-      return null;
+    
+    const overrides = new Map(Object.entries(stored.overrides || {})) as Map<string, 'attended' | 'bunked'>;
+    
+    let todayInput = new Map<number, boolean>();
+    if (stored.date === todayIst && stored.todayInput) {
+      todayInput = new Map(Object.entries(stored.todayInput).map(([k, v]) => [Number(k), v]));
     }
-    const overrides = new Map(Object.entries(stored.overrides)) as Map<string, 'attended' | 'bunked'>;
-    const todayInput = new Map(Object.entries(stored.todayInput).map(([k, v]) => [Number(k), v]));
+    
     return { overrides, todayInput };
   } catch {
     return null;
