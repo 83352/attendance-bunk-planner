@@ -45,9 +45,9 @@ export function PeriodToggles({
 
         if (mode === 'three-state') {
           const current = (values.get(seq) as ThreeStateValue) ?? 'updated';
-          const chips: { label: string; value: ThreeStateValue; style: string }[] = [
+          let chips: { label: string; value: ThreeStateValue; style: string }[] = [
             {
-              label: isFuture ? 'Auto' : 'Updated',
+              label: 'Clear',
               value: 'updated',
               style: 'bg-surface border-black',
             },
@@ -63,6 +63,12 @@ export function PeriodToggles({
             },
           ];
 
+          // For past periods, we hide the 'Clear' chip and allow deselecting
+          // an active chip to return to the neutral ('updated') state.
+          if (!isFuture) {
+            chips = chips.filter(c => c.value !== 'updated');
+          }
+
           return (
             <div key={seq} className="flex items-center justify-between">
               <div className="font-term text-[10px] uppercase tracking-[.4px] opacity-60">
@@ -76,7 +82,13 @@ export function PeriodToggles({
                     <button
                       key={chip.value}
                       type="button"
-                      onClick={() => onChange(seq, chip.value)}
+                      onClick={() => {
+                        if (!isFuture && selected) {
+                          onChange(seq, 'updated'); // Deselect to neutral state
+                        } else {
+                          onChange(seq, chip.value);
+                        }
+                      }}
                       className={[
                         'px-2.5 py-1 font-term text-[10px] uppercase tracking-[.4px] cursor-pointer transition-all duration-100',
                         chip.style,

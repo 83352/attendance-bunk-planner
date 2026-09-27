@@ -527,7 +527,6 @@ function Results({ result, endDate, heldLabel, hasAdjustments }: { result: Atten
   // renderings below, so the two never drift out of sync.
   const heroContent = (
     <>
-      <p className={`eyebrow-text mb-3 text-[10px] ${isDanger ? 'text-hero-danger-ink' : 'text-black'}`}>Your semester runway</p>
       <div className="relative z-[1] font-display text-[88px] leading-[.8] font-black tracking-[-2px] phone:text-[clamp(74px,24vw,100px)]">{result.maximumBunks}</div>
       {isDanger ? (
         <>
