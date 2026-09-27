@@ -12,6 +12,7 @@ export function WhatsNewModal() {
     try {
       const lastSeen = window.localStorage.getItem(STORAGE_KEY);
       if (lastSeen !== CURRENT_VERSION) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsOpen(true);
       }
     } catch {
