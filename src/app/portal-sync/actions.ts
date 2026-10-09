@@ -15,13 +15,15 @@ export type PortalSyncState =
  * written to a database, a log, a cookie, or returned to the client.
  */
 export async function syncFromPortal(_: PortalSyncState, formData: FormData): Promise<PortalSyncState> {
-  const rollNumber = String(formData.get('rollNumber') ?? '').trim();
+  // Roll numbers follow ##261A##[A-Z]# — uppercased here too as a safety
+  // net, in case this is ever called without the form's own live uppercasing.
+  const rollNumber = String(formData.get('rollNumber') ?? '').trim().toUpperCase();
   const password = String(formData.get('password') ?? '');
   const semNoRaw = String(formData.get('semNo') ?? '');
   const semNo = Number(semNoRaw);
 
   if (!rollNumber) return { status: 'error', message: 'Enter your roll number.' };
-  if (!password) return { status: 'error', message: 'Enter your portal password.' };
+  if (!password) return { status: 'error', message: 'Enter your CampX password.' };
   if (!Number.isInteger(semNo) || semNo < 1) return { status: 'error', message: 'Pick a semester.' };
 
   const today = currentIstDate(new Date());

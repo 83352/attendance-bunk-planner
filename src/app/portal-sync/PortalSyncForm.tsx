@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import { syncFromPortal, type PortalSyncState } from './actions';
 
 const initialState: PortalSyncState = { status: 'idle' };
@@ -15,6 +15,8 @@ const initialState: PortalSyncState = { status: 'idle' };
  */
 export function PortalSyncForm() {
   const [state, formAction, pending] = useActionState(syncFromPortal, initialState);
+  const [rollNumber, setRollNumber] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <div className="mx-auto w-full max-w-[480px] border-[3px] border-black bg-paper p-5 shadow-hard">
@@ -25,11 +27,36 @@ export function PortalSyncForm() {
       <form action={formAction} className="grid gap-3">
         <label className="grid gap-1 font-term text-[12px] font-bold text-black">
           Roll number
-          <input name="rollNumber" required className="min-h-11 border-2 border-black bg-surface px-3 font-sans text-[15px]" />
+          <input
+            name="rollNumber"
+            required
+            value={rollNumber}
+            // Roll numbers follow ##261A##[A-Z]# — any letters typed in
+            // lower case are normalized to upper case as you type.
+            onChange={(event) => setRollNumber(event.target.value.toUpperCase())}
+            className="min-h-11 border-2 border-black bg-surface px-3 font-sans text-[15px]"
+          />
         </label>
         <label className="grid gap-1 font-term text-[12px] font-bold text-black">
-          Portal password
-          <input name="password" type="password" required autoComplete="off" className="min-h-11 border-2 border-black bg-surface px-3 font-sans text-[15px]" />
+          CampX password
+          <div className="relative">
+            <input
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              required
+              autoComplete="off"
+              className="min-h-11 w-full border-2 border-black bg-surface px-3 pr-14 font-sans text-[15px]"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              aria-pressed={showPassword}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              className="absolute inset-y-0 right-0 min-w-11 cursor-pointer font-term text-[11px] font-bold text-link"
+            >
+              {showPassword ? 'Hide' : 'Show'}
+            </button>
+          </div>
         </label>
         <label className="grid gap-1 font-term text-[12px] font-bold text-black">
           Semester number
