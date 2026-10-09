@@ -1,0 +1,44 @@
+'use server';
+
+import { currentIstDate } from '@/domain/schedule/calendar';
+import { fetchPortalAttendance, type PortalSyncResult } from '@/lib/portal/campx-client';
+
+export type PortalSyncState =
+  | { status: 'idle' }
+  | { status: 'error'; message: string }
+  | { status: 'success'; data: PortalSyncResult };
+
+/**
+ * Logs in to the college portal with the credentials the student just typed,
+ * pulls their attendance, and logs back out — all within this one request.
+ * The password exists only for the lifetime of this call: it is never
+ * written to a database, a log, a cookie, or returned to the client.
+ */
+export async function syncFromPortal(_: PortalSyncState, formData: FormData): Promise<PortalSyncState> {
+  const rollNumber = String(formData.get('rollNumber') ?? '').trim();
+  const password = String(formData.get('password') ?? '');
+  const semNoRaw = String(formData.get('semNo') ?? '');
+  const semNo = Number(semNoRaw);
+
+  if (!rollNumber) return { status: 'error', message: 'Enter your roll number.' };
+  if (!password) return { status: 'error', message: 'Enter your portal password.' };
+  if (!Number.isInteger(semNo) || semNo < 1) return { status: 'error', message: 'Pick a semester.' };
+
+  const today = currentIstDate(new Date());
+  const [year, month] = today.split('-').map(Number);
+
+  const result = await fetchPortalAttendance(rollNumber, password, semNo, month, year);
+
+  if (!result.ok) {
+    switch (result.reason) {
+      case 'wrong-password':
+        return { status: 'error', message: 'Wrong password.' };
+      case 'mfa-required':
+        return { status: 'error', message: "Can't use with MFA." };
+      case 'network-error':
+        return { status: 'error', message: "Couldn't reach the portal. Try again in a moment." };
+    }
+  }
+
+  return { status: 'success', data: result.data };
+}

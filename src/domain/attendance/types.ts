@@ -84,4 +84,11 @@ export type CalculationRequest = Omit<AttendanceInput, 'calendar'> & {
   config: ScheduleConfig;
   now: Date;
   adjustments?: AttendanceAdjustments;
+  /**
+   * Exact held/attended counts from an authoritative source (the college
+   * portal), replacing the calendar-derived count and the percentage-based
+   * estimate. Provide both or neither. `currentPercentage` is still required
+   * when these are omitted, and is ignored when they're present.
+   */
+  exactCounts?: { held: number; attended: number };
 };

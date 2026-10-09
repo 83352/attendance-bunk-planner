@@ -135,8 +135,12 @@ export function calculateAttendance(request: CalculationRequest): AttendanceResu
     throw new RangeError('Target attendance must be between 0 and 100.');
   }
   const calendar = buildCalendar(request.config, request.now);
-  let heldPeriods = calendar.heldThroughYesterday.length;
-  let attendedPeriods = estimateAttendedPeriods(request.currentPercentage, heldPeriods);
+  // An authoritative source (the portal) overrides the timetable's own count
+  // of periods held so far — the two don't always agree (labs, activity
+  // sessions, etc. the timetable doesn't model), and the portal is the one
+  // that's actually graded against.
+  let heldPeriods = request.exactCounts ? request.exactCounts.held : calendar.heldThroughYesterday.length;
+  let attendedPeriods = request.exactCounts ? request.exactCounts.attended : estimateAttendedPeriods(request.currentPercentage, heldPeriods);
 
 
   let futurePeriods = [...calendar.future];

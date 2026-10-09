@@ -256,3 +256,20 @@ describe('attendance engine', () => {
     expect(result.heldPeriods).toBe(0);
   });
 });
+
+describe('exact counts from the portal', () => {
+  it('overrides the calendar-estimated held/attended counts when provided', () => {
+    const estimated = calculateAttendance({ config, now, currentPercentage: 90, targetPercentage: 75 });
+    const exact = calculateAttendance({
+      config,
+      now,
+      currentPercentage: 90, // ignored when exactCounts is present
+      targetPercentage: 75,
+      exactCounts: { held: 340, attended: 271 },
+    });
+    expect(exact.heldPeriods).toBe(340);
+    expect(exact.attendedPeriods).toBe(271);
+    expect(exact.updatedCurrentPercentage).toBeCloseTo((271 / 340) * 100);
+    expect(exact.heldPeriods).not.toBe(estimated.heldPeriods);
+  });
+});
