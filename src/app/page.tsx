@@ -1,6 +1,8 @@
 import { defaultConfig } from '@/lib/default-config';
 import { loadAllSectionConfigs } from '@/lib/load-config';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
+import { SECTION_COOKIE } from '@/lib/section-cookie';
 import { SectionCalculator } from './SectionCalculator';
 
 export default async function Home() {
@@ -32,7 +34,10 @@ export default async function Home() {
   const configsBySection = await loadAllSectionConfigs(supabase, sections);
   const namesBySection: Record<string, string> = Object.fromEntries(sections.map((section) => [section.id, section.name]));
 
-  // Always start blank — the user (or the logo) picks a section, and any
-  // ?section= in the URL is ignored so refresh never re-selects.
-  return <SectionCalculator sections={sections} configsBySection={configsBySection} namesBySection={namesBySection} />;
+  // A ?section= in the URL is ignored on purpose; the only memory is the
+  // cookie the calculator sets when a section is picked, so the logo can
+  // still drop back to a blank picker without a shareable link re-selecting.
+  const remembered = (await cookies()).get(SECTION_COOKIE)?.value ?? '';
+  const initialSectionId = sections.some((section) => section.id === remembered) ? remembered : '';
+  return <SectionCalculator sections={sections} configsBySection={configsBySection} namesBySection={namesBySection} initialSectionId={initialSectionId} />;
 }

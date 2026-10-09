@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@layer base {
+  :root {
+    interpolate-size: allow-keywords;
+  }
+}
+
 /* ---------------------------------------------------------------------------
    Design tokens for the single, retro-paper light theme. Every utility that
    references them (bg-cream, text-black, shadow-hard, …) reads from here.
@@ -15,7 +21,7 @@
   --color-grey: #707076;         /* muted text on inputs; darkened from #9a9aa0 to clear 4.5:1 contrast on white */
   --color-line: #d8d4ca;         /* hairlines */
   --color-surface: #ffffff;
-  --color-muted: #66666a;
+  --color-muted: #55555a;
   --color-mint: #d9f3e3;
   --color-card: #ffffff;
   --color-cal-off: #f3f7f6;
@@ -29,9 +35,11 @@
   /* Neutral grey rather than another green/teal tint — a working Saturday
      is an administrative fact, not "good" or "bad" like the other two, and
      grey keeps it from being confused with the exam color at a glance. */
-  --color-special-bg: #ececea;   --color-special-ink: #54545a;
+  --color-special-bg: #f3e6b8;   --color-special-ink: #5c4700;
   --color-teal: #218575;
   --color-today: #55ad9b;
+  /* Marks a day the student has adjusted / has open. Deliberately not orange: orange is reserved for the primary action. */
+  --color-adjusted: #4338ca;
   --color-success: #087d42;
   --color-danger-bg: #ffd9d0;    --color-danger-ink: #a00d1e;
   --color-warning-bg: #fff0e8;
@@ -56,9 +64,11 @@
   --shadow-hard-md: 4px 4px 0 var(--shadow-color);
   --shadow-pop: 0 8px 24px var(--shadow-soft), 0 0 0 1px var(--shadow-ring);
 
-  --font-sans: Arial, Helvetica, sans-serif;
-  --font-display: Impact, "Arial Narrow", Arial, sans-serif;
-  --font-term: "Courier New", Courier, monospace;
+
+
+  --font-display: var(--font-anton), Impact, "Arial Narrow", Arial, sans-serif;
+  --font-sans: var(--font-inter), Arial, Helvetica, sans-serif;
+  --font-term: var(--font-jetbrains), "Courier New", Courier, monospace;
 
   --breakpoint-phone: 650px;
 
@@ -66,6 +76,12 @@
   @keyframes rise {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
+  }
+  /* Dialogs: a short settle, never through transparency (a half-faded panel reads as a rendering glitch). */
+  --animate-pop: pop 0.16s ease-out both;
+  @keyframes pop {
+    from { transform: translateY(8px) scale(.98); }
+    to { transform: translateY(0) scale(1); }
   }
   --animate-calendar-pop: calendar-pop 0.15s ease both;
   @keyframes calendar-pop {
@@ -98,6 +114,8 @@
 
 /* Native widgets (scrollbars, date pickers) follow the light theme. */
 html { color-scheme: light; }
+/* The page itself needs a colour: every card, label and heading assumes ink on cream, and without this they inherit whatever the browser's canvas is. */
+body { background: var(--color-cream); color: var(--color-black); }
 
 /* ---------------------------------------------------------------------------
    Repeated multi-property patterns, promoted to utilities so JSX stays
@@ -111,23 +129,24 @@ html { color-scheme: light; }
   padding: clamp(12px, 1.8vw, 18px) clamp(12px, 1.6vw, 16px);
   border: 3px solid var(--color-black);
   background: var(--color-orange);
-  color: #fff;
+  color: var(--color-black);
   cursor: pointer;
   box-shadow: 4px 4px 0 var(--color-black);
-  font-family: var(--font-display);
+  font-family: var(--font-display, Impact, "Arial Narrow", Arial, sans-serif);
   font-weight: 900;
   font-size: clamp(13px, 1.6vw, 17px);
   line-height: 1;
   letter-spacing: clamp(.7px, .08vw, .9px);
   text-align: center;
   text-transform: uppercase;
-  transition: transform .16s ease-out, box-shadow .16s ease-out, background .16s ease-out;
+  transition: transform .16s ease-out, box-shadow .16s ease-out, background .16s ease-out, color .16s ease-out;
 }
 @utility btn-calculate-hover {
-  &:hover {
-    background: #ff5f1c;
-    transform: translate(-2px, -2px);
-    box-shadow: 6px 6px 0 var(--color-black);
+  @media (hover: hover), (any-hover: hover) {
+    &:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0 var(--color-black);
+    }
   }
   &:active {
     transform: translate(3px, 3px);
@@ -135,17 +154,18 @@ html { color-scheme: light; }
   }
   & span {
     float: right;
-    font-family: var(--font-sans);
+    font-family: var(--font-sans, Arial, Helvetica, sans-serif);
     font-weight: 900;
     font-size: 18px;
     line-height: .75;
   }
   &:disabled {
     cursor: not-allowed;
-    opacity: .85;
     transform: none;
-    box-shadow: 4px 4px 0 var(--color-black);
-    background: var(--color-orange);
+    background: #e0e0e0;
+    color: #888;
+    border-color: #aaa;
+    box-shadow: 4px 4px 0 #aaa;
   }
 }
 /* Same lift + press feedback as the Calculate CTA, sized for the chip-style
@@ -158,10 +178,14 @@ html { color-scheme: light; }
   /* Hover and press only apply to non-active chips. On mobile, a tapped
      chip can stay stuck in :hover (no mouseleave fires), so applying the
      cream :hover background there would cover the active chip's lime fill. */
-  &:not([aria-pressed="true"]):hover {
-    transform: translate(-2px, -2px);
-    box-shadow: 7px 7px 0 var(--shadow-color);
-    background: var(--color-cream);
+  /* Only on devices that really hover: on touch screens :hover sticks after a
+     tap, which left the month arrows stuck lime and lifted. */
+  @media (hover: hover), (any-hover: hover) {
+    &:not([aria-pressed="true"]):hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 7px 7px 0 var(--shadow-color);
+      background: var(--color-lime);
+    }
   }
   &:not([aria-pressed="true"]):active {
     transform: translate(3px, 3px);
@@ -181,6 +205,20 @@ html { color-scheme: light; }
   box-shadow: 2px 2px 0 var(--color-error) !important;
   animation: shake .32s ease-out;
 }
+/* Native invalid styling for plain forms (admin). The calculator manages its
+   own error state and opts out, so a blank field never goes red silently. */
+input:user-invalid:not([data-managed-validation]) {
+  border-color: var(--color-error) !important;
+  box-shadow: 2px 2px 0 var(--color-error) !important;
+}
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   25%      { transform: translateX(-3px); }
@@ -196,13 +234,13 @@ html { color-scheme: light; }
   }
 }
 @utility eyebrow-text {
-  font-family: var(--font-term);
+  font-family: var(--font-term, "Courier New", Courier, monospace);
   text-transform: uppercase;
   letter-spacing: .55px;
   font-weight: 900;
 }
 @utility input-placeholder {
-  &::placeholder { color: var(--color-grey); opacity: 1; font: 700 17px/1.3 var(--font-term); letter-spacing: 0; }
+  &::placeholder { color: var(--color-grey); opacity: 1; font: 700 17px/1.3 var(--font-term, "Courier New", Courier, monospace); letter-spacing: 0; }
 }
 @utility setup-steps {
   display: grid;
@@ -211,12 +249,12 @@ html { color-scheme: light; }
   margin: 30px 0;
   padding-left: 22px;
   color: var(--color-black);
-  font: 13px/1.5 var(--font-term);
+  font: 13px/1.5 var(--font-term, "Courier New", Courier, monospace);
   & li { padding-left: 5px; }
   & strong, & span { display: block; }
   & span { margin-top: 4px; color: var(--color-muted); }
   & a { color: var(--color-link); font-weight: 700; }
-  & pre { overflow-x: auto; margin: 10px 0 0; padding: 12px; border: 2px solid var(--color-code-border); background: var(--color-code-bg); color: var(--color-lime); font: 11px/1.7 var(--font-term); }
+  & pre { overflow-x: auto; margin: 10px 0 0; padding: 12px; border: 2px solid var(--color-code-border); background: var(--color-code-bg); color: var(--color-lime); font: 11px/1.7 var(--font-term, "Courier New", Courier, monospace); }
 }
 /* Hidden on phone (≤650px), shown on desktop. Complements the `phone:` prefix. */
 .show-desktop { display: none; }

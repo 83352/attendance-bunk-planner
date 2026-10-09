@@ -12,21 +12,43 @@ export type RecoveryResult = {
   periodsRequired: number | null;
   reachable: boolean;
   minimumCollegeDays: number | null;
+  /** The date (YYYY-MM-DD) of the last class of the run you'd need to attend; null when nothing is needed or it is unreachable. */
+  completesOn: string | null;
   bestAchievablePercentage: number;
 };
 
 export type AttendanceResult = {
   currentPercentage: number;
+  /** Attendance after corrections to periods that have actually happened (past days and today). Excludes plans. */
   updatedCurrentPercentage: number;
+  /**
+   * Attendance on the last day you have planned something for, assuming you
+   * attend every other class up to then and bunk exactly what you planned.
+   * Equals updatedCurrentPercentage when nothing is planned.
+   */
+  projectedPercentage: number;
+  /** The last planned day (YYYY-MM-DD) that projectedPercentage runs through; null when nothing is planned. */
+  projectedThrough: string | null;
+  /** Periods attended so far, fractional because the entered percentage is applied to periods held. */
+  attendedSoFar: number;
   targetPercentage: number;
+  /** Periods that have actually happened, including today's tagged ones. Excludes planned future periods. */
+  heldSoFar: number;
+  /** Periods the budget maths treats as decided: heldSoFar plus planned future periods. */
   heldPeriods: number;
   attendedPeriods: number;
+  /** Future periods the student has already decided on (planned bunks or pinned attendance). */
+  plannedPeriods: number;
+  /** How many of those plans are bunks. */
+  plannedBunks: number;
   remainingPeriods: number;
   maximumBunks: number;
   finalPercentageAtMaximumBunks: number;
-  /** Whole college days the bunk budget covers, counted forward from the next one. */
+  /** Whole regular college days (exam days excluded) the bunk budget covers, counted heaviest-first. */
   maximumFullDaysAbsent: number;
   periodsPerWeek: number;
+  /** The teaching weeks (weeks with at least one non-exam period left) that periodsPerWeek is averaged over. */
+  teachingWeeks: number;
   practicalBunksByWeek: number[];
   recoveryTo75: RecoveryResult;
   recoveryToTarget: RecoveryResult;
@@ -39,10 +61,15 @@ export type PeriodOverride = {
   status: 'attended' | 'bunked';
 };
 
-/** User input for a single period on today. */
+/** User input for a single completed/ongoing period on today. */
 export type TodayPeriodInput = {
   sequence: number;
-  attending: boolean;  // true = attending (default), false = bunking
+  /**
+   * 'auto'     – already reflected in the portal percentage; engine skips it.
+   * true       – attending (manually marked, not yet in portal).
+   * false      – bunking  (manually marked, not yet in portal).
+   */
+  attending: boolean | 'auto';
 };
 
 /** Adjustments derived from user's calendar overrides and today's input. */

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { yearLabel } from '@/lib/academic-year';
 
 export type SectionOption = { id: string; name: string; year: number };
@@ -10,6 +11,20 @@ type SectionSelectorProps = {
   selectedSectionId: string;
   onSelect: (sectionId: string) => void;
 };
+
+function safeViewTransition(callback: () => void) {
+  const reduceMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!reduceMotion && typeof document !== 'undefined' && 'startViewTransition' in document && !document.hidden) {
+    const transition = (document as Document & { startViewTransition: (update: () => void) => ViewTransition }).startViewTransition(() => {
+      flushSync(callback);
+    });
+    transition.ready.catch(() => {});
+    transition.finished.catch(() => {});
+    transition.updateCallbackDone.catch(() => {});
+  } else {
+    callback();
+  }
+}
 
 /**
  * Two-step branch picker.
@@ -44,6 +59,17 @@ function YearPicker({ sections, selectedSectionId, onSelect }: SectionSelectorPr
   const selectedYear = sections.find((section) => section.id === selectedSectionId)?.year;
   const activeYear = chosenYear ?? selectedYear ?? (years.length === 1 ? years[0] : null);
 
+  const handleSelectYear = (year: number) => {
+    safeViewTransition(() => setChosenYear(year));
+  };
+
+  const handleBackToYear = () => {
+    safeViewTransition(() => {
+      setChosenYear(null);
+      onSelect('');
+    });
+  };
+
   if (years.length <= 1) {
     return <BranchPicker sections={sections} selectedSectionId={selectedSectionId} onSelect={onSelect} />;
   }
@@ -57,13 +83,14 @@ function YearPicker({ sections, selectedSectionId, onSelect }: SectionSelectorPr
             <button
               key={year}
               type="button"
-              onClick={() => setChosenYear(year)}
-              className="btn-section-hover inline-flex min-h-[clamp(44px,5.6vw,56px)] cursor-pointer items-center justify-center border-2 border-black bg-surface px-[clamp(16px,2vw,22px)] py-[clamp(10px,1.2vw,14px)] font-term text-[clamp(12px,1.5vw,14px)] font-bold uppercase tracking-[.55px] text-black shadow-[5px_5px_0_var(--shadow-color)]"
+              onClick={() => handleSelectYear(year)}
+              className="btn-section-hover inline-flex min-h-[clamp(44px,5.6vw,56px)] cursor-pointer items-center justify-center border-2 border-black bg-surface px-[clamp(16px,2vw,22px)] py-[clamp(10px,1.2vw,14px)] font-term text-[clamp(12px,1.5vw,14px)] font-bold text-black shadow-[5px_5px_0_var(--shadow-color)]"
             >
-              {yearLabel(year)} <span aria-hidden="true" className="ml-2 font-term text-[14px]">↗</span>
+              {yearLabel(year)}
             </button>
           ))}
         </div>
+        <p className="mt-[6px] mb-0 font-term text-[12px] leading-[1.4] text-muted">Pick your year above to see its sections.</p>
       </div>
     );
   }
@@ -73,8 +100,9 @@ function YearPicker({ sections, selectedSectionId, onSelect }: SectionSelectorPr
       sections={sections.filter((section) => section.year === activeYear)}
       selectedSectionId={selectedSectionId}
       onSelect={onSelect}
-      onBack={() => { setChosenYear(null); onSelect(''); }}
+      onBack={handleBackToYear}
       backLabel={yearLabel(activeYear)}
+      showYear
     />
   );
 }
@@ -110,7 +138,12 @@ function groupOf(name: string): string | null {
 
 type BranchStep = { kind: 'branches' } | { kind: 'group'; label: string };
 
-function BranchPicker({ sections, selectedSectionId, onSelect, onBack, backLabel }: { sections: SectionOption[]; selectedSectionId: string; onSelect: (id: string) => void; onBack?: () => void; backLabel?: string }) {
+/** Selected chip text: with several years published, the year is part of the identity (timetables differ between years). */
+function chipLabel(section: SectionOption, isActive: boolean, showYear: boolean): string {
+  return isActive && showYear ? `${yearLabel(section.year)} · ${section.name}` : section.name;
+}
+
+function BranchPicker({ sections, selectedSectionId, onSelect, onBack, backLabel, showYear = false }: { sections: SectionOption[]; selectedSectionId: string; onSelect: (id: string) => void; onBack?: () => void; backLabel?: string; showYear?: boolean }) {
   // null means "no explicit navigation yet" — the step then follows
   // `selectedSectionId` automatically (e.g. a section restored from
   // localStorage opens straight to its group). Once the user explicitly
@@ -165,19 +198,34 @@ function BranchPicker({ sections, selectedSectionId, onSelect, onBack, backLabel
     : rawStep;
   const activeGroup = effectiveStep.kind === 'group' ? multiGroups.find((g) => g.label === effectiveStep.label) : undefined;
 
+  const transitionBack = () => {
+    safeViewTransition(() => {
+      if (selectedSectionId) onSelect('');
+      else setStep({ kind: 'branches' });
+    });
+  };
+
+  const transitionSelect = (id: string) => {
+    safeViewTransition(() => onSelect(id));
+  };
+
   return (
     <div className="mb-[17px]">
       <span className="text-[12px] leading-[1.1] font-black text-black">Your section</span>
       {effectiveStep.kind === 'branches' && onBack ? (
         <div className="mt-[7px] mb-3 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex min-h-8 cursor-pointer items-center gap-1 border-2 border-black bg-surface px-2.5 py-1 font-term text-[10px] font-black uppercase tracking-[.55px] text-black shadow-[2px_2px_0_var(--shadow-color)] hover:bg-orange hover:text-white"
-          >
-            <span aria-hidden="true">←</span> back
-          </button>
-          <span className="font-term text-[12px] font-black uppercase tracking-[.55px] text-black">{backLabel}</span>
+          <div style={{ viewTransitionName: 'back-btn' } as React.CSSProperties}>
+            <button
+              type="button"
+              onClick={onBack}
+              className="inline-flex min-h-11 cursor-pointer items-center gap-1 border-2 border-black bg-surface px-3 py-2 font-term text-[12px] font-bold text-black shadow-[2px_2px_0_var(--shadow-color)] transition-all duration-150 hover:-translate-y-[1px] hover:-translate-x-[1px] hover:shadow-[4px_4px_0_var(--shadow-color)] active:translate-y-[2px] active:translate-x-[2px] active:shadow-[1px_1px_0_var(--shadow-color)]"
+            >
+              <span aria-hidden="true">←</span> back
+            </button>
+          </div>
+          <div className="flex-1 flex items-center whitespace-nowrap" style={{ viewTransitionName: 'section-label' } as React.CSSProperties}>
+            <span className="font-term text-[12px] font-black text-black">{backLabel}</span>
+          </div>
         </div>
       ) : null}
       {effectiveStep.kind === 'branches' ? (
@@ -186,10 +234,12 @@ function BranchPicker({ sections, selectedSectionId, onSelect, onBack, backLabel
             <button
               key={group.label}
               type="button"
-              onClick={() => setStep({ kind: 'group', label: group.label })}
-              className="btn-section-hover inline-flex min-h-[clamp(44px,5.6vw,56px)] cursor-pointer items-center justify-center border-2 border-black bg-surface px-[clamp(16px,2vw,22px)] py-[clamp(10px,1.2vw,14px)] font-term text-[clamp(12px,1.5vw,14px)] font-bold uppercase tracking-[.55px] text-black shadow-[5px_5px_0_var(--shadow-color)]"
+              onClick={() => {
+                safeViewTransition(() => setStep({ kind: 'group', label: group.label }));
+              }}
+              className="btn-section-hover inline-flex min-h-[clamp(44px,5.6vw,56px)] cursor-pointer items-center justify-center border-2 border-black bg-surface px-[clamp(16px,2vw,22px)] py-[clamp(10px,1.2vw,14px)] font-term text-[clamp(12px,1.5vw,14px)] font-bold text-black shadow-[5px_5px_0_var(--shadow-color)]"
             >
-              {group.label} <span aria-hidden="true" className="ml-2 font-term text-[14px]">↗</span>
+              {group.label} <span aria-hidden="true" className="ml-1 opacity-50">→</span>
             </button>
           ))}
           {singleSections.map((section) => {
@@ -198,51 +248,71 @@ function BranchPicker({ sections, selectedSectionId, onSelect, onBack, backLabel
               <button
                 key={section.id}
                 type="button"
-                onClick={() => onSelect(section.id)}
-                className={`btn-section-hover inline-flex min-h-[clamp(44px,5.6vw,56px)] cursor-pointer items-center justify-center border-2 px-[clamp(16px,2vw,22px)] py-[clamp(10px,1.2vw,14px)] font-term text-[clamp(12px,1.5vw,14px)] font-bold uppercase tracking-[.55px] ${isActive ? 'border-chip-border text-chip-ink [animation:var(--animate-chip-pop)]' : 'border-black bg-surface text-black shadow-[5px_5px_0_var(--shadow-color)]'}`}
+                onClick={() => transitionSelect(section.id)}
+                className={`btn-section-hover inline-flex min-h-11 cursor-pointer items-center justify-center whitespace-nowrap border-2 px-4 py-2 font-term text-[12px] font-bold ${isActive ? 'border-chip-border text-chip-ink [animation:var(--animate-chip-pop)]' : 'border-black bg-surface text-black shadow-[3px_3px_0_var(--shadow-color)]'}`}
                 aria-pressed={isActive}
+                style={{ viewTransitionName: `section-${section.id}` } as React.CSSProperties}
               >
-                {section.name}
+                {chipLabel(section, isActive, showYear)}
               </button>
             );
           })}
           {unmatched.length > 0 && <div className="flex basis-full flex-wrap gap-3" aria-label="Other sections">
             {unmatched.map((section) => {
               const isActive = section.id === selectedSectionId;
-              return <button key={section.id} type="button" onClick={() => onSelect(section.id)} className={`btn-section-hover inline-flex min-h-[clamp(44px,5.6vw,56px)] cursor-pointer items-center justify-center border-2 px-[clamp(16px,2vw,22px)] py-[clamp(10px,1.2vw,14px)] font-term text-[clamp(12px,1.5vw,14px)] font-bold uppercase tracking-[.55px] ${isActive ? 'border-chip-border text-chip-ink [animation:var(--animate-chip-pop)]' : 'border-black bg-surface text-black shadow-[5px_5px_0_var(--shadow-color)]'}`} aria-pressed={isActive}>{section.name}</button>;
+              return <button key={section.id} type="button" onClick={() => transitionSelect(section.id)} className={`btn-section-hover inline-flex min-h-11 cursor-pointer items-center justify-center whitespace-nowrap border-2 px-4 py-2 font-term text-[12px] font-bold ${isActive ? 'border-chip-border text-chip-ink [animation:var(--animate-chip-pop)]' : 'border-black bg-surface text-black shadow-[3px_3px_0_var(--shadow-color)]'}`} aria-pressed={isActive} style={{ viewTransitionName: `section-${section.id}` } as React.CSSProperties}>{chipLabel(section, isActive, showYear)}</button>;
             })}
           </div>}
         </div>
       ) : (
-        <div className="mt-[7px] flex flex-col gap-3">
-          <div className="flex items-center gap-3">
+        <div className="mt-[7px] flex flex-wrap items-center gap-3" role="group" aria-label={`Choose your section in ${activeGroup?.label ?? ''}`}>
+          <div style={{ viewTransitionName: 'back-btn' } as React.CSSProperties}>
             <button
               type="button"
-              onClick={() => { setStep({ kind: 'branches' }); onSelect(''); }}
-              className="inline-flex min-h-8 cursor-pointer items-center gap-1 border-2 border-black bg-surface px-2.5 py-1 font-term text-[10px] font-black uppercase tracking-[.55px] text-black shadow-[2px_2px_0_var(--shadow-color)] hover:bg-orange hover:text-white"
+              onClick={transitionBack}
+              className="inline-flex min-h-11 cursor-pointer items-center gap-1 border-2 border-black bg-surface px-3 py-2 font-term text-[12px] font-bold text-black shadow-[2px_2px_0_var(--shadow-color)] transition-all duration-150 hover:-translate-y-[1px] hover:-translate-x-[1px] hover:shadow-[4px_4px_0_var(--shadow-color)] active:translate-y-[2px] active:translate-x-[2px] active:shadow-[1px_1px_0_var(--shadow-color)]"
             >
               <span aria-hidden="true">←</span> back
             </button>
-            <span className="font-term text-[12px] font-black uppercase tracking-[.55px] text-black">{backLabel ? `${backLabel} · ${activeGroup?.label ?? ''}` : activeGroup?.label}</span>
           </div>
-          <div className="flex flex-wrap gap-2" role="group" aria-label={`Choose your section in ${activeGroup?.label ?? ''}`}>
-            {activeGroup?.list.map((section) => {
-              const isActive = section.id === selectedSectionId;
-              return (
-                <button
-                  key={section.id}
-                  type="button"
-                  onClick={() => onSelect(section.id)}
-                  className={`btn-section-hover inline-flex min-h-10 cursor-pointer items-center justify-center border-2 px-4 py-2 font-term text-[12px] font-bold uppercase tracking-[.4px] ${isActive ? 'border-chip-border text-chip-ink' : 'border-black bg-surface text-black shadow-[3px_3px_0_var(--shadow-color)]'}`}
-                  aria-pressed={isActive}
-                >
-                  {section.name}
-                </button>
-              );
-            })}
-          </div>
+
+          {!selectedSectionId && (
+            <div
+              className="flex-1 flex items-center whitespace-nowrap"
+              style={{ viewTransitionName: 'section-label' } as React.CSSProperties}
+            >
+              <span className="font-term text-[12px] font-black text-black">
+                {backLabel ? `${backLabel} · ${activeGroup?.label ?? ''}` : activeGroup?.label}
+              </span>
+            </div>
+          )}
+
+          {!selectedSectionId && <div className="w-full h-0 m-0" />}
+
+          {activeGroup?.list.map((section) => {
+            const isActive = section.id === selectedSectionId;
+            if (selectedSectionId && !isActive) return null;
+
+            return (
+              <button
+                key={section.id}
+                type="button"
+                onClick={() => transitionSelect(section.id)}
+                className={`btn-section-hover inline-flex min-h-11 cursor-pointer items-center justify-center whitespace-nowrap border-2 px-4 py-2 font-term text-[12px] font-bold ${
+                  isActive
+                    ? 'border-chip-border text-chip-ink [animation:var(--animate-chip-pop)]'
+                    : 'border-black bg-surface text-black shadow-[3px_3px_0_var(--shadow-color)]'
+                }`}
+                aria-pressed={isActive}
+                style={{ viewTransitionName: `section-${section.id}` } as React.CSSProperties}
+              >
+                {chipLabel(section, isActive, showYear)}
+              </button>
+            );
+          })}
         </div>
       )}
+      {!selectedSectionId && <p className="mt-[10px] mb-0 font-term text-[12px] leading-[1.4] text-muted">Pick your section above to load its timetable.</p>}
     </div>
   );
 }

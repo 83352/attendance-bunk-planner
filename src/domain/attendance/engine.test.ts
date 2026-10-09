@@ -116,6 +116,59 @@ describe('attendance engine', () => {
     expect(result.recoveryToTarget.minimumCollegeDays).toBeNull();
   });
 
+  it('does not count an exam week as a week when averaging bunks per week', () => {
+    const longer = { ...config, semesterEnd: '2026-09-13' };
+    const withExam = { ...longer, exams: [{ name: 'Mid sem', start: '2026-09-07', end: '2026-09-11', periodsPerDay: 2 as const }] };
+    const plain = calculateAttendance({ config: longer, now, currentPercentage: 90, targetPercentage: 75 });
+    const exam = calculateAttendance({ config: withExam, now, currentPercentage: 90, targetPercentage: 75 });
+    // Three teaching weeks without the exam, two with it.
+    expect(plain.periodsPerWeek).toBeCloseTo(plain.maximumBunks / 3);
+    expect(exam.periodsPerWeek).toBeCloseTo(exam.maximumBunks / 2);
+  });
+
+  it('keeps planned future bunks out of "held so far" and reports a projection instead', () => {
+    const plain = calculateAttendance({ config, now, currentPercentage: 90, targetPercentage: 75 });
+    const planned = calculateAttendance({
+      config,
+      now,
+      currentPercentage: 90,
+      targetPercentage: 75,
+      adjustments: { periodOverrides: [{ date: '2026-08-25', sequence: 1, status: 'bunked' }], todayPeriods: [] },
+    });
+    expect(planned.heldSoFar).toBe(plain.heldSoFar);
+    expect(planned.updatedCurrentPercentage).toBeCloseTo(plain.updatedCurrentPercentage);
+    expect(planned.plannedPeriods).toBe(1);
+    expect(planned.plannedBunks).toBe(1);
+    // Projection runs through Tue 25 Aug: Mon (5) and Tue (6) are attended except the one planned bunk.
+    expect(planned.projectedPercentage).toBeCloseTo(((planned.attendedSoFar + 11 - 1) / (planned.heldSoFar + 11)) * 100);
+    // The planned bunk is deducted from what is left to spend.
+    expect(planned.maximumBunks).toBe(plain.maximumBunks - 1);
+  });
+
+  it('projects through the last planned day, counting the classes you attend before it', () => {
+    // Attend everything until Wed 26 Aug, then bunk period 1 that day.
+    const planned = calculateAttendance({
+      config,
+      now,
+      currentPercentage: 90,
+      targetPercentage: 75,
+      adjustments: { periodOverrides: [{ date: '2026-08-26', sequence: 1, status: 'bunked' }], todayPeriods: [] },
+    });
+    // Mon 5 + Tue 6 + Wed 5 periods run up to and including the planned day.
+    const through = 5 + 6 + 5;
+    const expected = ((planned.attendedSoFar + through - 1) / (planned.heldSoFar + through)) * 100;
+    expect(planned.projectedThrough).toBe('2026-08-26');
+    expect(planned.projectedPercentage).toBeCloseTo(expected);
+  });
+
+  it('never counts exam days as days you can miss', () => {
+    const exams = { ...config, exams: [{ name: 'Mid sem', start: '2026-08-24', end: '2026-08-28', periodsPerDay: 2 as const }] };
+    const result = calculateAttendance({ config: exams, now, currentPercentage: 100, targetPercentage: 0 });
+    expect(result.maximumBunks).toBeGreaterThan(0);
+    expect(result.maximumFullDaysAbsent).toBe(0);
+    expect(result.teachingWeeks).toBe(0);
+  });
+
   it('distributes bunks across uneven calendar weeks without exceeding weekly periods', () => {
     const changed = { ...config, semesterEnd: '2026-09-05', holidays: [{ name: 'Holiday', start: '2026-08-25', end: '2026-08-28' }] };
     const result = calculateAttendance({ config: changed, now, currentPercentage: 90, targetPercentage: 75 });

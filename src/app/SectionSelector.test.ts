@@ -48,9 +48,11 @@ describe('SectionSelector year step', () => {
     expect(html).toContain('Your section');
     expect(html).toContain('3rd year');
     // EEE is a single-member branch, so its chip renders at the branch step.
-    // Both years have one and the chips are labelled only by name, so the
-    // guard against cross-year leakage is that exactly one chip exists.
-    expect(html.match(/>EEE</g) ?? []).toHaveLength(1);
+    // Both years have one; the selected chip carries its year, so exactly one
+    // EEE chip existing (and it being the 3rd-year one) guards against leakage.
+    expect(html.match(/EEE</g) ?? []).toHaveLength(1);
+    expect(html).toContain('3rd year · EEE');
+    expect(html).not.toContain('2nd year · EEE');
   });
 
   it('opens on the year of the selected section, not the lowest year', () => {

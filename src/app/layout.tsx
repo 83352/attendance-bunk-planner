@@ -33,10 +33,17 @@ export const viewport: Viewport = {
 };
 
 import { WhatsNewModal } from "./WhatsNewModal";
+import { Anton, Inter, JetBrains_Mono } from 'next/font/google';
+
+// next/font exposes each face under its own variable; tokens.css maps them onto
+// the --font-display / --font-sans / --font-term theme keys the utilities use.
+const fontDisplay = Anton({ subsets: ['latin'], weight: '400', variable: '--font-anton' });
+const fontSans = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const fontTerm = JetBrains_Mono({ subsets: ['latin'], variable: '--font-jetbrains' });
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en-GB">
+    <html lang="en-GB" className={`${fontDisplay.variable} ${fontSans.variable} ${fontTerm.variable}`}>
       <body>
         {children}
         <WhatsNewModal />

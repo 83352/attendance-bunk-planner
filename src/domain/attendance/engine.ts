@@ -1,4 +1,4 @@
-import { buildCalendar } from '../schedule/calendar';
+import { buildCalendar, dateInRange } from '../schedule/calendar';
 import type { DatedPeriod } from '../schedule/types';
 import type {
   AttendanceResult,
@@ -34,6 +34,7 @@ function recoveryFor(
       periodsRequired: 0,
       reachable: true,
       minimumCollegeDays: 0,
+      completesOn: null,
       bestAchievablePercentage: bestAchievable,
     };
   }
@@ -45,6 +46,7 @@ function recoveryFor(
       periodsRequired: reachable ? 0 : null,
       reachable,
       minimumCollegeDays: reachable ? 0 : null,
+      completesOn: null,
       bestAchievablePercentage: bestAchievable,
     };
   }
@@ -52,6 +54,7 @@ function recoveryFor(
   const required = Math.max(0, Math.ceil((target * held - attended) / (1 - target) - EPSILON));
   const reachable = required <= futurePeriods.length;
   let minimumCollegeDays: number | null = reachable ? 0 : null;
+  let completesOn: string | null = null;
   if (reachable && required > 0) {
     let periodsSeen = 0;
     let collegeDays = 0;
@@ -61,7 +64,10 @@ function recoveryFor(
     for (const date of dates) {
       periodsSeen += periodsByDate.get(date) ?? 0;
       collegeDays += 1;
-      if (periodsSeen >= required) break;
+      if (periodsSeen >= required) {
+        completesOn = date;
+        break;
+      }
     }
     minimumCollegeDays = collegeDays;
   }
@@ -71,6 +77,7 @@ function recoveryFor(
     periodsRequired: required,
     reachable,
     minimumCollegeDays,
+    completesOn,
     bestAchievablePercentage: bestAchievable,
   };
 }
@@ -133,6 +140,11 @@ export function calculateAttendance(request: CalculationRequest): AttendanceResu
 
 
   let futurePeriods = [...calendar.future];
+  // Future periods the student has already decided on. They are counted in the
+  // budget maths but are NOT "held so far": they haven't happened yet.
+  let plannedPeriods = 0;
+  let plannedAttended = 0;
+  let lastPlannedDate: string | null = null;
 
   // Apply calendar overrides for past periods whose attendance wasn't updated.
   // The entered % is applied to all held periods naively. Each overridden period
@@ -163,7 +175,12 @@ export function calculateAttendance(request: CalculationRequest): AttendanceResu
         const status = futureOverrides.get(`${p.date}:${p.sequence}`);
         if (status) {
           heldPeriods += 1;
-          if (status === 'attended') attendedPeriods += 1;
+          plannedPeriods += 1;
+          if (lastPlannedDate === null || p.date > lastPlannedDate) lastPlannedDate = p.date;
+          if (status === 'attended') {
+            attendedPeriods += 1;
+            plannedAttended += 1;
+          }
         } else {
           remainingFuture.push(p);
         }
@@ -171,10 +188,15 @@ export function calculateAttendance(request: CalculationRequest): AttendanceResu
       futurePeriods = remainingFuture;
     }
 
-    // Today's periods: move from excluded "today" bucket into held/attended.
+    // Today's completed/ongoing periods: move from excluded "today" bucket into
+    // held/attended. Periods marked 'auto' are already reflected in the portal
+    // percentage, so we just add their fractional percentage to keep the ratio
+    // identical while correctly incrementing the total held periods "as of now".
     for (const todayPeriod of request.adjustments.todayPeriods) {
       heldPeriods += 1;
-      if (todayPeriod.attending) {
+      if (todayPeriod.attending === 'auto') {
+        attendedPeriods += pct;
+      } else if (todayPeriod.attending) {
         attendedPeriods += 1;
       }
     }
@@ -184,6 +206,16 @@ export function calculateAttendance(request: CalculationRequest): AttendanceResu
   attendedPeriods = Math.max(0, Math.min(attendedPeriods, heldPeriods));
 
   const remainingPeriods = futurePeriods.length;
+  const heldSoFar = heldPeriods - plannedPeriods;
+  const attendedSoFar = Math.max(0, Math.min(attendedPeriods - plannedAttended, heldSoFar));
+
+  // Projection through the last planned day: every class up to then is
+  // attended except the planned bunks, so "attend tomorrow, bunk the day
+  // after" counts both days.
+  const plannedBunkCount = plannedPeriods - plannedAttended;
+  const periodsThroughLastPlan = lastPlannedDate === null ? 0 : calendar.future.filter((p) => p.date <= (lastPlannedDate as string)).length;
+  const projectedHeld = heldSoFar + periodsThroughLastPlan;
+  const projectedAttended = attendedSoFar + periodsThroughLastPlan - plannedBunkCount;
 
   const target = request.targetPercentage / 100;
   const maximumBunks = Math.max(
@@ -191,8 +223,13 @@ export function calculateAttendance(request: CalculationRequest): AttendanceResu
     Math.min(remainingPeriods, Math.floor(attendedPeriods + remainingPeriods - target * (heldPeriods + remainingPeriods) + EPSILON)),
   );
   
+  // Exam days are not skippable: they never count as a regular week and never
+  // as a "day you can miss". (Their periods still sit in the bunk budget.)
+  const isExamDay = (date: string) => request.config.exams.some((exam) => dateInRange(date, exam.start, exam.end));
+  const regularFuturePeriods = futurePeriods.filter((period) => !isExamDay(period.date));
+
   const futureByWeek = new Map<string, DatedPeriod[]>();
-  for (const period of futurePeriods) {
+  for (const period of regularFuturePeriods) {
     const current = new Date(`${period.date}T00:00:00Z`);
     const offset = (current.getUTCDay() + 6) % 7;
     current.setUTCDate(current.getUTCDate() - offset);
@@ -207,15 +244,22 @@ export function calculateAttendance(request: CalculationRequest): AttendanceResu
 
   return {
     currentPercentage: request.currentPercentage,
-    updatedCurrentPercentage: heldPeriods === 0 ? 0 : (attendedPeriods / heldPeriods) * 100,
+    updatedCurrentPercentage: heldSoFar === 0 ? 0 : (attendedSoFar / heldSoFar) * 100,
+    projectedPercentage: projectedHeld === 0 ? 0 : (Math.max(0, projectedAttended) / projectedHeld) * 100,
+    projectedThrough: lastPlannedDate,
+    attendedSoFar,
     targetPercentage: request.targetPercentage,
+    heldSoFar,
     heldPeriods,
     attendedPeriods,
+    plannedPeriods,
+    plannedBunks: plannedPeriods - plannedAttended,
     remainingPeriods,
     maximumBunks,
     finalPercentageAtMaximumBunks: finalPercentageWithBunks(attendedPeriods, heldPeriods, remainingPeriods, maximumBunks),
-    maximumFullDaysAbsent: fullDaysWithinBudget(futurePeriods, maximumBunks),
+    maximumFullDaysAbsent: fullDaysWithinBudget(regularFuturePeriods, maximumBunks),
     periodsPerWeek: weeklyPeriods.length === 0 ? 0 : maximumBunks / weeklyPeriods.length,
+    teachingWeeks: weeklyPeriods.length,
     practicalBunksByWeek,
     recoveryTo75: recoveryFor(75, attendedPeriods, heldPeriods, futurePeriods),
     recoveryToTarget: recoveryFor(request.targetPercentage, attendedPeriods, heldPeriods, futurePeriods),
