@@ -19,17 +19,16 @@ export async function syncFromPortal(_: PortalSyncState, formData: FormData): Pr
   // net, in case this is ever called without the form's own live uppercasing.
   const rollNumber = String(formData.get('rollNumber') ?? '').trim().toUpperCase();
   const password = String(formData.get('password') ?? '');
-  const semNoRaw = String(formData.get('semNo') ?? '');
-  const semNo = Number(semNoRaw);
 
   if (!rollNumber) return { status: 'error', message: 'Enter your roll number.' };
   if (!password) return { status: 'error', message: 'Enter your CampX password.' };
-  if (!Number.isInteger(semNo) || semNo < 1) return { status: 'error', message: 'Pick a semester.' };
 
   const today = currentIstDate(new Date());
   const [year, month] = today.split('-').map(Number);
 
-  const result = await fetchPortalAttendance(rollNumber, password, semNo, month, year);
+  // No semester field here — fetchPortalAttendance reads the student's real
+  // current semester from the portal itself.
+  const result = await fetchPortalAttendance(rollNumber, password, month, year);
 
   if (!result.ok) {
     switch (result.reason) {

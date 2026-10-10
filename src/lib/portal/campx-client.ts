@@ -130,10 +130,107 @@ async function getJson<T>(session: PortalSession, path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/**
+ * One row from `classroom-timetables` — this is the *classroom's* full
+ * schedule, not the student's own: when two labs run at the same time for
+ * two half-section batches, both rows are present here. `studentAttendance`
+ * is how we tell which one is actually this student's (see
+ * `resolveOwnSessions` below); it's confirmed only non-null on the row that
+ * belongs to them, for any session that's already happened.
+ */
+type RawClassroomTimetableRow = {
+  sessionDate: string; // YYYY-MM-DD
+  fromTime: string; // HH:MM:SS
+  toTime: string;
+  periods: number[];
+  semNo: number;
+  isSuspended: boolean;
+  completed: boolean;
+  reason: string | null;
+  remarks: string | null;
+  subjectId: number;
+  subject: { name: string; subjectCode: string };
+  faculties: { fullName: string }[];
+  groups: { id: number; name: string }[];
+  timetableSlot: { day: string };
+  studentAttendance: { status: boolean } | null;
+};
+
+/** One class session, already resolved to this student (no other batch's concurrent lab). */
+export type PortalTimetableSession = {
+  date: string;
+  day: string;
+  fromTime: string;
+  toTime: string;
+  periods: number[];
+  subjectName: string;
+  subjectCode: string;
+  facultyNames: string[];
+  groupName: string | null;
+  isSuspended: boolean;
+  completed: boolean;
+  /** Present/absent for this session, if the portal has already recorded it. */
+  attended: boolean | null;
+};
+
+/**
+ * Drops the "other half's" row wherever two sessions share a date and start
+ * time (the split-lab case: half the section in one lab, half in another).
+ * A subject is classified as "mine" if ANY of its sessions anywhere this
+ * semester has a recorded `studentAttendance` — batch assignment is stable
+ * for the whole semester, so one real record is enough to resolve the rest,
+ * including sessions that haven't happened yet. If neither side of a pair
+ * has happened yet (so there's no evidence either way), both are kept rather
+ * than silently dropping one — that's the one case this can't resolve from
+ * data alone.
+ */
+function resolveOwnSessions(rows: RawClassroomTimetableRow[]): PortalTimetableSession[] {
+  const mineSubjectIds = new Set(rows.filter((r) => r.studentAttendance !== null).map((r) => r.subjectId));
+
+  const byKey = new Map<string, RawClassroomTimetableRow[]>();
+  for (const row of rows) {
+    const key = `${row.sessionDate}|${row.fromTime}`;
+    const list = byKey.get(key) ?? [];
+    list.push(row);
+    byKey.set(key, list);
+  }
+
+  const toSession = (r: RawClassroomTimetableRow): PortalTimetableSession => ({
+    date: r.sessionDate,
+    day: r.timetableSlot.day,
+    fromTime: r.fromTime,
+    toTime: r.toTime,
+    periods: r.periods,
+    subjectName: r.subject.name,
+    subjectCode: r.subject.subjectCode,
+    facultyNames: r.faculties.map((f) => f.fullName),
+    groupName: r.groups[0]?.name ?? null,
+    isSuspended: r.isSuspended,
+    completed: r.completed,
+    attended: r.studentAttendance?.status ?? null,
+  });
+
+  const result: PortalTimetableSession[] = [];
+  for (const group of byKey.values()) {
+    const distinctSubjects = new Set(group.map((r) => r.subjectId));
+    if (distinctSubjects.size === 1) {
+      result.push(...group.map(toSession));
+      continue;
+    }
+    const resolved = group.filter((r) => mineSubjectIds.has(r.subjectId));
+    result.push(...(resolved.length > 0 ? resolved : group).map(toSession));
+  }
+  return result.sort((a, b) => (a.date + a.fromTime).localeCompare(b.date + b.fromTime));
+}
+
 export type PortalSyncResult = {
+  /** The student's actual current semester, read from the portal — never guessed or hand-typed. */
+  currentSemNo: number;
   semesterSummary: PortalSemesterSummary;
   primaryAttendance: PortalPrimaryAttendance;
   dateWiseAttendance: PortalDateWiseAttendance;
+  /** This semester's sessions only, already resolved to this student (see resolveOwnSessions). */
+  timetable: PortalTimetableSession[];
 };
 
 /**
@@ -159,21 +256,35 @@ export async function withPortalSession<T>(
   }
 }
 
-/** Fetches everything dontbunk needs for one sync in a single logged-in session. */
+/**
+ * Fetches everything dontbunk needs for one sync in a single logged-in
+ * session. The semester is never asked for or guessed: `my-all-semester-attendance`
+ * reports the student's real `currentSemNo` regardless of which semNo the
+ * query itself asks for, so a cheap throwaway call (semNo=1, which always
+ * exists) finds it, and every real call afterward uses that.
+ */
 export async function fetchPortalAttendance(
   rollNumber: string,
   password: string,
-  semNo: number,
   month: number,
   year: number,
 ): Promise<{ ok: true; data: PortalSyncResult } | PortalLoginFailure> {
   return withPortalSession(rollNumber, password, async (session) => {
-    const [semesterSummary, primaryAttendance, dateWiseAttendance] = await Promise.all([
-      getJson<PortalSemesterSummary>(session, `/student-api/student-attendance/my-all-semester-attendance?semNo=${semNo}`),
+    const probe = await getJson<PortalSemesterSummary>(session, '/student-api/student-attendance/my-all-semester-attendance?semNo=1');
+    const semNo = probe.currentSemNo;
+
+    const [semesterSummary, primaryAttendance, dateWiseAttendance, timetableRows] = await Promise.all([
+      semNo === 1 ? Promise.resolve(probe) : getJson<PortalSemesterSummary>(session, `/student-api/student-attendance/my-all-semester-attendance?semNo=${semNo}`),
       getJson<{ primaryAttendance: PortalPrimaryAttendance }>(session, `/student-api/student-attendance/my-secondary-attendance?semNo=${semNo}`)
         .then((body) => body.primaryAttendance),
       getJson<PortalDateWiseAttendance>(session, `/student-api/student-attendance/my-date-wise-attendance?semNo=${semNo}&month=${month}&year=${year}`),
+      // The classroom's full multi-semester timetable in one call — filtered
+      // to this semester, then resolved down to this student's own sessions.
+      getJson<RawClassroomTimetableRow[]>(session, '/student-api/classroom-timetables'),
     ]);
-    return { semesterSummary, primaryAttendance, dateWiseAttendance };
+
+    const timetable = resolveOwnSessions(timetableRows.filter((row) => row.semNo === semNo));
+
+    return { currentSemNo: semNo, semesterSummary, primaryAttendance, dateWiseAttendance, timetable };
   });
 }
