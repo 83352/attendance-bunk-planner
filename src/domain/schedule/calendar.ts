@@ -28,7 +28,7 @@ function weekdayOf(date: string): Weekday {
   return parseDate(date).getUTCDay() as Weekday;
 }
 
-function datesBetween(start: string, end: string): string[] {
+export function datesBetween(start: string, end: string): string[] {
   const dates: string[] = [];
   for (let date = parseDate(start); date <= parseDate(end); date = addDays(date, 1)) {
     dates.push(formatDate(date));

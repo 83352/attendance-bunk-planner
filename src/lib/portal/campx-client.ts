@@ -172,6 +172,8 @@ export type PortalTimetableSession = {
   completed: boolean;
   /** Present/absent for this session, if the portal has already recorded it. */
   attended: boolean | null;
+  /** Built from the admin's calendar patches, not read from the portal (see `patchedTimetable`). */
+  synthetic?: boolean;
 };
 
 /**

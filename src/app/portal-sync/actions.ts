@@ -1,12 +1,13 @@
 'use server';
 
 import { currentIstDate } from '@/domain/schedule/calendar';
+import { loadCalendarOverrides, yearOfSemester, type CalendarOverrides } from '@/lib/portal/calendar-overrides';
 import { fetchPortalAttendance, type PortalSyncResult } from '@/lib/portal/campx-client';
 
 export type PortalSyncState =
   | { status: 'idle' }
   | { status: 'error'; message: string }
-  | { status: 'success'; data: PortalSyncResult };
+  | { status: 'success'; data: PortalSyncResult; overrides: CalendarOverrides | null };
 
 /**
  * Logs in to the college portal with the credentials the student just typed,
@@ -41,5 +42,5 @@ export async function syncFromPortal(_: PortalSyncState, formData: FormData): Pr
     }
   }
 
-  return { status: 'success', data: result.data };
+  return { status: 'success', data: result.data, overrides: loadCalendarOverrides(yearOfSemester(result.data.currentSemNo)) };
 }

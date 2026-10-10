@@ -4,7 +4,8 @@ import { useActionState, useMemo, useState } from 'react';
 import { calculateAttendance } from '@/domain/attendance/engine';
 import type { AttendanceResult } from '@/domain/attendance/types';
 import type { PortalSyncResult, PortalTimetableSession } from '@/lib/portal/campx-client';
-import { buildCalculationInput, findUngradedPastSessions, hasUnscheduledExamGap, type PastOverrides } from '@/lib/portal/to-calculation-input';
+import type { CalendarOverrides } from '@/lib/portal/calendar-overrides';
+import { buildCalculationInput, describeActivePatches, findUngradedPastSessions, hasUnscheduledExamGap, type PastOverrides } from '@/lib/portal/to-calculation-input';
 import { syncFromPortal, type PortalSyncState } from './actions';
 
 const initialState: PortalSyncState = { status: 'idle' };
@@ -74,15 +75,16 @@ export function PortalSyncForm() {
         </p>
       )}
 
-      {state.status === 'success' && <SyncedResult data={state.data} />}
+      {state.status === 'success' && <SyncedResult data={state.data} overrides={state.overrides} />}
     </div>
   );
 }
 
 /** Everything that happens once we have real portal data: ask about ungraded past sessions, then compute and show the result. */
-function SyncedResult({ data }: { data: PortalSyncResult }) {
+function SyncedResult({ data, overrides }: { data: PortalSyncResult; overrides: CalendarOverrides | null }) {
   const now = useMemo(() => new Date(), []);
-  const ungraded = useMemo(() => findUngradedPastSessions(data, now), [data, now]);
+  const ungraded = useMemo(() => findUngradedPastSessions(data, now, overrides), [data, now, overrides]);
+  const patchNotes = useMemo(() => describeActivePatches(data, overrides, now), [data, overrides, now]);
 
   const [answers, setAnswers] = useState<Map<number, 'attended' | 'bunked'>>(new Map());
   const [target, setTarget] = useState('75');
@@ -99,8 +101,8 @@ function SyncedResult({ data }: { data: PortalSyncResult }) {
       if (status === 'attended') pastOverrides.attended += 1;
       else pastOverrides.bunked += 1;
     }
-    return calculateAttendance(buildCalculationInput(data, targetNum, pastOverrides, now));
-  }, [calculated, targetValid, allAnswered, answers, data, targetNum, now]);
+    return calculateAttendance(buildCalculationInput(data, targetNum, pastOverrides, now, overrides));
+  }, [calculated, targetValid, allAnswered, answers, data, targetNum, now, overrides]);
 
   return (
     <div className="mt-5 grid gap-5">
@@ -152,9 +154,19 @@ function SyncedResult({ data }: { data: PortalSyncResult }) {
       </button>
 
       {result && <ResultCard result={result} />}
-      {result && hasUnscheduledExamGap(now) && (
+      {result && patchNotes.length > 0 && (
+        <ul className="m-0 grid gap-1 border-2 border-black p-2 pl-6 font-term text-[12px] leading-[1.4]">
+          {patchNotes.map((note) => <li key={note}>{note}</li>)}
+        </ul>
+      )}
+      {result && !overrides && (
         <p className="m-0 border-2 border-black bg-warning-bg p-2 font-term text-[12px] leading-[1.4]">
-          Mid 2 isn&rsquo;t scheduled on the portal yet — this number doesn&rsquo;t account for it.
+          There&rsquo;s no manual calendar for your year, so holidays and exams the portal hasn&rsquo;t published yet aren&rsquo;t accounted for.
+        </p>
+      )}
+      {result && hasUnscheduledExamGap(now, overrides) && (
+        <p className="m-0 border-2 border-black bg-warning-bg p-2 font-term text-[12px] leading-[1.4]">
+          The next exam isn&rsquo;t scheduled yet — this number doesn&rsquo;t account for it.
         </p>
       )}
 
@@ -171,7 +183,7 @@ function SyncedResult({ data }: { data: PortalSyncResult }) {
 function UngradedRow({ session, value, onChange }: { session: PortalTimetableSession; value: 'attended' | 'bunked' | null; onChange: (status: 'attended' | 'bunked') => void }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 border border-black/20 p-2 font-term text-[12px]">
-      <span>{session.date} · {session.subjectName} · {session.fromTime.slice(0, 5)}</span>
+      <span>{session.date} · {session.subjectName} · {session.fromTime.slice(0, 5)}{session.synthetic ? ' · not on the portal yet' : ''}</span>
       <div className="flex gap-1">
         <button
           type="button"

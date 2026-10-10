@@ -1,6 +1,9 @@
 import type { ExamPeriod } from '@/domain/schedule/types';
 
 /**
+ * FALLBACK ONLY — used when calendar-overrides.json has no entry for the
+ * student's year (that file normally supplies exam dates).
+ *
  * Manually maintained — the portal has no reliable way to tell an exam
  * session from a regular class. During an exam week, each subject's row in
  * `classroom-timetables` looks exactly like a normal class: same

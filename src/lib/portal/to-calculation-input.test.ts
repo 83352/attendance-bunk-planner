@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { calculateAttendance } from '@/domain/attendance/engine';
 import type { PortalSyncResult, PortalTimetableSession } from './campx-client';
-import { buildCalculationInput, findUngradedPastSessions, hasUnscheduledExamGap } from './to-calculation-input';
+import type { CalendarOverrides } from './calendar-overrides';
+import { buildCalculationInput, findUngradedPastSessions, hasUnscheduledExamGap, patchedTimetable } from './to-calculation-input';
 
 const now = new Date('2026-09-10T05:00:00.000Z'); // 2026-09-10 in IST
 
@@ -77,5 +78,40 @@ describe('hasUnscheduledExamGap', () => {
 
   it('is false while still within or before the last known exam range', () => {
     expect(hasUnscheduledExamGap(new Date('2026-09-02T05:00:00.000Z'))).toBe(false);
+  });
+});
+
+describe('patchedTimetable', () => {
+  const none: CalendarOverrides = { holidays: [], specialSaturdays: [], exams: [] };
+  // 2026-09-15 is a Tuesday; 2026-09-19 is the Saturday that follows it.
+
+  it('drops ungraded sessions on a holiday the portal has not caught up with, but keeps graded ones', () => {
+    const overrides = { ...none, holidays: [{ name: 'Test day', start: '2026-09-15', end: '2026-09-15' }] };
+    const patched = patchedTimetable(data, overrides, now);
+    expect(patched.some((s) => s.date === '2026-09-15')).toBe(false);
+    const graded = patchedTimetable(data, { ...none, holidays: [{ name: 'x', start: '2026-09-01', end: '2026-09-01' }] }, now);
+    expect(graded.some((s) => s.date === '2026-09-01')).toBe(true);
+  });
+
+  it('synthesizes a special Saturday from the copied weekday when the portal has no rows for it', () => {
+    const overrides = { ...none, specialSaturdays: [{ date: '2026-09-19', copiedWeekday: 2 as const }] };
+    const patched = patchedTimetable(data, overrides, now);
+    const added = patched.filter((s) => s.date === '2026-09-19');
+    expect(added).toHaveLength(1);
+    expect(added[0].periods).toEqual([4, 5]);
+    expect(added[0].synthetic).toBe(true);
+  });
+
+  it('leaves a special Saturday alone once the portal has its own rows for that date', () => {
+    const withRows = { ...data, timetable: [...data.timetable, session({ date: '2026-09-19', periods: [1] })] };
+    const overrides = { ...none, specialSaturdays: [{ date: '2026-09-19', copiedWeekday: 2 as const }] };
+    expect(patchedTimetable(withRows, overrides, now).filter((s) => s.date === '2026-09-19')).toHaveLength(1);
+  });
+
+  it('adds exam periods for future exam days the portal has not published, skipping Sundays', () => {
+    const overrides = { ...none, exams: [{ name: 'Mid 2', start: '2026-11-02', end: '2026-11-08', periodsPerDay: 2 as const }] };
+    const added = patchedTimetable(data, overrides, now).filter((s) => s.synthetic);
+    expect(added.map((s) => s.date)).toEqual(['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07']);
+    expect(added.every((s) => s.periods.length === 2)).toBe(true);
   });
 });
