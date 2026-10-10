@@ -8,8 +8,8 @@ import "./styles/tokens.css";
 // improved-main. Metadata is deliberately minimal here.
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://dontbunk.vercel.app"),
-  title: "dontbunk portal sync (test)",
-  description: "Syncing attendance from the college portal.",
+  title: "dontbunk — Can I bunk today?",
+  description: "Can I bunk today? Check your safe bunk count in seconds.",
 };
 
 export const viewport: Viewport = {

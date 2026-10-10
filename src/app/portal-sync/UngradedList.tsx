@@ -12,11 +12,14 @@ export function UngradedList({ sessions, answers, onAnswer }: { sessions: Portal
   return (
     <section className="card animate-rise p-4 phone:p-5">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="heading m-0 text-[16px]">Before we calculate</h2>
-        <span className={`font-term text-[11px] font-bold ${complete ? 'text-success' : 'text-muted'}`}>{answered} of {sessions.length} answered</span>
+        <h2 className="heading m-0 text-[17px]">A few periods aren&rsquo;t marked yet</h2>
+        <span className={`font-term text-[12px] font-bold ${complete ? 'text-success' : 'text-muted'}`}>{answered} of {sessions.length} answered</span>
       </div>
-      <p className="m-0 mb-3 font-term text-[12px] leading-[1.5] text-muted">
-        The portal hasn&rsquo;t graded {sessions.length === 1 ? 'this period' : 'these periods'} yet. Did you attend? Your answers are saved on this device.
+      <p className="m-0 mb-3 font-term text-[13px] leading-[1.5] text-muted">
+        The portal hasn&rsquo;t marked {sessions.length === 1 ? 'this past period' : `these ${sessions.length} past periods`} yet. Tell us if you attended so your result is 100% accurate. Your answers are saved on this device.
+      </p>
+      <p className="m-0 mb-3 font-term text-[13px] leading-[1.5] text-muted">
+        A class that ended today shows up here once it finishes; classes still to come today are counted tomorrow.
       </p>
       <div className="grid gap-2">
         {sessions.map((session) => (
@@ -32,7 +35,7 @@ function UngradedRow({ session, value, onChange }: { session: PortalTimetableSes
     <div className="grid gap-2 rounded-[var(--ui-radius-sm)] border border-edge p-3 phone:grid-cols-[1fr_auto] phone:items-center">
       <div className="min-w-0">
         <p className="m-0 font-term text-[13px] font-bold leading-[1.3]">{session.subjectName}</p>
-        <p className="m-0 font-term text-[11px] text-muted">
+        <p className="m-0 font-term text-[12px] text-muted">
           {formatDay(session.date)} · {session.fromTime.slice(0, 5)}
           {session.synthetic ? ' · not on the portal yet' : ''}
         </p>

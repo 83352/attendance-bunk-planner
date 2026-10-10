@@ -35,3 +35,25 @@ describe('portalMonthData', () => {
     expect(cell(7)).toMatchObject({ isExam: true, examName: 'Mid' });
   });
 });
+
+describe('day attendance colour', () => {
+  const marked = (date: string, attended: boolean | null, suspended = false): PortalTimetableSession => ({ ...s2(date), attended, isSuspended: suspended });
+  const s2 = (date: string) => ({
+    date, day: 'X', fromTime: '09:00:00', toTime: '10:00:00', periods: [1], subjectName: 'S', subjectCode: 'S1',
+    facultyNames: [], groupName: null, isSuspended: false, completed: true, attended: null as boolean | null,
+  });
+  const cellFor = (sessions: PortalTimetableSession[]) =>
+    portalMonthData(sessions, null, { start: '2026-09-01', end: '2026-09-30' }, 2026, 8, '2026-09-30').dayCells[0];
+
+  it('is attended only when every period is attended', () => {
+    expect(cellFor([marked('2026-09-01', true), marked('2026-09-01', true)]).attendance).toBe('attended');
+  });
+  it('is bunked when some periods were bunked and absent when all were', () => {
+    expect(cellFor([marked('2026-09-01', true), marked('2026-09-01', false)]).attendance).toBe('bunked');
+    expect(cellFor([marked('2026-09-01', false), marked('2026-09-01', false)]).attendance).toBe('absent');
+  });
+  it('shows nothing while any period is unmarked, and ignores suspended periods', () => {
+    expect(cellFor([marked('2026-09-01', true), marked('2026-09-01', null)]).attendance).toBeUndefined();
+    expect(cellFor([marked('2026-09-01', true), marked('2026-09-01', null, true)]).attendance).toBe('attended');
+  });
+});

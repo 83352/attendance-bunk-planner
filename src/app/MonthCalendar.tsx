@@ -56,7 +56,7 @@ export function MonthCalendar({ timetable, overrides }: { timetable: PortalTimet
     <div>
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
-          <p className="eyebrow-text mb-[3px] text-[10px] text-teal">Semester overview</p>
+          <p className="eyebrow-text mb-[3px] text-[12px] text-teal">Semester overview</p>
           <h2 key={clampedKey} className={`m-0 heading text-[20px] leading-none ${animateClass}`}>{MONTH_NAMES[viewMonth]} {viewYear}</h2>
         </div>
         <div className="flex shrink-0 gap-2">
@@ -74,7 +74,7 @@ export function MonthCalendar({ timetable, overrides }: { timetable: PortalTimet
         />
       </div>
       <CalendarLegend />
-      <p className="mt-2 text-center font-term text-[9px] uppercase tracking-[.4px] text-muted">Tap a day to see its classes and your attendance.</p>
+      <p className="mt-2 mb-0 text-center font-term text-[12px] text-muted">Tap a day to see its classes and what you attended.</p>
     </div>
   );
 }

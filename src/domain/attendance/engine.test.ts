@@ -305,4 +305,54 @@ describe('exact counts from the portal', () => {
     // excluded, giving 1 day instead of 2 within a budget of 5.
     expect(result.maximumFullDaysAbsent).toBe(2);
   });
+
+  describe('regular periods, the full-days range and weekday load', () => {
+    const period = (date: string, weekday: 1 | 2 | 3 | 4, sequence: number) => ({ date, weekday, sequence, start: '09:00', end: '09:50' });
+    // Mon: 1 period, Tue: 3 periods, Wed: 2 periods (regular), plus a 2-period exam day.
+    const futurePeriods = [
+      period('2026-01-05', 1, 1),
+      period('2026-01-06', 2, 1), period('2026-01-06', 2, 2), period('2026-01-06', 2, 3),
+      period('2026-01-07', 3, 1), period('2026-01-07', 3, 2),
+      period('2026-01-08', 4, 1), period('2026-01-08', 4, 2),
+    ];
+    const examConfig = { ...config, exams: [{ name: 'Mid', start: '2026-01-08', end: '2026-01-08', periodsPerDay: 2 as const }] };
+    const run = (held: number, attended: number) =>
+      calculateAttendance({ config: examConfig, now: new Date('2026-01-01T03:30:00.000Z'), currentPercentage: 100, targetPercentage: 50, exactCounts: { held, attended }, futurePeriods });
+
+    it('leaves exam periods out of the regular count but keeps them in the budget total', () => {
+      const result = run(10, 10);
+      expect(result.remainingPeriods).toBe(8);
+      expect(result.regularRemainingPeriods).toBe(6);
+      expect(result.examPeriodsRemaining).toBe(2);
+    });
+
+    it('gives a strict range when days differ in length (heaviest-first floor, lightest-first ceiling)', () => {
+      // Regular days are 1, 3 and 2 periods. A budget of 3 bunks covers the 3-period
+      // day alone (floor: 1 day) or the 1- and 2-period days together (ceiling: 2 days).
+      const result = run(10, 4);
+      expect(result.maximumBunks).toBe(3);
+      expect(result.fullDaysRange).toEqual({ min: 1, max: 2 });
+      expect(result.fullDaysRange.min).toBe(result.maximumFullDaysAbsent);
+    });
+
+    it('is a single number when every day has the same length', () => {
+      const even = calculateAttendance({
+        config: { ...config, exams: [] },
+        now: new Date('2026-01-01T03:30:00.000Z'),
+        currentPercentage: 100,
+        targetPercentage: 50,
+        exactCounts: { held: 10, attended: 6 },
+        futurePeriods: [period('2026-01-05', 1, 1), period('2026-01-05', 1, 2), period('2026-01-06', 2, 1), period('2026-01-06', 2, 2), period('2026-01-07', 3, 1), period('2026-01-07', 3, 2)],
+      });
+      expect(even.fullDaysRange.min).toBe(even.fullDaysRange.max);
+    });
+
+    it('reports each regular weekday with its days left and usual length', () => {
+      expect(run(10, 10).weekdayLoad).toEqual([
+        { weekday: 1, daysLeft: 1, periods: 1 },
+        { weekday: 2, daysLeft: 1, periods: 3 },
+        { weekday: 3, daysLeft: 1, periods: 2 },
+      ]);
+    });
+  });
 });

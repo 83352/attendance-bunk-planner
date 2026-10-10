@@ -38,9 +38,9 @@ export async function syncFromPortal(_: PortalSyncState, formData: FormData): Pr
   if (!login.ok) {
     switch (login.reason) {
       case 'wrong-password':
-        return { status: 'error', message: 'Wrong password.' };
+        return { status: 'error', message: 'Wrong roll number or password.' };
       case 'mfa-required':
-        return { status: 'error', message: "Can't use with MFA." };
+        return { status: 'error', message: "This account has two-step verification (MFA) turned on, which dontbunk can't use. Turn it off in your CampX account, then sign in again." };
       case 'network-error':
         return { status: 'error', message: "Couldn't reach the portal. Try again in a moment." };
     }

@@ -8,6 +8,15 @@ export function semesterBounds(timetable: PortalTimetableSession[], overrides: C
   return dates.length === 0 ? null : { start: dates[0], end: dates[dates.length - 1] };
 }
 
+/** Only once every class that day is marked (suspended ones aside), so a half-marked day never shows a misleading colour. */
+function dayAttendance(sessions: PortalTimetableSession[]): 'attended' | 'bunked' | 'absent' | undefined {
+  const held = sessions.filter((s) => !s.isSuspended);
+  if (held.length === 0 || held.some((s) => s.attended === null)) return undefined;
+  const bunked = held.filter((s) => s.attended === false).length;
+  if (bunked === 0) return 'attended';
+  return bunked === held.length ? 'absent' : 'bunked';
+}
+
 /**
  * One month's day cells for the calendar, built from the (already patched)
  * portal timetable instead of an admin-entered timetable. Same output shape
@@ -50,7 +59,7 @@ export function portalMonthData(
       isToday: iso === todayIso,
       holidayName: holiday?.name ?? (suspended ? 'Classes suspended' : undefined),
       examName: exam?.name,
-      hasAbsence: sessions.some((s) => s.attended === false),
+      attendance: dayAttendance(sessions),
     };
   });
 

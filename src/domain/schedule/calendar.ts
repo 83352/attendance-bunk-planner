@@ -135,8 +135,12 @@ export type MonthDayCell = {
   isToday: boolean;
   holidayName?: string;
   examName?: string;
-  /** The student was marked absent for at least one class that day (portal-fed calendar only). */
-  hasAbsence?: boolean;
+  /**
+   * How the student's day went once every class that day is marked (portal-fed
+   * calendar only): every period attended, at least one period bunked, or absent
+   * (every period bunked). Undefined for future days or days not fully marked.
+   */
+  attendance?: 'attended' | 'bunked' | 'absent';
 };
 
 export type MonthCalendarData = {

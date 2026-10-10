@@ -1,4 +1,4 @@
-import type { CalendarSummary, DatedPeriod, ScheduleConfig } from '../schedule/types';
+import type { CalendarSummary, DatedPeriod, ScheduleConfig, Weekday } from '../schedule/types';
 
 export type AttendanceInput = {
   currentPercentage: number;
@@ -46,6 +46,18 @@ export type AttendanceResult = {
   finalPercentageAtMaximumBunks: number;
   /** Whole regular college days (exam days excluded) the bunk budget covers, counted heaviest-first. */
   maximumFullDaysAbsent: number;
+  /** Periods still to come that are not exam periods (exam periods are compulsory, so they are not shown as "left to bunk from"). */
+  regularRemainingPeriods: number;
+  /** Future periods that fall in an exam range; they still count toward the percentage maths. */
+  examPeriodsRemaining: number;
+  /**
+   * How many whole regular days the bunk budget can cover: `min` when the
+   * heaviest days are skipped first (the safe floor, equal to
+   * maximumFullDaysAbsent), `max` when the lightest days are skipped first.
+   */
+  fullDaysRange: { min: number; max: number };
+  /** Regular days still to come per weekday and their usual length, to explain the range in the student's own timetable terms. */
+  weekdayLoad: { weekday: Weekday; daysLeft: number; periods: number }[];
   periodsPerWeek: number;
   /** The teaching weeks (weeks with at least one non-exam period left) that periodsPerWeek is averaged over. */
   teachingWeeks: number;

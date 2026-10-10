@@ -1,5 +1,5 @@
 import { buildCalendar, dateInRange } from '../schedule/calendar';
-import type { DatedPeriod } from '../schedule/types';
+import type { DatedPeriod, Weekday } from '../schedule/types';
 import type {
   AttendanceResult,
   CalculationRequest,
@@ -83,30 +83,54 @@ function recoveryFor(
 }
 
 /**
- * How many whole college days `budget` periods covers, taking the heaviest days
- * first. A day counts only if all of its periods fit.
+ * How many whole college days `budget` periods covers. A day counts only if all
+ * of its periods fit.
  *
- * Heaviest-first makes the count hold whichever days actually get skipped: the
- * n it returns is the largest n whose n longest days still fit, so skipping any
- * n days in any combination stays inside the budget. Counting in calendar order
- * instead would report a larger number that only survives if days are skipped
- * roughly in order -- a student who skipped only their longest day each week
- * would run past the budget while the screen still said they were fine. This is
- * a debarment calculator, so it reports the floor rather than the likely case.
+ * `heaviest-first` is the safe floor: the n it returns is the largest n whose n
+ * longest days still fit, so skipping any n days in any combination stays inside
+ * the budget. Counting in calendar order instead would report a larger number
+ * that only survives if days are skipped roughly in order -- a student who
+ * skipped only their longest day each week would run past the budget while the
+ * screen still said they were fine. This is a debarment calculator, so the
+ * headline reports the floor. `lightest-first` is the other end of the range:
+ * what the budget stretches to if only the shortest days are skipped.
  */
-function fullDaysWithinBudget(futurePeriods: DatedPeriod[], budget: number): number {
+function fullDaysWithinBudget(futurePeriods: DatedPeriod[], budget: number, order: 'heaviest-first' | 'lightest-first'): number {
   if (budget <= 0) return 0;
   const periodsByDate = new Map<string, number>();
   for (const period of futurePeriods) periodsByDate.set(period.date, (periodsByDate.get(period.date) ?? 0) + 1);
 
+  const lengths = [...periodsByDate.values()].sort((a, b) => (order === 'heaviest-first' ? b - a : a - b));
   let spent = 0;
   let days = 0;
-  for (const periodsThatDay of [...periodsByDate.values()].sort((a, b) => b - a)) {
+  for (const periodsThatDay of lengths) {
     if (spent + periodsThatDay > budget) break;
     spent += periodsThatDay;
     days += 1;
   }
   return days;
+}
+
+/** Remaining regular days grouped by weekday, with each weekday's most common length. */
+function weekdayLoad(futurePeriods: DatedPeriod[]): { weekday: Weekday; daysLeft: number; periods: number }[] {
+  const perDate = new Map<string, { weekday: Weekday; count: number }>();
+  for (const period of futurePeriods) {
+    const entry = perDate.get(period.date) ?? { weekday: period.weekday, count: 0 };
+    entry.count += 1;
+    perDate.set(period.date, entry);
+  }
+  const byWeekday = new Map<Weekday, number[]>();
+  for (const { weekday, count } of perDate.values()) byWeekday.set(weekday, [...(byWeekday.get(weekday) ?? []), count]);
+
+  return [...byWeekday.entries()]
+    .map(([weekday, counts]) => {
+      const frequency = new Map<number, number>();
+      for (const count of counts) frequency.set(count, (frequency.get(count) ?? 0) + 1);
+      // Most common length; the longer one wins a tie so the explanation is not understated.
+      const [periods] = [...frequency.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0];
+      return { weekday, daysLeft: counts.length, periods };
+    })
+    .sort((a, b) => a.weekday - b.weekday);
 }
 
 function distributeBunks(totalBunks: number, weeks: number, weeklyPeriods: number[]): number[] {
@@ -264,7 +288,14 @@ export function calculateAttendance(request: CalculationRequest): AttendanceResu
     remainingPeriods,
     maximumBunks,
     finalPercentageAtMaximumBunks: finalPercentageWithBunks(attendedPeriods, heldPeriods, remainingPeriods, maximumBunks),
-    maximumFullDaysAbsent: fullDaysWithinBudget(regularFuturePeriods, maximumBunks),
+    maximumFullDaysAbsent: fullDaysWithinBudget(regularFuturePeriods, maximumBunks, 'heaviest-first'),
+    regularRemainingPeriods: regularFuturePeriods.length,
+    examPeriodsRemaining: remainingPeriods - regularFuturePeriods.length,
+    fullDaysRange: {
+      min: fullDaysWithinBudget(regularFuturePeriods, maximumBunks, 'heaviest-first'),
+      max: fullDaysWithinBudget(regularFuturePeriods, maximumBunks, 'lightest-first'),
+    },
+    weekdayLoad: weekdayLoad(regularFuturePeriods),
     periodsPerWeek: weeklyPeriods.length === 0 ? 0 : maximumBunks / weeklyPeriods.length,
     teachingWeeks: weeklyPeriods.length,
     practicalBunksByWeek,

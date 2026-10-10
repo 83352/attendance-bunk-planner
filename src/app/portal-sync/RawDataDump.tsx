@@ -19,7 +19,7 @@ export function RawDataDump({ data }: { data: PortalSyncResult }) {
             <thead>
               <tr className="border-b-2 border-edge">
                 <th className="py-1 pr-2">Subject</th>
-                <th className="py-1 pr-2">Present</th>
+                <th className="py-1 pr-2">Attended</th>
                 <th className="py-1 pr-2">Classes</th>
                 <th className="py-1 pr-2">%</th>
               </tr>
@@ -39,7 +39,7 @@ export function RawDataDump({ data }: { data: PortalSyncResult }) {
       </Section>
 
       <Section title={`Date-wise attendance — ${Object.keys(data.dateWiseAttendance).length} days recorded this month`}>
-        <Table rows={Object.entries(data.dateWiseAttendance).map(([date, status]) => [formatDay(date), status])} />
+        <Table rows={Object.entries(data.dateWiseAttendance).map(([date, status]) => [formatDay(date), dayStatus(status)])} />
       </Section>
 
       <Section title={`Timetable (this semester, own sessions only) — ${data.timetable.length} sessions`}>
@@ -67,7 +67,7 @@ export function RawDataDump({ data }: { data: PortalSyncResult }) {
                   <td className="py-1 pr-2">{session.subjectName}</td>
                   <td className="py-1 pr-2">{session.groupName ?? '—'}</td>
                   <td className="py-1 pr-2">{session.isSuspended ? 'yes' : ''}</td>
-                  <td className="py-1 pr-2">{session.attended === null ? '—' : session.attended ? 'present' : 'absent'}</td>
+                  <td className="py-1 pr-2">{session.attended === null ? '—' : session.attended ? 'attended' : 'bunked'}</td>
                 </tr>
               ))}
             </tbody>
@@ -76,6 +76,16 @@ export function RawDataDump({ data }: { data: PortalSyncResult }) {
       </Section>
     </div>
   );
+}
+
+/** The portal's own day statuses, in this app's words (Absent only when every period was bunked). */
+function dayStatus(status: string): string {
+  switch (status) {
+    case 'PRESENT': return 'Attended';
+    case 'ABSENT': return 'Absent';
+    case 'PARTIALLY_PRESENT': return 'Partly attended';
+    default: return status;
+  }
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
