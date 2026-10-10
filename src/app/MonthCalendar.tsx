@@ -57,11 +57,11 @@ export function MonthCalendar({ timetable, overrides }: { timetable: PortalTimet
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
           <p className="eyebrow-text mb-[3px] text-[10px] text-teal">Semester overview</p>
-          <h2 key={clampedKey} className={`m-0 font-display text-[20px] leading-none font-black uppercase ${animateClass}`}>{MONTH_NAMES[viewMonth]} {viewYear}</h2>
+          <h2 key={clampedKey} className={`m-0 heading text-[20px] leading-none ${animateClass}`}>{MONTH_NAMES[viewMonth]} {viewYear}</h2>
         </div>
         <div className="flex shrink-0 gap-2">
-          <button type="button" onClick={() => goTo(clampedKey - 1, 'prev')} disabled={clampedKey <= startKey} className="size-9 cursor-pointer border-2 border-black bg-surface text-[16px] font-bold text-black shadow-[2px_2px_0_var(--shadow-color)] disabled:cursor-not-allowed disabled:opacity-30" aria-label="Previous month">‹</button>
-          <button type="button" onClick={() => goTo(clampedKey + 1, 'next')} disabled={clampedKey >= endKey} className="size-9 cursor-pointer border-2 border-black bg-surface text-[16px] font-bold text-black shadow-[2px_2px_0_var(--shadow-color)] disabled:cursor-not-allowed disabled:opacity-30" aria-label="Next month">›</button>
+          <button type="button" onClick={() => goTo(clampedKey - 1, 'prev')} disabled={clampedKey <= startKey} className="chip !px-0 text-[16px]" aria-label="Previous month">‹</button>
+          <button type="button" onClick={() => goTo(clampedKey + 1, 'next')} disabled={clampedKey >= endKey} className="chip !px-0 text-[16px]" aria-label="Next month">›</button>
         </div>
       </div>
       <div key={clampedKey} className={animateClass}>

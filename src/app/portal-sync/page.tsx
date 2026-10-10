@@ -11,7 +11,7 @@ export default async function PortalSyncPage() {
   return (
     <>
       <SiteHeader />
-      <main className="mx-auto w-full max-w-[680px] px-5 py-8 phone:px-3">
+      <main className="mx-auto w-full max-w-[680px] px-4 py-6 phone:px-5 phone:py-8">
         <PortalSyncForm initialState={initialState} />
       </main>
     </>

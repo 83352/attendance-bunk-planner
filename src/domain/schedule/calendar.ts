@@ -135,6 +135,8 @@ export type MonthDayCell = {
   isToday: boolean;
   holidayName?: string;
   examName?: string;
+  /** The student was marked absent for at least one class that day (portal-fed calendar only). */
+  hasAbsence?: boolean;
 };
 
 export type MonthCalendarData = {

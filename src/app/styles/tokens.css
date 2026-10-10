@@ -56,6 +56,21 @@
   --color-chip-border: #111111;
   --color-chip-shadow: rgba(19, 35, 43, 1);
 
+  /* Added for theming: things that used to be hard-coded literals. A theme
+     are the single place to restyle them. */
+  --color-edge: #111111;         /* borders and dividers (ink in the paper look, a hairline in the others) */
+  --color-on-accent: #111111;    /* text on the orange primary button */
+  --color-lime-ink: #14261c;     /* text on the lime (safe) tier */
+  --color-header-bg: #111111;
+  --color-header-ink: #f5f2e9;
+  --color-header-accent: #b7f14a;
+  --color-disabled-bg: #e0e0e0;
+  --color-disabled-ink: #888888;
+  --color-disabled-edge: #aaaaaa;
+  --color-skeleton: #e6e1d3;
+  --color-present: #087d42;      /* attendance chips */
+  --color-present-bg: #d9f3e3;
+
   --shadow-color: rgba(19, 35, 43, 1);
   --shadow-soft: rgba(19, 35, 43, .15);
   --shadow-ring: rgba(19, 35, 43, .06);
@@ -112,6 +127,22 @@
   }
 }
 
+/* Shape tokens (not colors, so not in @theme): how sharp/thick/raised the look is. */
+:root {
+  --ui-radius: 0px;
+  --ui-radius-sm: 0px;
+  --ui-border: 3px;
+  --ui-border-sm: 2px;
+  --shadow-btn: 4px 4px 0 var(--color-black);
+  --shadow-btn-hover: 6px 6px 0 var(--color-black);
+  --shadow-btn-active: 1px 1px 0 var(--color-black);
+  --lift: -2px;
+  --press: 3px;
+  --display-transform: uppercase;
+  --display-tracking: .5px;
+  --display-weight: 900;
+}
+
 /* Native widgets (scrollbars, date pickers) follow the light theme. */
 html { color-scheme: light; }
 /* The page itself needs a colour: every card, label and heading assumes ink on cream, and without this they inherit whatever the browser's canvas is. */
@@ -127,30 +158,31 @@ body { background: var(--color-cream); color: var(--color-black); }
   /* Scales smoothly from phone (48px / 13px) to desktop (64px / 17px). */
   min-height: clamp(48px, 6.5vw, 64px);
   padding: clamp(12px, 1.8vw, 18px) clamp(12px, 1.6vw, 16px);
-  border: 3px solid var(--color-black);
+  border: var(--ui-border) solid var(--color-btn-edge, var(--color-edge));
+  border-radius: var(--ui-radius-sm);
   background: var(--color-orange);
-  color: var(--color-black);
+  color: var(--color-on-accent);
   cursor: pointer;
-  box-shadow: 4px 4px 0 var(--color-black);
+  box-shadow: var(--shadow-btn);
   font-family: var(--font-display, Impact, "Arial Narrow", Arial, sans-serif);
-  font-weight: 900;
+  font-weight: var(--display-weight);
   font-size: clamp(13px, 1.6vw, 17px);
   line-height: 1;
   letter-spacing: clamp(.7px, .08vw, .9px);
   text-align: center;
-  text-transform: uppercase;
+  text-transform: var(--display-transform);
   transition: transform .16s ease-out, box-shadow .16s ease-out, background .16s ease-out, color .16s ease-out;
 }
 @utility btn-calculate-hover {
   @media (hover: hover), (any-hover: hover) {
-    &:hover {
-      transform: translate(-2px, -2px);
-      box-shadow: 6px 6px 0 var(--color-black);
+    &:hover:not(:disabled) {
+      transform: translate(var(--lift), var(--lift));
+      box-shadow: var(--shadow-btn-hover);
     }
   }
-  &:active {
-    transform: translate(3px, 3px);
-    box-shadow: 1px 1px 0 var(--color-black);
+  &:active:not(:disabled) {
+    transform: translate(var(--press), var(--press));
+    box-shadow: var(--shadow-btn-active);
   }
   & span {
     float: right;
@@ -162,11 +194,65 @@ body { background: var(--color-cream); color: var(--color-black); }
   &:disabled {
     cursor: not-allowed;
     transform: none;
-    background: #e0e0e0;
-    color: #888;
-    border-color: #aaa;
-    box-shadow: 4px 4px 0 #aaa;
+    background: var(--color-disabled-bg);
+    color: var(--color-disabled-ink);
+    border-color: var(--color-disabled-edge);
+    box-shadow: none;
   }
+}
+/* Shared building blocks used by the portal-sync page. */
+@utility heading {
+  font-family: var(--font-display, Impact, "Arial Narrow", Arial, sans-serif);
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+}
+@utility card {
+  border: var(--ui-border) solid var(--color-edge);
+  border-radius: var(--ui-radius);
+  background: var(--color-paper);
+  box-shadow: var(--shadow-hard);
+}
+@utility field {
+  min-height: 44px;
+  width: 100%;
+  border: var(--ui-border-sm) solid var(--color-edge);
+  border-radius: var(--ui-radius-sm);
+  background: var(--color-surface);
+  color: var(--color-black);
+  padding: 0 12px;
+  font-family: var(--font-sans);
+  font-size: 15px;
+}
+/* Small bordered button: used for chips, segmented toggles, secondary actions. */
+@utility chip {
+  min-height: 44px;
+  min-width: 44px;
+  cursor: pointer;
+  border: var(--ui-border-sm) solid var(--color-edge);
+  border-radius: var(--ui-radius-sm);
+  background: var(--color-surface);
+  color: var(--color-black);
+  padding: 0 12px;
+  font-family: var(--font-term);
+  font-size: 12px;
+  font-weight: 700;
+  transition: background .12s ease-out, transform .12s ease-out;
+  &:disabled { cursor: not-allowed; opacity: .5; }
+}
+@utility skeleton {
+  background: var(--color-skeleton);
+  border-radius: var(--ui-radius-sm);
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .55; }
+}
+/* Keyboard focus: visible in every theme. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--color-orange);
+  outline-offset: 2px;
 }
 /* Same lift + press feedback as the Calculate CTA, sized for the chip-style
    section buttons. Pair with the existing chip base classes; this utility only

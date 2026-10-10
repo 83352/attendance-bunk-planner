@@ -50,6 +50,7 @@ export function portalMonthData(
       isToday: iso === todayIso,
       holidayName: holiday?.name ?? (suspended ? 'Classes suspended' : undefined),
       examName: exam?.name,
+      hasAbsence: sessions.some((s) => s.attended === false),
     };
   });
 

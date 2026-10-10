@@ -21,9 +21,9 @@ export function SiteHeader({ onHomeClick }: SiteHeaderProps = {}) {
     if (onHomeClick(event) === true) event.preventDefault();
   }
   return (
-    <header className="relative flex min-h-[47px] items-center justify-start border-b-[3px] border-[#111111] bg-[#111111] px-4 pt-[calc(10px+env(safe-area-inset-top))] pb-[10px] text-[#f5f2e9] phone:min-h-[52px] phone:px-[18px]">
-      <Link onClick={handleClick} className="-my-3 inline-flex min-h-11 items-center font-display text-[16px] leading-none font-black uppercase tracking-[0.75px] no-underline text-[#f5f2e9] phone:text-[17px]" href="/" aria-label="dontbunk home">
-        dont<span className="text-[#b7f14a]">bunk</span>
+    <header className="relative flex min-h-[47px] items-center justify-start border-b-[length:var(--ui-border)] border-header-bg bg-header-bg px-4 pt-[calc(10px+env(safe-area-inset-top))] pb-[10px] text-header-ink phone:min-h-[52px] phone:px-[18px]">
+      <Link onClick={handleClick} className="heading -my-3 inline-flex min-h-11 items-center text-[16px] leading-none no-underline text-header-ink phone:text-[17px]" href="/" aria-label="dontbunk home">
+        dont<span className="text-header-accent">bunk</span>
       </Link>
     </header>
   );
