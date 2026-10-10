@@ -49,6 +49,20 @@ describe('findUngradedPastSessions', () => {
   });
 });
 
+describe('findUngradedPastSessions — today', () => {
+  const todayData: PortalSyncResult = {
+    ...data,
+    timetable: [
+      session({ date: '2026-09-10', periods: [1], fromTime: '09:10:00', toTime: '10:10:00' }),
+      session({ date: '2026-09-10', periods: [2], fromTime: '14:00:00', toTime: '15:00:00' }),
+    ],
+  };
+  it('asks only about today periods whose end time has passed (10:30 IST here)', () => {
+    const found = findUngradedPastSessions(todayData, now);
+    expect(found.map((s) => s.fromTime)).toEqual(['09:10:00']);
+  });
+});
+
 describe('buildCalculationInput', () => {
   it('builds exactCounts from primaryAttendance plus the answered past overrides', () => {
     const input = buildCalculationInput(data, 75, { attended: 1, bunked: 0 }, now);

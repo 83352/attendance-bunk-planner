@@ -76,10 +76,25 @@ export function patchedTimetable(data: PortalSyncResult, overrides: CalendarOver
   return [...timetable, ...synthesized].sort((a, b) => (a.date + a.fromTime).localeCompare(b.date + b.fromTime));
 }
 
-/** Past/today sessions the portal hasn't graded yet — the student needs to answer these before a number can be computed. */
+/** Current IST wall-clock time as "HH:MM:SS", comparable with a session's `toTime`. */
+function currentIstTime(now: Date): string {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).formatToParts(now);
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? '00';
+  return `${get('hour')}:${get('minute')}:${get('second')}`;
+}
+
+/**
+ * Sessions that have already ended but the portal hasn't graded yet — the
+ * student needs to answer these before a number can be computed. A period
+ * today only counts once its end time has passed.
+ */
 export function findUngradedPastSessions(data: PortalSyncResult, now: Date, overrides: CalendarOverrides | null = null): PortalTimetableSession[] {
   const today = currentIstDate(now);
-  return patchedTimetable(data, overrides, now).filter((session) => session.date <= today && !session.isSuspended && session.attended === null);
+  const time = currentIstTime(now);
+  return patchedTimetable(data, overrides, now).filter(
+    (session) =>
+      (session.date < today || (session.date === today && session.toTime <= time)) && !session.isSuspended && session.attended === null,
+  );
 }
 
 /** What the student answered for each ungraded past session (counts, not a per-session map — that's all the engine needs). */
