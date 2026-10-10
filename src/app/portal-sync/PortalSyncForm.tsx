@@ -4,14 +4,15 @@ import { useActionState, useMemo, useState } from 'react';
 import { calculateAttendance } from '@/domain/attendance/engine';
 import type { AttendanceResult } from '@/domain/attendance/types';
 import type { PortalSyncResult, PortalTimetableSession } from '@/lib/portal/campx-client';
+import { formatDay } from '@/lib/format-date';
+import { MonthCalendar } from '../MonthCalendar';
 import type { CalendarOverrides } from '@/lib/portal/calendar-overrides';
-import { buildCalculationInput, describeActivePatches, findUngradedPastSessions, hasUnscheduledExamGap, type PastOverrides } from '@/lib/portal/to-calculation-input';
+import { buildCalculationInput, describeActivePatches, findUngradedPastSessions, hasUnscheduledExamGap, patchedTimetable, type PastOverrides } from '@/lib/portal/to-calculation-input';
 import { syncFromPortal, type PortalSyncState } from './actions';
 
-const initialState: PortalSyncState = { status: 'idle' };
-
 /**
- * Logs in with portal credentials, then — unlike the old manual-entry flow —
+ * Signs in once with portal credentials (the page then keeps you signed in, so
+ * later visits open straight onto the result), then — unlike the old manual-entry flow —
  * computes the real "how many periods can I bunk" result straight from what
  * the portal already knows: no admin timetable, no Today's Classes tagging.
  * The only thing the student still has to answer is the rare past session
@@ -19,7 +20,7 @@ const initialState: PortalSyncState = { status: 'idle' };
  * their own target %. The raw per-field dump stays below, collapsed, for
  * spot-checking the numbers against the real portal pages.
  */
-export function PortalSyncForm() {
+export function PortalSyncForm({ initialState }: { initialState: PortalSyncState }) {
   const [state, formAction, pending] = useActionState(syncFromPortal, initialState);
   const [rollNumber, setRollNumber] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -27,47 +28,60 @@ export function PortalSyncForm() {
   return (
     <div className="mx-auto w-full max-w-[720px] border-[3px] border-black bg-paper p-5 shadow-hard">
       <h1 className="m-0 mb-1 font-display text-[22px] font-black uppercase">Can I bunk?</h1>
-      <p className="m-0 mb-4 font-term text-[12px] text-muted">
-        Your roll number and password are sent once, straight to the portal, to read your attendance and timetable. Nothing is stored.
-      </p>
-      <form action={formAction} className="grid gap-3">
-        <label className="grid gap-1 font-term text-[12px] font-bold text-black">
-          Roll number
-          <input
-            name="rollNumber"
-            required
-            value={rollNumber}
-            // Roll numbers follow ##261A##[A-Z]# — any letters typed in
-            // lower case are normalized to upper case as you type.
-            onChange={(event) => setRollNumber(event.target.value.toUpperCase())}
-            className="min-h-11 border-2 border-black bg-surface px-3 font-sans text-[15px]"
-          />
-        </label>
-        <label className="grid gap-1 font-term text-[12px] font-bold text-black">
-          CampX password
-          <div className="relative">
-            <input
-              name="password"
-              type={showPassword ? 'text' : 'password'}
-              required
-              autoComplete="off"
-              className="min-h-11 w-full border-2 border-black bg-surface px-3 pr-14 font-sans text-[15px]"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((value) => !value)}
-              aria-pressed={showPassword}
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
-              className="absolute inset-y-0 right-0 min-w-11 cursor-pointer font-term text-[11px] font-bold text-link"
-            >
-              {showPassword ? 'Hide' : 'Show'}
+      {state.status === 'success' ? (
+        <form action={formAction} className="mb-1 flex flex-wrap items-center justify-between gap-2">
+          <p className="m-0 font-term text-[12px] text-muted">Signed in. Your password isn&rsquo;t stored.</p>
+          <div className="flex gap-2">
+            <button type="submit" name="intent" value="logout" disabled={pending} className="min-h-9 cursor-pointer border-2 border-black bg-surface px-3 font-term text-[11px] font-bold shadow-[2px_2px_0_var(--shadow-color)]">
+              Log out
             </button>
           </div>
-        </label>
-        <button type="submit" disabled={pending} className="btn-calculate btn-calculate-hover">
-          {pending ? 'Syncing…' : 'Sync'}
-        </button>
-      </form>
+        </form>
+      ) : (
+        <>
+        <p className="m-0 mb-4 font-term text-[12px] text-muted">
+          Sign in once with your CampX details. Your password goes straight to the portal and is never stored; you stay signed in on this device until you log out.
+        </p>
+        <form action={formAction} className="grid gap-3">
+          <label className="grid gap-1 font-term text-[12px] font-bold text-black">
+            Roll number
+            <input
+              name="rollNumber"
+              required
+              value={rollNumber}
+              // Roll numbers follow ##261A##[A-Z]# — any letters typed in
+              // lower case are normalized to upper case as you type.
+              onChange={(event) => setRollNumber(event.target.value.toUpperCase())}
+              className="min-h-11 border-2 border-black bg-surface px-3 font-sans text-[15px]"
+            />
+          </label>
+          <label className="grid gap-1 font-term text-[12px] font-bold text-black">
+            CampX password
+            <div className="relative">
+              <input
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                autoComplete="off"
+                className="min-h-11 w-full border-2 border-black bg-surface px-3 pr-14 font-sans text-[15px]"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-pressed={showPassword}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className="absolute inset-y-0 right-0 min-w-11 cursor-pointer font-term text-[11px] font-bold text-link"
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
+          </label>
+          <button type="submit" disabled={pending} className="btn-calculate btn-calculate-hover">
+            {pending ? 'Syncing…' : 'Sync'}
+          </button>
+        </form>
+        </>
+      )}
 
       {state.status === 'error' && (
         <p role="alert" className="mt-4 border-2 border-black bg-danger-bg p-2 font-term text-[12px] font-bold text-error">
@@ -75,7 +89,13 @@ export function PortalSyncForm() {
         </p>
       )}
 
-      {state.status === 'success' && <SyncedResult data={state.data} overrides={state.overrides} />}
+      {state.status === 'success' && (
+        <SyncedResult
+          key={`${state.data.primaryAttendance.numberOfClasses}-${state.data.primaryAttendance.present}-${state.data.timetable.length}`}
+          data={state.data}
+          overrides={state.overrides}
+        />
+      )}
     </div>
   );
 }
@@ -84,6 +104,7 @@ export function PortalSyncForm() {
 function SyncedResult({ data, overrides }: { data: PortalSyncResult; overrides: CalendarOverrides | null }) {
   const now = useMemo(() => new Date(), []);
   const ungraded = useMemo(() => findUngradedPastSessions(data, now, overrides), [data, now, overrides]);
+  const patched = useMemo(() => patchedTimetable(data, overrides, now), [data, overrides, now]);
   const patchNotes = useMemo(() => describeActivePatches(data, overrides, now), [data, overrides, now]);
 
   const [answers, setAnswers] = useState<Map<number, 'attended' | 'bunked'>>(new Map());
@@ -170,6 +191,8 @@ function SyncedResult({ data, overrides }: { data: PortalSyncResult; overrides: 
         </p>
       )}
 
+      <MonthCalendar timetable={patched} overrides={overrides} />
+
       <details className="border-2 border-black">
         <summary className="cursor-pointer p-3 font-term text-[12px] font-bold">Raw synced data (for checking against the portal)</summary>
         <div className="border-t-2 border-black p-3">
@@ -183,7 +206,7 @@ function SyncedResult({ data, overrides }: { data: PortalSyncResult; overrides: 
 function UngradedRow({ session, value, onChange }: { session: PortalTimetableSession; value: 'attended' | 'bunked' | null; onChange: (status: 'attended' | 'bunked') => void }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 border border-black/20 p-2 font-term text-[12px]">
-      <span>{session.date} · {session.subjectName} · {session.fromTime.slice(0, 5)}{session.synthetic ? ' · not on the portal yet' : ''}</span>
+      <span>{formatDay(session.date)} · {session.subjectName} · {session.fromTime.slice(0, 5)}{session.synthetic ? ' · not on the portal yet' : ''}</span>
       <div className="flex gap-1">
         <button
           type="button"
@@ -308,7 +331,7 @@ function RawDataDump({ data }: { data: PortalSyncResult }) {
       </Section>
 
       <Section title={`Date-wise attendance — ${Object.keys(data.dateWiseAttendance).length} days recorded this month`}>
-        <Table rows={Object.entries(data.dateWiseAttendance)} />
+        <Table rows={Object.entries(data.dateWiseAttendance).map(([date, status]) => [formatDay(date), status])} />
       </Section>
 
       <Section title={`Timetable (this semester, own sessions only) — ${data.timetable.length} sessions`}>
@@ -329,7 +352,7 @@ function RawDataDump({ data }: { data: PortalSyncResult }) {
             <tbody>
               {data.timetable.map((session, index) => (
                 <tr key={index} className="border-b border-black/10">
-                  <td className="py-1 pr-2 whitespace-nowrap">{session.date}</td>
+                  <td className="py-1 pr-2 whitespace-nowrap">{formatDay(session.date)}</td>
                   <td className="py-1 pr-2">{session.day.slice(0, 3)}</td>
                   <td className="py-1 pr-2 whitespace-nowrap">{session.fromTime.slice(0, 5)}–{session.toTime.slice(0, 5)}</td>
                   <td className="py-1 pr-2">{session.periods.join(',')}</td>

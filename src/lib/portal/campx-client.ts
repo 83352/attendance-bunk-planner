@@ -5,11 +5,12 @@
  * `scripts/portal-probe` notes in the project history for how this was found.
  *
  * Security policy, non-negotiable:
- *   - The password passed to `login()` is used for exactly one request and is
+ *   - The password passed to `signIn()` is used for exactly one request and is
  *     never logged, stored, or echoed back in any error.
- *   - Nothing from the portal session (cookies, tokens) is persisted beyond
- *     the lifetime of a single sync — see `withPortalSession()`.
- *   - Every sync logs the session back out when it's done, success or not.
+ *   - What we keep so a student stays signed in is the portal's own session
+ *     token (never the password), and only in that student's own browser, as
+ *     an httpOnly cookie set by the server action — see portal-sync/actions.ts.
+ *     "Log out" revokes it at the portal and deletes the cookie.
  */
 
 const API_BASE = 'https://api.campx.in';
@@ -52,7 +53,11 @@ export type PortalLoginFailure =
   | { ok: false; reason: 'mfa-required' }
   | { ok: false; reason: 'network-error'; message: string };
 
-type PortalSession = { cookie: string; bearer: string | null };
+/** What the portal hands back at login — enough to make further requests as the student, but not their password. */
+export type PortalSession = { cookie: string; bearer: string | null };
+
+/** The portal no longer accepts this session (expired, or logged out elsewhere). */
+export class PortalSessionExpiredError extends Error {}
 
 function cookiesFrom(headers: Headers): string {
   const raw = typeof headers.getSetCookie === 'function' ? headers.getSetCookie() : [];
@@ -76,7 +81,7 @@ function authHeaders(session: PortalSession): Record<string, string> {
   };
 }
 
-async function login(rollNumber: string, password: string): Promise<{ ok: true; session: PortalSession } | PortalLoginFailure> {
+export async function signIn(rollNumber: string, password: string): Promise<{ ok: true; session: PortalSession } | PortalLoginFailure> {
   let res: Response;
   try {
     res = await fetch(`${API_BASE}/auth-server/auth-v2/login`, {
@@ -110,14 +115,14 @@ async function login(rollNumber: string, password: string): Promise<{ ok: true; 
   if (body && typeof body === 'object' && (body as Record<string, unknown>).isMfaRequired) {
     // The portal still hands back a session here, but a second step (OTP
     // etc.) is needed before it's actually usable, which we don't support.
-    await logout(session);
+    await signOut(session);
     return { ok: false, reason: 'mfa-required' };
   }
 
   return { ok: true, session };
 }
 
-async function logout(session: PortalSession): Promise<void> {
+export async function signOut(session: PortalSession): Promise<void> {
   const headers = authHeaders(session);
   for (const path of ['/auth-server/auth-v2/logout', '/auth-server/auth/logout']) {
     try { await fetch(`${API_BASE}${path}`, { method: 'POST', headers }); } catch { /* best-effort cleanup */ }
@@ -126,6 +131,7 @@ async function logout(session: PortalSession): Promise<void> {
 
 async function getJson<T>(session: PortalSession, path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, { headers: authHeaders(session) });
+  if (res.status === 401 || res.status === 403) throw new PortalSessionExpiredError(`Portal rejected the session for ${path}.`);
   if (!res.ok) throw new Error(`Portal request to ${path} failed with status ${res.status}.`);
   return res.json() as Promise<T>;
 }
@@ -251,57 +257,28 @@ export type PortalSyncResult = {
 };
 
 /**
- * Logs in, runs `withSession`, and always logs out afterward — whether
- * `withSession` throws or returns normally. The password only ever lives in
- * the one `login()` call's request body; nothing from the result of
- * `withSession` is retained by this function beyond returning it to the
- * caller, who decides what (if anything) to keep.
- */
-export async function withPortalSession<T>(
-  rollNumber: string,
-  password: string,
-  withSession: (session: PortalSession) => Promise<T>,
-): Promise<{ ok: true; data: T } | PortalLoginFailure> {
-  const loginResult = await login(rollNumber, password);
-  if (!loginResult.ok) return loginResult;
-
-  try {
-    const data = await withSession(loginResult.session);
-    return { ok: true, data };
-  } finally {
-    await logout(loginResult.session);
-  }
-}
-
-/**
- * Fetches everything dontbunk needs for one sync in a single logged-in
- * session. The semester is never asked for or guessed: `my-all-semester-attendance`
+ * Fetches everything dontbunk needs for one sync using an already-signed-in
+ * session (throws `PortalSessionExpiredError` if the portal rejects it).
+ * The semester is never asked for or guessed: `my-all-semester-attendance`
  * reports the student's real `currentSemNo` regardless of which semNo the
  * query itself asks for, so a cheap throwaway call (semNo=1, which always
  * exists) finds it, and every real call afterward uses that.
  */
-export async function fetchPortalAttendance(
-  rollNumber: string,
-  password: string,
-  month: number,
-  year: number,
-): Promise<{ ok: true; data: PortalSyncResult } | PortalLoginFailure> {
-  return withPortalSession(rollNumber, password, async (session) => {
-    const probe = await getJson<PortalSemesterSummary>(session, '/student-api/student-attendance/my-all-semester-attendance?semNo=1');
-    const semNo = probe.currentSemNo;
+export async function loadPortalData(session: PortalSession, month: number, year: number): Promise<PortalSyncResult> {
+  const probe = await getJson<PortalSemesterSummary>(session, '/student-api/student-attendance/my-all-semester-attendance?semNo=1');
+  const semNo = probe.currentSemNo;
 
-    const [semesterSummary, primaryAttendance, dateWiseAttendance, timetableRows] = await Promise.all([
-      semNo === 1 ? Promise.resolve(probe) : getJson<PortalSemesterSummary>(session, `/student-api/student-attendance/my-all-semester-attendance?semNo=${semNo}`),
-      getJson<{ primaryAttendance: PortalPrimaryAttendance }>(session, `/student-api/student-attendance/my-secondary-attendance?semNo=${semNo}`)
-        .then((body) => body.primaryAttendance),
-      getJson<PortalDateWiseAttendance>(session, `/student-api/student-attendance/my-date-wise-attendance?semNo=${semNo}&month=${month}&year=${year}`),
-      // The classroom's full multi-semester timetable in one call — filtered
-      // to this semester, then resolved down to this student's own sessions.
-      getJson<RawClassroomTimetableRow[]>(session, '/student-api/classroom-timetables'),
-    ]);
+  const [semesterSummary, primaryAttendance, dateWiseAttendance, timetableRows] = await Promise.all([
+    semNo === 1 ? Promise.resolve(probe) : getJson<PortalSemesterSummary>(session, `/student-api/student-attendance/my-all-semester-attendance?semNo=${semNo}`),
+    getJson<{ primaryAttendance: PortalPrimaryAttendance }>(session, `/student-api/student-attendance/my-secondary-attendance?semNo=${semNo}`)
+      .then((body) => body.primaryAttendance),
+    getJson<PortalDateWiseAttendance>(session, `/student-api/student-attendance/my-date-wise-attendance?semNo=${semNo}&month=${month}&year=${year}`),
+    // The classroom's full multi-semester timetable in one call — filtered
+    // to this semester, then resolved down to this student's own sessions.
+    getJson<RawClassroomTimetableRow[]>(session, '/student-api/classroom-timetables'),
+  ]);
 
-    const timetable = resolveOwnSessions(timetableRows.filter((row) => row.semNo === semNo));
+  const timetable = resolveOwnSessions(timetableRows.filter((row) => row.semNo === semNo));
 
-    return { currentSemNo: semNo, semesterSummary, primaryAttendance, dateWiseAttendance, timetable };
-  });
+  return { currentSemNo: semNo, semesterSummary, primaryAttendance, dateWiseAttendance, timetable };
 }

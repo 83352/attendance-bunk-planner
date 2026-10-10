@@ -1,6 +1,7 @@
 import type { CalculationRequest } from '@/domain/attendance/types';
 import { currentIstDate, datesBetween, dateInRange } from '@/domain/schedule/calendar';
 import type { DatedPeriod, ExamPeriod, Weekday } from '@/domain/schedule/types';
+import { formatDay } from '../format-date';
 import type { CalendarOverrides } from './calendar-overrides';
 import { KNOWN_EXAM_PERIODS } from './exam-schedule';
 import type { PortalSyncResult, PortalTimetableSession } from './campx-client';
@@ -173,8 +174,6 @@ export function describeActivePatches(data: PortalSyncResult, overrides: Calenda
 
   const synthetic = patchedTimetable(data, overrides, now).filter((s) => s.synthetic && s.date > today);
   const satDates = [...new Set(synthetic.filter((s) => s.day === 'SATURDAY').map((s) => s.date))];
-  if (satDates.length > 0) lines.push(`Special Saturdays not on the portal yet: ${satDates.join(', ')}`);
-  const examNames = [...new Set(synthetic.filter((s) => s.day === 'EXAM').map((s) => s.subjectName))];
-  if (examNames.length > 0) lines.push(`Exam days not on the portal yet: ${examNames.join(', ')}`);
+  if (satDates.length > 0) lines.push(`Special Saturdays not on the portal yet: ${satDates.map(formatDay).join(', ')}`);
   return lines;
 }

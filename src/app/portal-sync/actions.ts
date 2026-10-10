@@ -1,21 +1,31 @@
 'use server';
 
-import { currentIstDate } from '@/domain/schedule/calendar';
-import { loadCalendarOverrides, yearOfSemester, type CalendarOverrides } from '@/lib/portal/calendar-overrides';
-import { fetchPortalAttendance, type PortalSyncResult } from '@/lib/portal/campx-client';
+import type { CalendarOverrides } from '@/lib/portal/calendar-overrides';
+import { signIn, signOut, type PortalSyncResult } from '@/lib/portal/campx-client';
+import { clearStoredSession, loadSyncState, readStoredSession, storeSession } from './session';
 
 export type PortalSyncState =
   | { status: 'idle' }
-  | { status: 'error'; message: string }
+  | { status: 'error'; message: string; /** The stored sign-in is no longer valid, so the form should be shown. */ sessionExpired?: boolean }
   | { status: 'success'; data: PortalSyncResult; overrides: CalendarOverrides | null };
 
 /**
- * Logs in to the college portal with the credentials the student just typed,
- * pulls their attendance, and logs back out — all within this one request.
- * The password exists only for the lifetime of this call: it is never
- * written to a database, a log, a cookie, or returned to the client.
+ * One action for the whole signed-in lifecycle, picked by the form's `intent`:
+ *  - sign in (roll number + password): the password is used for exactly one
+ *    request to the portal and is never stored, logged, or sent back. Only the
+ *    portal's session token is kept, in an httpOnly cookie (see session.ts).
+ *  - `logout`: revoke the session at the portal and delete the cookie.
  */
 export async function syncFromPortal(_: PortalSyncState, formData: FormData): Promise<PortalSyncState> {
+  const intent = String(formData.get('intent') ?? 'login');
+
+  if (intent === 'logout') {
+    const stored = await readStoredSession();
+    if (stored) await signOut(stored);
+    await clearStoredSession();
+    return { status: 'idle' };
+  }
+
   // Roll numbers follow ##261A##[A-Z]# — uppercased here too as a safety
   // net, in case this is ever called without the form's own live uppercasing.
   const rollNumber = String(formData.get('rollNumber') ?? '').trim().toUpperCase();
@@ -24,15 +34,9 @@ export async function syncFromPortal(_: PortalSyncState, formData: FormData): Pr
   if (!rollNumber) return { status: 'error', message: 'Enter your roll number.' };
   if (!password) return { status: 'error', message: 'Enter your CampX password.' };
 
-  const today = currentIstDate(new Date());
-  const [year, month] = today.split('-').map(Number);
-
-  // No semester field here — fetchPortalAttendance reads the student's real
-  // current semester from the portal itself.
-  const result = await fetchPortalAttendance(rollNumber, password, month, year);
-
-  if (!result.ok) {
-    switch (result.reason) {
+  const login = await signIn(rollNumber, password);
+  if (!login.ok) {
+    switch (login.reason) {
       case 'wrong-password':
         return { status: 'error', message: 'Wrong password.' };
       case 'mfa-required':
@@ -42,5 +46,6 @@ export async function syncFromPortal(_: PortalSyncState, formData: FormData): Pr
     }
   }
 
-  return { status: 'success', data: result.data, overrides: loadCalendarOverrides(yearOfSemester(result.data.currentSemNo)) };
+  await storeSession(login.session);
+  return loadSyncState(login.session);
 }

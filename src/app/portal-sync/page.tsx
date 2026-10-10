@@ -1,13 +1,18 @@
 import { SiteHeader } from '../SiteHeader';
+import type { PortalSyncState } from './actions';
 import { PortalSyncForm } from './PortalSyncForm';
+import { loadSyncState, readStoredSession } from './session';
 
-/** Temporary standalone page for testing the portal-sync vertical slice during the rebuild. */
-export default function PortalSyncPage() {
+/** Signed-in visitors land straight on their result; everyone else gets the login form. */
+export default async function PortalSyncPage() {
+  const stored = await readStoredSession();
+  const initialState: PortalSyncState = stored ? await loadSyncState(stored) : { status: 'idle' };
+
   return (
     <>
       <SiteHeader />
       <main className="mx-auto w-full max-w-[680px] px-5 py-8 phone:px-3">
-        <PortalSyncForm />
+        <PortalSyncForm initialState={initialState} />
       </main>
     </>
   );
