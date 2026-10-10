@@ -272,4 +272,37 @@ describe('exact counts from the portal', () => {
     expect(exact.updatedCurrentPercentage).toBeCloseTo((271 / 340) * 100);
     expect(exact.heldPeriods).not.toBe(estimated.heldPeriods);
   });
+
+  it('uses an exact future-period list instead of the calendar, still excluding exam days from the day/week stats', () => {
+    // Four regular dates (2 periods each, 8 total) plus one 4-period exam day,
+    // all in one supplied list — no admin timetable involved.
+    const futurePeriods = [
+      { date: '2026-01-05', weekday: 1 as const, sequence: 1, start: '09:00', end: '09:50' },
+      { date: '2026-01-05', weekday: 1 as const, sequence: 2, start: '10:00', end: '10:50' },
+      { date: '2026-01-06', weekday: 2 as const, sequence: 1, start: '09:00', end: '09:50' },
+      { date: '2026-01-06', weekday: 2 as const, sequence: 2, start: '10:00', end: '10:50' },
+      { date: '2026-01-12', weekday: 1 as const, sequence: 1, start: '00:00', end: '23:59' },
+      { date: '2026-01-12', weekday: 1 as const, sequence: 2, start: '00:00', end: '23:59' },
+      { date: '2026-01-12', weekday: 1 as const, sequence: 3, start: '00:00', end: '23:59' },
+      { date: '2026-01-12', weekday: 1 as const, sequence: 4, start: '00:00', end: '23:59' },
+      { date: '2026-01-13', weekday: 2 as const, sequence: 1, start: '09:00', end: '09:50' },
+      { date: '2026-01-13', weekday: 2 as const, sequence: 2, start: '10:00', end: '10:50' },
+      { date: '2026-01-14', weekday: 3 as const, sequence: 1, start: '09:00', end: '09:50' },
+      { date: '2026-01-14', weekday: 3 as const, sequence: 2, start: '10:00', end: '10:50' },
+    ];
+    const examConfig = { ...config, exams: [{ name: 'Mid', start: '2026-01-12', end: '2026-01-12', periodsPerDay: 4 as const }] };
+    const result = calculateAttendance({
+      config: examConfig,
+      now: new Date('2026-01-01T03:30:00.000Z'),
+      currentPercentage: 100,
+      targetPercentage: 75,
+      exactCounts: { held: 10, attended: 10 },
+      futurePeriods,
+    });
+    expect(result.remainingPeriods).toBe(12); // exam periods still count toward the budget
+    expect(result.maximumBunks).toBe(5);
+    // Heaviest-first would pick the 4-period exam day first if it weren't
+    // excluded, giving 1 day instead of 2 within a budget of 5.
+    expect(result.maximumFullDaysAbsent).toBe(2);
+  });
 });

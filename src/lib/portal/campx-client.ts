@@ -153,6 +153,7 @@ type RawClassroomTimetableRow = {
   faculties: { fullName: string }[];
   groups: { id: number; name: string }[];
   timetableSlot: { day: string };
+  /** `status: true` means ABSENT, `false` means PRESENT — inverted from what the name suggests. See `resolveOwnSessions`. */
   studentAttendance: { status: boolean } | null;
 };
 
@@ -207,7 +208,10 @@ function resolveOwnSessions(rows: RawClassroomTimetableRow[]): PortalTimetableSe
     groupName: r.groups[0]?.name ?? null,
     isSuspended: r.isSuspended,
     completed: r.completed,
-    attended: r.studentAttendance?.status ?? null,
+    // Counter-intuitive, verified against every subject's real present/total
+    // counts: studentAttendance.status is true for an ABSENCE, false for a
+    // PRESENT session — the opposite of what the name suggests.
+    attended: r.studentAttendance ? !r.studentAttendance.status : null,
   });
 
   const result: PortalTimetableSession[] = [];

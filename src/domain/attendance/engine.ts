@@ -143,7 +143,10 @@ export function calculateAttendance(request: CalculationRequest): AttendanceResu
   let attendedPeriods = request.exactCounts ? request.exactCounts.attended : estimateAttendedPeriods(request.currentPercentage, heldPeriods);
 
 
-  let futurePeriods = [...calendar.future];
+  // An authoritative source (the portal's own timetable) overrides the
+  // calendar-derived future bucket too, the same way exactCounts overrides
+  // the held/attended baseline above.
+  let futurePeriods = request.futurePeriods ? [...request.futurePeriods] : [...calendar.future];
   // Future periods the student has already decided on. They are counted in the
   // budget maths but are NOT "held so far": they haven't happened yet.
   let plannedPeriods = 0;

@@ -1,4 +1,4 @@
-import type { CalendarSummary, ScheduleConfig } from '../schedule/types';
+import type { CalendarSummary, DatedPeriod, ScheduleConfig } from '../schedule/types';
 
 export type AttendanceInput = {
   currentPercentage: number;
@@ -91,4 +91,12 @@ export type CalculationRequest = Omit<AttendanceInput, 'calendar'> & {
    * when these are omitted, and is ignored when they're present.
    */
   exactCounts?: { held: number; attended: number };
+  /**
+   * Exact future periods from an authoritative source (the college portal's
+   * own timetable), replacing the calendar-derived future bucket. `config`
+   * is still required (for `exams`, used to exclude exam days from "days you
+   * can miss"/teaching-weeks the same way as always) but its `timetable`,
+   * `holidays` and `specialSaturdays` go unused once this is provided.
+   */
+  futurePeriods?: DatedPeriod[];
 };
