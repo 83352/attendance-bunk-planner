@@ -187,6 +187,10 @@ export type PortalTimetableSession = {
  */
 function resolveOwnSessions(rows: RawClassroomTimetableRow[]): PortalTimetableSession[] {
   const mineSubjectIds = new Set(rows.filter((r) => r.studentAttendance !== null).map((r) => r.subjectId));
+  // Matched by NAME, not id: the portal gives each subject's lab its own
+  // group ids ("BATCH 2" is 536 for one lab and 540 for another), so an id
+  // learned from one lab says nothing about the next. The name is what repeats.
+  const myGroupNames = new Set(rows.filter((r) => r.studentAttendance !== null).flatMap((r) => r.groups.map((g) => g.name)));
 
   const byKey = new Map<string, RawClassroomTimetableRow[]>();
   for (const row of rows) {
@@ -221,8 +225,15 @@ function resolveOwnSessions(rows: RawClassroomTimetableRow[]): PortalTimetableSe
       result.push(...group.map(toSession));
       continue;
     }
-    const resolved = group.filter((r) => mineSubjectIds.has(r.subjectId));
-    result.push(...(resolved.length > 0 ? resolved : group).map(toSession));
+    // Strongest evidence first: a recorded attendance on this very row. Then
+    // batch (group) membership, which stays correct even when both labs are
+    // "mine" at different times (batches swap labs week to week, so the
+    // subject alone can't tell them apart). Subject is the last resort.
+    const graded = group.filter((r) => r.studentAttendance !== null);
+    const byGroup = group.filter((r) => r.groups.some((g) => myGroupNames.has(g.name)));
+    const bySubject = group.filter((r) => mineSubjectIds.has(r.subjectId));
+    const resolved = [graded, byGroup, bySubject].find((candidates) => candidates.length > 0 && candidates.length < group.length);
+    result.push(...(resolved ?? group).map(toSession));
   }
   return result.sort((a, b) => (a.date + a.fromTime).localeCompare(b.date + b.fromTime));
 }
