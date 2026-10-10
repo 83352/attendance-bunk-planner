@@ -93,6 +93,16 @@ describe('patchedTimetable', () => {
     expect(graded.some((s) => s.date === '2026-09-01')).toBe(true);
   });
 
+  it('drops an ungraded session listed as a portal bug, but not a graded one or a different time', () => {
+    const buggy = session({ date: '2026-09-05', periods: [1], subjectName: 'Test Subject', fromTime: '09:10:00', attended: null });
+    const overrides = { ...none, ignoredSessions: [{ date: '2026-09-05', subjectName: 'Test Subject', fromTime: '09:10' }] };
+    expect(patchedTimetable(data, overrides, now).some((s) => s.date === '2026-09-05')).toBe(false);
+    const graded = { ...data, timetable: [{ ...buggy, attended: true }] };
+    expect(patchedTimetable(graded, overrides, now)).toHaveLength(1);
+    const otherTime = { ...overrides, ignoredSessions: [{ date: '2026-09-05', subjectName: 'Test Subject', fromTime: '14:00' }] };
+    expect(patchedTimetable(data, otherTime, now).some((s) => s.date === '2026-09-05')).toBe(true);
+  });
+
   it('synthesizes a special Saturday from the copied weekday when the portal has no rows for it', () => {
     const overrides = { ...none, specialSaturdays: [{ date: '2026-09-19', copiedWeekday: 2 as const }] };
     const patched = patchedTimetable(data, overrides, now);

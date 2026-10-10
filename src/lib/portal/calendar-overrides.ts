@@ -11,6 +11,8 @@ export type CalendarOverrides = {
   holidays: Holiday[];
   specialSaturdays: SpecialSaturday[];
   exams: ExamPeriod[];
+  /** Portal sessions that are bugs (shouldn't exist): dropped if the portal hasn't graded them. `fromTime` is "HH:MM". */
+  ignoredSessions?: { date: string; subjectName: string; fromTime: string; reason?: string }[];
 };
 
 /** CampX semesters 1-2 are year 1, 3-4 year 2, and so on — the key the JSON file is organised by. */

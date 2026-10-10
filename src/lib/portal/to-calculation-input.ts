@@ -16,8 +16,8 @@ function examsFor(overrides: CalendarOverrides | null): ExamPeriod[] {
  * The portal's timetable with the admin's not-yet-published calendar facts
  * layered on. Every patch only fills a gap the portal has left, so once the
  * portal catches up its own rows simply win and the patch stops doing anything:
- *  - holiday: ungraded sessions on that date are dropped (graded ones really
- *    happened, so they stay);
+ *  - holiday / known portal bug: ungraded sessions on that date (or the listed
+ *    session) are dropped (graded ones were counted by the portal, so they stay);
  *  - special Saturday / exam day with no portal rows at all: synthesized (a
  *    copy of the student's own sessions from the copied weekday / the exam's
  *    periods per day), flagged `synthetic`.
@@ -28,7 +28,13 @@ export function patchedTimetable(data: PortalSyncResult, overrides: CalendarOver
   const isHoliday = (date: string) => overrides.holidays.some((holiday) => dateInRange(date, holiday.start, holiday.end));
   const isExamDay = (date: string) => overrides.exams.some((exam) => dateInRange(date, exam.start, exam.end));
 
-  const timetable = data.timetable.filter((session) => !(isHoliday(session.date) && session.attended === null));
+  const isIgnored = (session: PortalTimetableSession) =>
+    (overrides.ignoredSessions ?? []).some(
+      (ignored) => ignored.date === session.date && ignored.subjectName === session.subjectName && session.fromTime.startsWith(ignored.fromTime),
+    );
+  const timetable = data.timetable.filter(
+    (session) => session.attended !== null || !(isHoliday(session.date) || isIgnored(session)),
+  );
   const datesWithSessions = new Set(data.timetable.map((session) => session.date));
   const synthesized: PortalTimetableSession[] = [];
 
