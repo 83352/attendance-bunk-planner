@@ -1,7 +1,7 @@
 'use server';
 
 import type { CalendarOverrides } from '@/lib/portal/calendar-overrides';
-import { signIn, signOut, type PortalSyncResult } from '@/lib/portal/campx-client';
+import { signIn, signOut, type CallTiming, type PortalSyncResult } from '@/lib/portal/campx-client';
 import { clearStoredSession, loadSyncState, readStoredSession, storeSession } from './session';
 
 export type PortalSyncState =
@@ -34,7 +34,8 @@ export async function syncFromPortal(_: PortalSyncState, formData: FormData): Pr
   if (!rollNumber) return { status: 'error', message: 'Enter your roll number.' };
   if (!password) return { status: 'error', message: 'Enter your CampX password.' };
 
-  const login = await signIn(rollNumber, password);
+  const log: CallTiming[] = [];
+  const login = await signIn(rollNumber, password, log);
   if (!login.ok) {
     switch (login.reason) {
       case 'wrong-password':
@@ -47,5 +48,5 @@ export async function syncFromPortal(_: PortalSyncState, formData: FormData): Pr
   }
 
   await storeSession(login.session);
-  return loadSyncState(login.session);
+  return loadSyncState(login.session, log);
 }

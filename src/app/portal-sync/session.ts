@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { currentIstDate } from '@/domain/schedule/calendar';
 import { loadCalendarOverrides, yearOfSemester } from '@/lib/portal/calendar-overrides';
-import { loadPortalData, PortalSessionExpiredError, type PortalSession } from '@/lib/portal/campx-client';
+import { loadPortalData, PortalSessionExpiredError, type CallTiming, type PortalSession } from '@/lib/portal/campx-client';
 import type { PortalSyncState } from './actions';
 
 /**
@@ -40,10 +40,10 @@ export async function clearStoredSession(): Promise<void> {
 }
 
 /** Everything the page shows, for an already-signed-in session. Never throws: failures come back as an error state. */
-export async function loadSyncState(session: PortalSession): Promise<PortalSyncState> {
+export async function loadSyncState(session: PortalSession, log: CallTiming[] = []): Promise<PortalSyncState> {
   const [year, month] = currentIstDate(new Date()).split('-').map(Number);
   try {
-    const data = await loadPortalData(session, month, year);
+    const data = await loadPortalData(session, month, year, log);
     return { status: 'success', data, overrides: loadCalendarOverrides(yearOfSemester(data.currentSemNo)) };
   } catch (error) {
     if (error instanceof PortalSessionExpiredError) return { status: 'error', message: 'Your session expired. Sign in again.', sessionExpired: true };

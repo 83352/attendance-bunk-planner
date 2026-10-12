@@ -5,6 +5,10 @@ import type { PortalSyncResult } from '@/lib/portal/campx-client';
 export function RawDataDump({ data }: { data: PortalSyncResult }) {
   return (
     <div className="grid gap-4 font-term text-[12px]">
+      <Section title={`Portal call timings (server) — ${data.callTimings.length} calls`}>
+        <Table rows={[...data.callTimings.map((call): [string, unknown] => [call.label, `${call.status} · ${call.ms} ms`]), ['Slowest call', `${Math.max(0, ...data.callTimings.map((call) => call.ms))} ms`]]} />
+      </Section>
+
       <Section title={`Current semester (auto-detected): ${data.currentSemNo}`}>
         <p className="m-0 text-muted">Not typed anywhere — read from the portal&rsquo;s own my-all-semester-attendance response.</p>
       </Section>

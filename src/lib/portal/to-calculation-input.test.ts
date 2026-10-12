@@ -28,6 +28,7 @@ const data: PortalSyncResult = {
   semesterSummary: { currentSemNo: 3, classAverage: 80, overallAttendance: '80', subjects: [] },
   primaryAttendance: { numberOfClasses: 100, present: 80, absent: 20, totalSessionsIncludingActivity: 100, percentage: 80 },
   dateWiseAttendance: {},
+  callTimings: [],
   timetable: [
     // A past session the portal already graded — not ungraded.
     session({ date: '2026-09-01', periods: [1], attended: true }),

@@ -22,6 +22,32 @@ const PLAIN_HEADERS = {
   'x-platform-id': 'campx',
 };
 
+/**
+ * Logs each portal call's status and duration (and the portal's rate-limit
+ * headroom) to the server console, so slow, failing or throttled calls can be
+ * seen. On in development; in production set PORTAL_TIMING_LOG=1. Never logs
+ * credentials, tokens or response bodies.
+ */
+const LOG_TIMING = process.env.NODE_ENV !== 'production' || process.env.PORTAL_TIMING_LOG === '1';
+
+/** One portal call's outcome, shown in the Data check panel so a slow or failing call can be spotted from the browser. */
+export type CallTiming = { label: string; status: number | 'failed'; ms: number };
+
+async function timedFetch(label: string, url: string, init?: RequestInit, log?: CallTiming[]): Promise<Response> {
+  const started = performance.now();
+  const elapsed = () => Math.round(performance.now() - started);
+  try {
+    const res = await fetch(url, init);
+    log?.push({ label, status: res.status, ms: elapsed() });
+    if (LOG_TIMING) console.log(`[campx] ${label} -> ${res.status} in ${elapsed()}ms (rate limit left: ${res.headers.get('x-ratelimit-remaining') ?? 'n/a'})`);
+    return res;
+  } catch (error) {
+    log?.push({ label, status: 'failed', ms: elapsed() });
+    if (LOG_TIMING) console.log(`[campx] ${label} FAILED after ${elapsed()}ms (${error instanceof Error ? error.name : 'error'})`);
+    throw error;
+  }
+}
+
 export type PortalSubjectAttendance = {
   subjectName: string;
   numberOfClasses: number;
@@ -81,10 +107,10 @@ function authHeaders(session: PortalSession): Record<string, string> {
   };
 }
 
-export async function signIn(rollNumber: string, password: string): Promise<{ ok: true; session: PortalSession } | PortalLoginFailure> {
+export async function signIn(rollNumber: string, password: string, log?: CallTiming[]): Promise<{ ok: true; session: PortalSession } | PortalLoginFailure> {
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}/auth-server/auth-v2/login`, {
+    res = await timedFetch('POST login', `${API_BASE}/auth-server/auth-v2/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...PLAIN_HEADERS },
       // Shape confirmed by watching the real client's own login request.
@@ -100,7 +126,7 @@ export async function signIn(rollNumber: string, password: string): Promise<{ ok
         tokenType: 'WEB',
         loginType: 'USER',
       }),
-    });
+    }, log);
   } catch (err) {
     return { ok: false, reason: 'network-error', message: err instanceof Error ? err.message : 'Could not reach the portal.' };
   }
@@ -125,12 +151,12 @@ export async function signIn(rollNumber: string, password: string): Promise<{ ok
 export async function signOut(session: PortalSession): Promise<void> {
   const headers = authHeaders(session);
   for (const path of ['/auth-server/auth-v2/logout', '/auth-server/auth/logout']) {
-    try { await fetch(`${API_BASE}${path}`, { method: 'POST', headers }); } catch { /* best-effort cleanup */ }
+    try { await timedFetch(`POST ${path}`, `${API_BASE}${path}`, { method: 'POST', headers }); } catch { /* best-effort cleanup */ }
   }
 }
 
-async function getJson<T>(session: PortalSession, path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, { headers: authHeaders(session) });
+async function getJson<T>(session: PortalSession, path: string, log?: CallTiming[]): Promise<T> {
+  const res = await timedFetch(`GET ${path.split('?')[0]}`, `${API_BASE}${path}`, { headers: authHeaders(session) }, log);
   if (res.status === 401 || res.status === 403) throw new PortalSessionExpiredError(`Portal rejected the session for ${path}.`);
   if (!res.ok) throw new Error(`Portal request to ${path} failed with status ${res.status}.`);
   return res.json() as Promise<T>;
@@ -254,6 +280,8 @@ export type PortalSyncResult = {
   dateWiseAttendance: PortalDateWiseAttendance;
   /** This semester's sessions only, already resolved to this student (see resolveOwnSessions). */
   timetable: PortalTimetableSession[];
+  /** How long each portal call took on the server, in the order they finished (for the Data check panel). */
+  callTimings: CallTiming[];
 };
 
 /**
@@ -264,21 +292,21 @@ export type PortalSyncResult = {
  * query itself asks for, so a cheap throwaway call (semNo=1, which always
  * exists) finds it, and every real call afterward uses that.
  */
-export async function loadPortalData(session: PortalSession, month: number, year: number): Promise<PortalSyncResult> {
-  const probe = await getJson<PortalSemesterSummary>(session, '/student-api/student-attendance/my-all-semester-attendance?semNo=1');
+export async function loadPortalData(session: PortalSession, month: number, year: number, log: CallTiming[] = []): Promise<PortalSyncResult> {
+  const probe = await getJson<PortalSemesterSummary>(session, '/student-api/student-attendance/my-all-semester-attendance?semNo=1', log);
   const semNo = probe.currentSemNo;
 
   const [semesterSummary, primaryAttendance, dateWiseAttendance, timetableRows] = await Promise.all([
-    semNo === 1 ? Promise.resolve(probe) : getJson<PortalSemesterSummary>(session, `/student-api/student-attendance/my-all-semester-attendance?semNo=${semNo}`),
-    getJson<{ primaryAttendance: PortalPrimaryAttendance }>(session, `/student-api/student-attendance/my-secondary-attendance?semNo=${semNo}`)
+    semNo === 1 ? Promise.resolve(probe) : getJson<PortalSemesterSummary>(session, `/student-api/student-attendance/my-all-semester-attendance?semNo=${semNo}`, log),
+    getJson<{ primaryAttendance: PortalPrimaryAttendance }>(session, `/student-api/student-attendance/my-secondary-attendance?semNo=${semNo}`, log)
       .then((body) => body.primaryAttendance),
-    getJson<PortalDateWiseAttendance>(session, `/student-api/student-attendance/my-date-wise-attendance?semNo=${semNo}&month=${month}&year=${year}`),
+    getJson<PortalDateWiseAttendance>(session, `/student-api/student-attendance/my-date-wise-attendance?semNo=${semNo}&month=${month}&year=${year}`, log),
     // The classroom's full multi-semester timetable in one call — filtered
     // to this semester, then resolved down to this student's own sessions.
-    getJson<RawClassroomTimetableRow[]>(session, '/student-api/classroom-timetables'),
+    getJson<RawClassroomTimetableRow[]>(session, '/student-api/classroom-timetables', log),
   ]);
 
   const timetable = resolveOwnSessions(timetableRows.filter((row) => row.semNo === semNo));
 
-  return { currentSemNo: semNo, semesterSummary, primaryAttendance, dateWiseAttendance, timetable };
+  return { currentSemNo: semNo, semesterSummary, primaryAttendance, dateWiseAttendance, timetable, callTimings: log };
 }
