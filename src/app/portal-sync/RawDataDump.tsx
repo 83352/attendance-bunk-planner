@@ -17,35 +17,6 @@ export function RawDataDump({ data }: { data: PortalSyncResult }) {
         <Table rows={Object.entries(data.primaryAttendance)} />
       </Section>
 
-      <Section title={`Semester summary — ${data.semesterSummary.subjects.length} subjects, class average ${data.semesterSummary.classAverage}%, overall ${data.semesterSummary.overallAttendance}%`}>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left">
-            <thead>
-              <tr className="border-b-2 border-edge">
-                <th className="py-1 pr-2">Subject</th>
-                <th className="py-1 pr-2">Attended</th>
-                <th className="py-1 pr-2">Classes</th>
-                <th className="py-1 pr-2">%</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.semesterSummary.subjects.map((subject) => (
-                <tr key={subject.subjectName} className="border-b border-edge/50 even:bg-cream/60">
-                  <td className="py-1 pr-2">{subject.subjectName}</td>
-                  <td className="py-1 pr-2">{subject.present}</td>
-                  <td className="py-1 pr-2">{subject.numberOfClasses}</td>
-                  <td className="py-1 pr-2">{subject.percentage}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Section>
-
-      <Section title={`Date-wise attendance — ${Object.keys(data.dateWiseAttendance).length} days recorded this month`}>
-        <Table rows={Object.entries(data.dateWiseAttendance).map(([date, status]) => [formatDay(date), dayStatus(status)])} />
-      </Section>
-
       <Section title={`Timetable (this semester, own sessions only) — ${data.timetable.length} sessions`}>
         <div className="max-h-[400px] overflow-auto">
           <table className="w-full border-collapse text-left">
@@ -80,16 +51,6 @@ export function RawDataDump({ data }: { data: PortalSyncResult }) {
       </Section>
     </div>
   );
-}
-
-/** The portal's own day statuses, in this app's words (Absent only when every period was bunked). */
-function dayStatus(status: string): string {
-  switch (status) {
-    case 'PRESENT': return 'Attended';
-    case 'ABSENT': return 'Absent';
-    case 'PARTIALLY_PRESENT': return 'Partly attended';
-    default: return status;
-  }
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

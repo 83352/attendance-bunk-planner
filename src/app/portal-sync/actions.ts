@@ -1,7 +1,7 @@
 'use server';
 
 import type { CalendarOverrides } from '@/lib/portal/calendar-overrides';
-import { signIn, signOut, type CallTiming, type PortalSyncResult } from '@/lib/portal/campx-client';
+import { loadSubjects, PortalSessionExpiredError, PortalSlowError, signIn, signOut, type CallTiming, type PortalSubjectAttendance, type PortalSyncResult } from '@/lib/portal/campx-client';
 import { clearStoredSession, loadSyncState, readStoredSession, storeSession } from './session';
 
 export type PortalSyncState =
@@ -49,4 +49,23 @@ export async function syncFromPortal(_: PortalSyncState, formData: FormData): Pr
 
   await storeSession(login.session);
   return loadSyncState(login.session, log);
+}
+
+export type SubjectsState =
+  | { status: 'ready'; subjects: PortalSubjectAttendance[] }
+  | { status: 'slow' }
+  | { status: 'expired' }
+  | { status: 'error' };
+
+/** Loads the per-subject summary on demand, with the signed-in student's stored session. */
+export async function fetchSubjects(semNo: number): Promise<SubjectsState> {
+  const stored = await readStoredSession();
+  if (!stored) return { status: 'expired' };
+  try {
+    return { status: 'ready', subjects: await loadSubjects(stored, semNo) };
+  } catch (error) {
+    if (error instanceof PortalSlowError) return { status: 'slow' };
+    if (error instanceof PortalSessionExpiredError) return { status: 'expired' };
+    return { status: 'error' };
+  }
 }

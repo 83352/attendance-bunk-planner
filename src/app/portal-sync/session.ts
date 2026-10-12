@@ -1,7 +1,6 @@
 import { cookies } from 'next/headers';
-import { currentIstDate } from '@/domain/schedule/calendar';
 import { loadCalendarOverrides, yearOfSemester } from '@/lib/portal/calendar-overrides';
-import { loadPortalData, PortalSessionExpiredError, type CallTiming, type PortalSession } from '@/lib/portal/campx-client';
+import { loadPortalData, PortalSessionExpiredError, PortalSlowError, type CallTiming, type PortalSession } from '@/lib/portal/campx-client';
 import type { PortalSyncState } from './actions';
 
 /**
@@ -41,11 +40,11 @@ export async function clearStoredSession(): Promise<void> {
 
 /** Everything the page shows, for an already-signed-in session. Never throws: failures come back as an error state. */
 export async function loadSyncState(session: PortalSession, log: CallTiming[] = []): Promise<PortalSyncState> {
-  const [year, month] = currentIstDate(new Date()).split('-').map(Number);
   try {
-    const data = await loadPortalData(session, month, year, log);
+    const data = await loadPortalData(session, log);
     return { status: 'success', data, overrides: loadCalendarOverrides(yearOfSemester(data.currentSemNo)) };
   } catch (error) {
+    if (error instanceof PortalSlowError) return { status: 'error', message: 'CampX is taking too long to answer right now. Try again in a minute.' };
     if (error instanceof PortalSessionExpiredError) return { status: 'error', message: 'Your session expired. Sign in again.', sessionExpired: true };
     return { status: 'error', message: "Couldn't reach the portal. Try again in a moment." };
   }

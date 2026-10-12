@@ -89,7 +89,7 @@ export function SyncedResult({ data, overrides }: { data: PortalSyncResult; over
         </section>
       )}
 
-      <SubjectsCard subjects={data.semesterSummary.subjects} target={TARGET} />
+      <SubjectsCard semNo={data.currentSemNo} target={TARGET} />
 
       {result && headsUp.length > 0 && (
         <section className="card animate-rise border-l-[length:6px] !border-l-orange bg-warning-bg p-4" role="note">

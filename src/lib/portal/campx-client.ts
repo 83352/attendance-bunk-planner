@@ -33,17 +33,24 @@ const LOG_TIMING = process.env.NODE_ENV !== 'production' || process.env.PORTAL_T
 /** One portal call's outcome, shown in the Data check panel so a slow or failing call can be spotted from the browser. */
 export type CallTiming = { label: string; status: number | 'failed'; ms: number };
 
-async function timedFetch(label: string, url: string, init?: RequestInit, log?: CallTiming[]): Promise<Response> {
+/** The portal didn't answer within the time we're willing to wait. */
+export class PortalSlowError extends Error {}
+
+/** Every portal call gets a ceiling so one hung call can't hold a whole page; the heavy per-subject call is given longer (see loadSubjects). */
+const DEFAULT_TIMEOUT_MS = 15_000;
+
+async function timedFetch(label: string, url: string, init?: RequestInit, log?: CallTiming[], timeoutMs = DEFAULT_TIMEOUT_MS): Promise<Response> {
   const started = performance.now();
   const elapsed = () => Math.round(performance.now() - started);
   try {
-    const res = await fetch(url, init);
+    const res = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
     log?.push({ label, status: res.status, ms: elapsed() });
     if (LOG_TIMING) console.log(`[campx] ${label} -> ${res.status} in ${elapsed()}ms (rate limit left: ${res.headers.get('x-ratelimit-remaining') ?? 'n/a'})`);
     return res;
   } catch (error) {
     log?.push({ label, status: 'failed', ms: elapsed() });
     if (LOG_TIMING) console.log(`[campx] ${label} FAILED after ${elapsed()}ms (${error instanceof Error ? error.name : 'error'})`);
+    if (error instanceof Error && error.name === 'TimeoutError') throw new PortalSlowError(`${label} took longer than ${timeoutMs / 1000}s.`);
     throw error;
   }
 }
@@ -71,8 +78,6 @@ export type PortalPrimaryAttendance = {
   percentage: number;
 };
 
-/** Date (YYYY-MM-DD) -> the portal's own status string for that day, e.g. "PRESENT" | "ABSENT" | "PARTIALLY_PRESENT". */
-export type PortalDateWiseAttendance = Record<string, string>;
 
 export type PortalLoginFailure =
   | { ok: false; reason: 'wrong-password' }
@@ -155,8 +160,8 @@ export async function signOut(session: PortalSession): Promise<void> {
   }
 }
 
-async function getJson<T>(session: PortalSession, path: string, log?: CallTiming[]): Promise<T> {
-  const res = await timedFetch(`GET ${path.split('?')[0]}`, `${API_BASE}${path}`, { headers: authHeaders(session) }, log);
+async function getJson<T>(session: PortalSession, path: string, log?: CallTiming[], timeoutMs?: number): Promise<T> {
+  const res = await timedFetch(`GET ${path.split('?')[0]}`, `${API_BASE}${path}`, { headers: authHeaders(session) }, log, timeoutMs);
   if (res.status === 401 || res.status === 403) throw new PortalSessionExpiredError(`Portal rejected the session for ${path}.`);
   if (!res.ok) throw new Error(`Portal request to ${path} failed with status ${res.status}.`);
   return res.json() as Promise<T>;
@@ -275,9 +280,7 @@ function resolveOwnSessions(rows: RawClassroomTimetableRow[]): PortalTimetableSe
 export type PortalSyncResult = {
   /** The student's actual current semester, read from the portal — never guessed or hand-typed. */
   currentSemNo: number;
-  semesterSummary: PortalSemesterSummary;
   primaryAttendance: PortalPrimaryAttendance;
-  dateWiseAttendance: PortalDateWiseAttendance;
   /** This semester's sessions only, already resolved to this student (see resolveOwnSessions). */
   timetable: PortalTimetableSession[];
   /** How long each portal call took on the server, in the order they finished (for the Data check panel). */
@@ -285,28 +288,37 @@ export type PortalSyncResult = {
 };
 
 /**
- * Fetches everything dontbunk needs for one sync using an already-signed-in
- * session (throws `PortalSessionExpiredError` if the portal rejects it).
- * The semester is never asked for or guessed: `my-all-semester-attendance`
- * reports the student's real `currentSemNo` regardless of which semNo the
- * query itself asks for, so a cheap throwaway call (semNo=1, which always
- * exists) finds it, and every real call afterward uses that.
+ * Fetches what the result needs, using an already-signed-in session (throws
+ * `PortalSessionExpiredError` if the portal rejects it, `PortalSlowError` if it
+ * doesn't answer in time). The semester is never asked for or guessed:
+ * `my-all-semester-attendance` reports the student's real `currentSemNo`
+ * regardless of which semNo the query asks for, so a cheap call (semNo=1, which
+ * always exists) finds it. The heavy per-subject summary and the day-by-day
+ * attendance are deliberately not fetched here: they were by far the slowest
+ * calls and nothing on the first screen needs them (see `loadSubjects`).
  */
-export async function loadPortalData(session: PortalSession, month: number, year: number, log: CallTiming[] = []): Promise<PortalSyncResult> {
-  const probe = await getJson<PortalSemesterSummary>(session, '/student-api/student-attendance/my-all-semester-attendance?semNo=1', log);
+export async function loadPortalData(session: PortalSession, log: CallTiming[] = []): Promise<PortalSyncResult> {
+  const probe = await getJson<{ currentSemNo: number }>(session, '/student-api/student-attendance/my-all-semester-attendance?semNo=1', log);
   const semNo = probe.currentSemNo;
 
-  const [semesterSummary, primaryAttendance, dateWiseAttendance, timetableRows] = await Promise.all([
-    semNo === 1 ? Promise.resolve(probe) : getJson<PortalSemesterSummary>(session, `/student-api/student-attendance/my-all-semester-attendance?semNo=${semNo}`, log),
+  const [primaryAttendance, timetableRows] = await Promise.all([
     getJson<{ primaryAttendance: PortalPrimaryAttendance }>(session, `/student-api/student-attendance/my-secondary-attendance?semNo=${semNo}`, log)
       .then((body) => body.primaryAttendance),
-    getJson<PortalDateWiseAttendance>(session, `/student-api/student-attendance/my-date-wise-attendance?semNo=${semNo}&month=${month}&year=${year}`, log),
-    // The classroom's full multi-semester timetable in one call — filtered
+    // The classroom's full multi-semester timetable in one call, filtered
     // to this semester, then resolved down to this student's own sessions.
     getJson<RawClassroomTimetableRow[]>(session, '/student-api/classroom-timetables', log),
   ]);
 
   const timetable = resolveOwnSessions(timetableRows.filter((row) => row.semNo === semNo));
 
-  return { currentSemNo: semNo, semesterSummary, primaryAttendance, dateWiseAttendance, timetable, callTimings: log };
+  return { currentSemNo: semNo, primaryAttendance, timetable, callTimings: log };
+}
+
+/** Longest we wait for the per-subject summary: it has been taking 30-90 s on the portal's side. */
+const SUBJECTS_TIMEOUT_MS = 50_000;
+
+/** Per-subject attendance for the semester. Slow on the portal's side, so it's loaded on demand, never with the first screen. */
+export async function loadSubjects(session: PortalSession, semNo: number, log: CallTiming[] = []): Promise<PortalSubjectAttendance[]> {
+  const summary = await getJson<PortalSemesterSummary>(session, `/student-api/student-attendance/my-all-semester-attendance?semNo=${semNo}`, log, SUBJECTS_TIMEOUT_MS);
+  return summary.subjects;
 }

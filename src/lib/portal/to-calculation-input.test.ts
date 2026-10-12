@@ -25,9 +25,7 @@ function session(partial: Partial<PortalTimetableSession> & Pick<PortalTimetable
 
 const data: PortalSyncResult = {
   currentSemNo: 3,
-  semesterSummary: { currentSemNo: 3, classAverage: 80, overallAttendance: '80', subjects: [] },
   primaryAttendance: { numberOfClasses: 100, present: 80, absent: 20, totalSessionsIncludingActivity: 100, percentage: 80 },
-  dateWiseAttendance: {},
   callTimings: [],
   timetable: [
     // A past session the portal already graded — not ungraded.

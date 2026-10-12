@@ -3,6 +3,9 @@ import type { PortalSyncState } from './actions';
 import { PortalSyncForm } from './PortalSyncForm';
 import { loadSyncState, readStoredSession } from './session';
 
+/** The per-subject summary can take the portal up to ~50 s, so allow the function that long. */
+export const maxDuration = 60;
+
 /** Signed-in visitors land straight on their result; everyone else gets the login form. */
 export default async function PortalSyncPage() {
   const stored = await readStoredSession();
