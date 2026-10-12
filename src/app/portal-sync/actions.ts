@@ -6,7 +6,7 @@ import { clearStoredSession, loadSyncState, readStoredSession, storeSession } fr
 
 export type PortalSyncState =
   | { status: 'idle'; /** Shown above the sign-in form, e.g. after logging out. */ notice?: string }
-  | { status: 'error'; message: string; /** The stored sign-in is no longer valid, so the form should be shown. */ sessionExpired?: boolean }
+  | { status: 'error'; message: string; /** Which portal calls ran and how long each took, shown under the error when something was slow or failed. */ timings?: CallTiming[]; /** The stored sign-in is no longer valid, so the form should be shown. */ sessionExpired?: boolean }
   | { status: 'success'; data: PortalSyncResult; overrides: CalendarOverrides | null };
 
 /**

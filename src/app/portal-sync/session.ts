@@ -44,8 +44,8 @@ export async function loadSyncState(session: PortalSession, log: CallTiming[] = 
     const data = await loadPortalData(session, log);
     return { status: 'success', data, overrides: loadCalendarOverrides(yearOfSemester(data.currentSemNo)) };
   } catch (error) {
-    if (error instanceof PortalSlowError) return { status: 'error', message: 'CampX is taking too long to answer right now. Try again in a minute.' };
+    if (error instanceof PortalSlowError) return { status: 'error', message: 'CampX is taking too long to answer right now. Try again in a minute.', timings: log };
     if (error instanceof PortalSessionExpiredError) return { status: 'error', message: 'Your session expired. Sign in again.', sessionExpired: true };
-    return { status: 'error', message: "Couldn't reach the portal. Try again in a moment." };
+    return { status: 'error', message: "Couldn't reach the portal. Try again in a moment.", timings: log };
   }
 }

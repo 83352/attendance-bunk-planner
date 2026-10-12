@@ -11,7 +11,7 @@ type FieldErrors = { rollNumber?: string; password?: string };
  * Sign-in form. The password is sent once, through this app's server action,
  * to CampX to get a sign-in token; it is never stored or logged.
  */
-export function LoginCard({ formAction, pending, error, notice }: { formAction: (formData: FormData) => void; pending: boolean; error: string | null; /** e.g. "You're logged out" after Log out. */ notice?: string | null }) {
+export function LoginCard({ formAction, pending, error, timings, notice }: { formAction: (formData: FormData) => void; pending: boolean; error: string | null; /** Call-by-call timings behind a slow or failed sync. */ timings?: { label: string; status: number | 'failed'; ms: number }[]; /** e.g. "You're logged out" after Log out. */ notice?: string | null }) {
   const [rollNumber, setRollNumber] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -100,6 +100,16 @@ export function LoginCard({ formAction, pending, error, notice }: { formAction: 
           <p role="alert" className="m-0 rounded-[var(--ui-radius-sm)] border border-error bg-danger-bg p-2.5 font-term text-[13px] font-bold text-error">
             {error}
           </p>
+        )}
+        {error && timings && timings.length > 0 && (
+          <details className="font-term text-[12px] text-muted">
+            <summary className="cursor-pointer">What took the time</summary>
+            <ul className="m-0 mt-1.5 grid list-none gap-0.5 p-0">
+              {timings.map((call, index) => (
+                <li key={index}>{call.label.replace('/student-api/student-attendance/', '').replace('/student-api/', '')}: {call.status === 'failed' ? 'no answer' : call.status} · {(call.ms / 1000).toFixed(1)} s</li>
+              ))}
+            </ul>
+          </details>
         )}
 
         <button type="submit" disabled={pending} className="btn-calculate btn-calculate-hover">

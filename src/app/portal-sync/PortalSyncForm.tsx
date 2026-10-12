@@ -15,7 +15,7 @@ export function PortalSyncForm({ initialState }: { initialState: PortalSyncState
   const [state, formAction, pending] = useActionState(syncFromPortal, initialState);
 
   if (state.status !== 'success') {
-    return <LoginCard formAction={formAction} pending={pending} error={state.status === 'error' ? state.message : null} notice={state.status === 'idle' ? state.notice : null} />;
+    return <LoginCard formAction={formAction} pending={pending} error={state.status === 'error' ? state.message : null} timings={state.status === 'error' ? state.timings : undefined} notice={state.status === 'idle' ? state.notice : null} />;
   }
 
   return (
