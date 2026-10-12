@@ -5,7 +5,7 @@ import { signIn, signOut, type PortalSyncResult } from '@/lib/portal/campx-clien
 import { clearStoredSession, loadSyncState, readStoredSession, storeSession } from './session';
 
 export type PortalSyncState =
-  | { status: 'idle' }
+  | { status: 'idle'; /** Shown above the sign-in form, e.g. after logging out. */ notice?: string }
   | { status: 'error'; message: string; /** The stored sign-in is no longer valid, so the form should be shown. */ sessionExpired?: boolean }
   | { status: 'success'; data: PortalSyncResult; overrides: CalendarOverrides | null };
 
@@ -23,7 +23,7 @@ export async function syncFromPortal(_: PortalSyncState, formData: FormData): Pr
     const stored = await readStoredSession();
     if (stored) await signOut(stored);
     await clearStoredSession();
-    return { status: 'idle' };
+    return { status: 'idle', notice: 'You’re logged out. Your saved answers were cleared from this device.' };
   }
 
   // Roll numbers follow ##261A##[A-Z]# — uppercased here too as a safety
@@ -40,7 +40,7 @@ export async function syncFromPortal(_: PortalSyncState, formData: FormData): Pr
       case 'wrong-password':
         return { status: 'error', message: 'Wrong roll number or password.' };
       case 'mfa-required':
-        return { status: 'error', message: "This account has two-step verification (MFA) turned on, which dontbunk can't use. Turn it off in your CampX account, then sign in again." };
+        return { status: 'error', message: "This account has two-step verification (MFA) turned on. dontbunk doesn't support MFA accounts yet." };
       case 'network-error':
         return { status: 'error', message: "Couldn't reach the portal. Try again in a moment." };
     }

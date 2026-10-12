@@ -6,15 +6,15 @@ const SECTIONS: { title: string; body: string[] }[] = [
   {
     title: 'What dontbunk does',
     body: [
-      'It reads your attendance and timetable from the college portal (CampX) and tells you how many periods you can still bunk and finish the semester at your target attendance. It is a calculator on top of the portal; the portal itself is always the final word.',
+      'It reads your attendance and timetable from the college portal (CampX) and tells you how many periods you can still bunk and finish the semester at 75%, the college minimum. It is a calculator on top of the portal; the portal itself is always the final word.',
     ],
   },
   {
     title: 'Signing in and your password',
     body: [
-      'You sign in once with your roll number and CampX password. The password goes straight to the portal, exactly as if you were logging in there, and is never stored or logged by dontbunk.',
+      'You sign in once with your roll number and CampX password. The password is sent over HTTPS through dontbunk’s server to CampX, only to get a sign-in token. It is never stored or logged.',
       'To keep you signed in, dontbunk keeps the portal’s sign-in token in a cookie on this device only. Every time you open the page it fetches fresh data. Log out revokes that token at the portal and removes the cookie and your saved answers from this device.',
-      'If your CampX account has two-step verification (MFA) turned on, dontbunk can’t sign in. Turn it off in your CampX account first.',
+      'Accounts with two-step verification (MFA) turned on aren’t supported yet.',
     ],
   },
   {
@@ -27,21 +27,21 @@ const SECTIONS: { title: string; body: string[] }[] = [
   {
     title: 'Periods that aren’t marked yet',
     body: [
-      'Teachers don’t always mark attendance straight away. If a period that already ended is still unmarked on the portal, dontbunk asks whether you attended it. Your answer makes the result 100% accurate, so the result waits until you have answered them all. Answers are saved on this device and disappear once the portal marks the period.',
+      'Teachers don’t always mark attendance straight away. If a period that already ended is still unmarked on the portal, dontbunk asks whether you attended it. Answering is required: your result stays locked until every one is answered, so the number is exact. After that the list folds into one line, and you can still change an answer. Answers are saved on this device and disappear once the portal marks the period.',
       'Classes that ended today appear in that list once they finish. Classes still to come today are not counted until tomorrow.',
     ],
   },
   {
     title: 'The bunk budget',
     body: [
-      'Attending every remaining period raises your attendance; each period you bunk lowers it. The big number is how many periods you can bunk and still end the semester at or above your target. The percentage beside it is where you would land if you used all of them.',
-      'Below your target, the big number becomes how many classes in a row you need to attend to reach it.',
+      'Attending every remaining period raises your attendance; each period you bunk lowers it. The big number is how many periods you can bunk and still end the semester at or above 75%. The line under it is where you would land if you used all of them. A double period (like a lab) counts as 2.',
+      'Below 75%, the big number becomes how many classes in a row you need to attend to get back to it.',
     ],
   },
   {
     title: 'Safe, Careful, Tight, Danger',
     body: [
-      'This label is always measured against 75%, whatever target you type. Safe means you can bunk and stay above 75%. Careful means you are at the line or recovery is easy. Tight means recovering to 75% would take most of the classes left. Danger means 75% is nearly or fully out of reach.',
+      'Like everything else, this label is measured against 75%. Safe means you can bunk and stay above 75%. Careful means you are at the line or recovery is easy. Tight means recovering to 75% would take most of the classes left. Danger means 75% is nearly or fully out of reach.',
     ],
   },
   {
@@ -60,7 +60,7 @@ const SECTIONS: { title: string; body: string[] }[] = [
   {
     title: 'Reading the calendar',
     body: [
-      'The number under a date is how many periods that day has. A green dot means you attended every period, amber means you bunked at least one period, and red means you were absent (every period bunked). A day only gets a dot once every period that day is marked. Tap a day to see each class and whether you attended it.',
+      'The number under a date is how many periods that day has. The mark in the corner is your attendance: a green tick means you attended every period, an amber half circle means you bunked at least one, and a red cross means you were absent all day. A dashed amber outline with a “?” means a class that day still needs your answer. Holidays, exam days and working Saturdays are tinted and labelled H, E and W. Tap a day to see each class; holidays show their name. “Today” jumps back to this month.',
     ],
   },
   {
@@ -102,7 +102,7 @@ export function HowItWorks() {
           {SECTIONS.map((section) => (
             <section key={section.title}>
               <h3 className="heading m-0 mb-1.5 text-[16px]">{section.title}</h3>
-              <div className="grid gap-2 font-term text-[14px] leading-[1.6] text-muted">
+              <div className="grid gap-2 text-[15px] leading-[1.6] text-muted">
                 {section.body.map((paragraph) => <p key={paragraph} className="m-0">{paragraph}</p>)}
               </div>
             </section>

@@ -2,6 +2,7 @@ import type { CalculationRequest } from '@/domain/attendance/types';
 import { currentIstDate, datesBetween, dateInRange } from '@/domain/schedule/calendar';
 import type { DatedPeriod, ExamPeriod, Weekday } from '@/domain/schedule/types';
 import { formatDay } from '../format-date';
+import { answerKey, type SavedAnswers } from './saved-answers';
 import type { CalendarOverrides } from './calendar-overrides';
 import { KNOWN_EXAM_PERIODS } from './exam-schedule';
 import type { PortalSyncResult, PortalTimetableSession } from './campx-client';
@@ -100,6 +101,24 @@ export function findUngradedPastSessions(data: PortalSyncResult, now: Date, over
 
 /** What the student answered for each ungraded past session (counts, not a per-session map — that's all the engine needs). */
 export type PastOverrides = { attended: number; bunked: number };
+
+/** How many periods a session is worth: a 2-period lab or block counts as 2, the same way the portal counts held periods. */
+export const periodCount = (session: Pick<PortalTimetableSession, 'periods'>): number => Math.max(1, session.periods.length);
+
+/**
+ * Turns the student's answers into period counts for the engine. Counted in
+ * periods, not sessions: answering a double period "Bunked" must add 2 held
+ * periods, or the bunk budget comes out one too high.
+ */
+export function pastOverridesFromAnswers(sessions: PortalTimetableSession[], answers: SavedAnswers): PastOverrides {
+  const overrides: PastOverrides = { attended: 0, bunked: 0 };
+  for (const session of sessions) {
+    const answer = answers[answerKey(session)];
+    if (answer === 'attended') overrides.attended += periodCount(session);
+    else if (answer === 'bunked') overrides.bunked += periodCount(session);
+  }
+  return overrides;
+}
 
 /**
  * Builds the engine's input straight from synced portal data — no admin

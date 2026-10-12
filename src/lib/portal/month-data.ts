@@ -29,6 +29,8 @@ export function portalMonthData(
   year: number,
   month: number,
   todayIso: string,
+  /** Dates with a past period the student still has to answer (see findUngradedPastSessions). */
+  needsAnswerDates: ReadonlySet<string> = new Set(),
 ): MonthCalendarData {
   const blanks = new Date(Date.UTC(year, month, 1)).getUTCDay();
   const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
@@ -60,6 +62,7 @@ export function portalMonthData(
       holidayName: holiday?.name ?? (suspended ? 'Classes suspended' : undefined),
       examName: exam?.name,
       attendance: dayAttendance(sessions),
+      needsAnswer: needsAnswerDates.has(iso),
     };
   });
 

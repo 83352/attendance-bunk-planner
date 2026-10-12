@@ -30,13 +30,14 @@
   /* Calendar exception days: tints of the site's own palette (not generic
      pastel defaults), all reusing a solid black cell border like every other
      bordered box on the site rather than a colored one. */
-  --color-holiday-bg: var(--color-danger-bg); --color-holiday-ink: var(--color-danger-ink);
+  /* Slate, not red: red is reserved for absences, so a day off can never be mistaken for one. */
+  --color-holiday-bg: #e4e9f1; --color-holiday-ink: #3a4a66;
   --color-exam-bg: #dcf0ec;      --color-exam-ink: #1b6b5f;
   /* Neutral grey rather than another green/teal tint — a working Saturday
      is an administrative fact, not "good" or "bad" like the other two, and
      grey keeps it from being confused with the exam color at a glance. */
   --color-special-bg: #f3e6b8;   --color-special-ink: #5c4700;
-  --color-teal: #218575;
+  --color-teal: #1b6f62;
   --color-today: #55ad9b;
   /* Marks a day the student has adjusted / has open. Deliberately not orange: orange is reserved for the primary action. */
   --color-adjusted: #4338ca;
@@ -69,6 +70,7 @@
   --color-disabled-edge: #aaaaaa;
   --color-skeleton: #e6e1d3;
   --color-amber: #e8a317;        /* a day with a bunked period */
+  --color-bunked-bg: #fdf0cf;    --color-bunked-ink: #6b4a00; /* the Bunked chip: amber everywhere, red stays for Absent */
   --color-present: #087d42;      /* attendance chips */
   --color-present-bg: #d9f3e3;
 

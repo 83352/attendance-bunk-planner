@@ -2,25 +2,26 @@
 
 import { useMemo, useSyncExternalStore } from 'react';
 import { calculateAttendance } from '@/domain/attendance/engine';
-import type { AttendanceResult } from '@/domain/attendance/types';
 import type { CalendarOverrides } from '@/lib/portal/calendar-overrides';
 import type { PortalSyncResult, PortalTimetableSession } from '@/lib/portal/campx-client';
-import { answerKey, parseAnswers, pruneAnswers, readRawAnswers, readRawTarget, saveAnswer, saveTarget, subscribeSaved, type Answer } from '@/lib/portal/saved-answers';
+import { answerKey, parseAnswers, pruneAnswers, readRawAnswers, saveAnswer, subscribeSaved, type Answer } from '@/lib/portal/saved-answers';
 import {
   buildCalculationInput,
   describeActivePatches,
   findUngradedPastSessions,
   hasUnscheduledExamGap,
+  pastOverridesFromAnswers,
   patchedTimetable,
-  type PastOverrides,
 } from '@/lib/portal/to-calculation-input';
 import { MonthCalendar } from '../MonthCalendar';
 import { RawDataDump } from './RawDataDump';
+import { SubjectsCard } from './SubjectsCard';
 import { ResultCard } from './ResultCard';
-import { tierFor } from './result-tier';
+import { resultTier } from './result-tier';
 import { UngradedList } from './UngradedList';
 
-const TARGET_PRESETS = [75, 80, 85];
+/** The college minimum. Every student is judged on it, so it's the only target the page works with. */
+const TARGET = 75;
 
 /** Everything that happens once we have real portal data: ask about ungraded past sessions, then compute and show the result. */
 export function SyncedResult({ data, overrides }: { data: PortalSyncResult; overrides: CalendarOverrides | null }) {
@@ -29,38 +30,42 @@ export function SyncedResult({ data, overrides }: { data: PortalSyncResult; over
   const patched = useMemo(() => patchedTimetable(data, overrides, now), [data, overrides, now]);
   const patchNotes = useMemo(() => describeActivePatches(data, overrides, now), [data, overrides, now]);
 
-  // Answers and the target live in localStorage (so they survive a reload) and
-  // are read through useSyncExternalStore: the server snapshot is "nothing
-  // saved", so this view can be server-rendered without a hydration mismatch.
+  // Answers live in localStorage (so they survive a reload) and are read
+  // through useSyncExternalStore: the server snapshot is "nothing saved", so
+  // this view can be server-rendered without a hydration mismatch.
   const rawAnswers = useSyncExternalStore(subscribeSaved, readRawAnswers, () => null);
-  const rawTarget = useSyncExternalStore(subscribeSaved, readRawTarget, () => null);
   const answers = useMemo(() => pruneAnswers(parseAnswers(rawAnswers), ungraded.map(answerKey)), [rawAnswers, ungraded]);
-  const target = rawTarget ?? '75';
 
   const answeredCount = ungraded.filter((session) => answers[answerKey(session)]).length;
   const allAnswered = answeredCount === ungraded.length;
-  const targetNum = Number(target);
-  const targetValid = target.trim() !== '' && Number.isFinite(targetNum) && targetNum > 0 && targetNum <= 100;
+  const periodsToAnswer = ungraded.reduce((sum, session) => sum + Math.max(1, session.periods.length), 0);
 
-  // Live: shows as soon as every unmarked period is answered (immediately if
-  // there are none) and follows the target as it is typed.
+  // Shows as soon as every unmarked period is answered (immediately if there
+  // are none). Answers are counted in periods, so a double period counts twice.
   const { result, tier } = useMemo(() => {
-    if (!targetValid || !allAnswered) return { result: null, tier: null };
-    const pastOverrides: PastOverrides = { attended: 0, bunked: 0 };
-    for (const session of ungraded) {
-      if (answers[answerKey(session)] === 'attended') pastOverrides.attended += 1;
-      else pastOverrides.bunked += 1;
-    }
-    const calculateAt = (targetPercentage: number): AttendanceResult =>
-      calculateAttendance(buildCalculationInput(data, targetPercentage, pastOverrides, now, overrides));
-    const atTarget = calculateAt(targetNum);
-    // The Safe/Careful/Tight/Danger label is always about the 75% line, not the typed target.
-    return { result: atTarget, tier: tierFor((pct) => (pct === targetNum ? atTarget : calculateAt(pct))) };
-  }, [targetValid, allAnswered, answers, ungraded, data, targetNum, now, overrides]);
+    if (!allAnswered) return { result: null, tier: null };
+    const atTarget = calculateAttendance(buildCalculationInput(data, TARGET, pastOverridesFromAnswers(ungraded, answers), now, overrides));
+    return { result: atTarget, tier: resultTier(atTarget) };
+  }, [allAnswered, answers, ungraded, data, now, overrides]);
 
   const onAnswer = (session: PortalTimetableSession, answer: Answer) => {
     saveAnswer(answerKey(session), answer, ungraded.map(answerKey));
   };
+
+  // The calendar shows the student's own answers as if the portal had marked those periods,
+  // and flags only the days that still need one.
+  const ungradedKeys = useMemo(() => new Set(ungraded.map(answerKey)), [ungraded]);
+  const calendarTimetable = useMemo(
+    () => patched.map((session) => {
+      const answer = ungradedKeys.has(answerKey(session)) ? answers[answerKey(session)] : undefined;
+      return answer ? { ...session, attended: answer === 'attended' } : session;
+    }),
+    [patched, ungradedKeys, answers],
+  );
+  const needsAnswerDates = useMemo(
+    () => new Set(ungraded.filter((session) => !answers[answerKey(session)]).map((session) => session.date)),
+    [ungraded, answers],
+  );
 
   const headsUp = [
     ...patchNotes,
@@ -70,42 +75,21 @@ export function SyncedResult({ data, overrides }: { data: PortalSyncResult; over
 
   return (
     <div className="grid gap-5">
-      {ungraded.length > 0 && <UngradedList sessions={ungraded} answers={answers} onAnswer={onAnswer} />}
-
-      <section className="card animate-rise p-4 phone:p-5" style={{ animationDelay: '60ms' }}>
-        <label htmlFor="target" className="eyebrow-text mb-1.5 block text-[12px] text-teal">Target attendance</label>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative w-28">
-            <input
-              id="target"
-              type="number"
-              inputMode="numeric"
-              min="1"
-              max="100"
-              value={target}
-              onChange={(event) => saveTarget(event.target.value)}
-              className="field pr-8"
-            />
-            <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-3 grid place-items-center font-term text-[14px] text-muted">%</span>
-          </div>
-          {TARGET_PRESETS.map((preset) => (
-            <button key={preset} type="button" aria-pressed={targetNum === preset} onClick={() => saveTarget(String(preset))} className={`chip ${targetNum === preset ? '!border-link !text-link' : ''}`}>
-              {preset}%
-            </button>
-          ))}
-        </div>
-        {!targetValid && <p role="alert" className="m-0 mt-2 font-term text-[12px] font-bold text-error">Enter a target between 1 and 100.</p>}
-      </section>
+      {ungraded.length > 0 && <UngradedList sessions={ungraded} periodCount={periodsToAnswer} answers={answers} onAnswer={onAnswer} />}
 
       {result && tier ? (
         <ResultCard result={result} tier={tier} />
       ) : (
-        <section className="card animate-rise p-5 font-term text-[14px] leading-[1.5] text-muted" role="status">
-          {!allAnswered
-            ? `Mark the periods above to see your result (${answeredCount} of ${ungraded.length} marked).`
-            : 'Enter a target between 1 and 100 to see your result.'}
+        <section className="card animate-rise p-5" role="status">
+          <p className="heading m-0 flex items-center gap-2 text-[18px]"><span aria-hidden="true">🔒</span> Your result is locked</p>
+          <p className="m-0 mt-1.5 text-[15px] leading-[1.5] text-muted">
+            Answer the {ungraded.length === 1 ? 'class' : `${ungraded.length} classes`} above to unlock it ({answeredCount} of {ungraded.length} done).
+            Every answer is needed so the number is exact.
+          </p>
         </section>
       )}
+
+      <SubjectsCard subjects={data.semesterSummary.subjects} target={TARGET} />
 
       {result && headsUp.length > 0 && (
         <section className="card animate-rise border-l-[length:6px] !border-l-orange bg-warning-bg p-4" role="note">
@@ -117,7 +101,13 @@ export function SyncedResult({ data, overrides }: { data: PortalSyncResult; over
       )}
 
       <section className="card animate-rise p-4 phone:p-5" style={{ animationDelay: '120ms' }}>
-        <MonthCalendar timetable={patched} overrides={overrides} />
+        <MonthCalendar
+          timetable={calendarTimetable}
+          overrides={overrides}
+          needsAnswerDates={needsAnswerDates}
+          answerableKeys={ungradedKeys}
+          onAnswer={onAnswer}
+        />
       </section>
 
       <details className="card">

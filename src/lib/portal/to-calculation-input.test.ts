@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { calculateAttendance } from '@/domain/attendance/engine';
 import type { PortalSyncResult, PortalTimetableSession } from './campx-client';
 import type { CalendarOverrides } from './calendar-overrides';
-import { buildCalculationInput, findUngradedPastSessions, hasUnscheduledExamGap, patchedTimetable } from './to-calculation-input';
+import { answerKey } from './saved-answers';
+import { buildCalculationInput, findUngradedPastSessions, hasUnscheduledExamGap, pastOverridesFromAnswers, patchedTimetable, periodCount } from './to-calculation-input';
 
 const now = new Date('2026-09-10T05:00:00.000Z'); // 2026-09-10 in IST
 
@@ -137,5 +138,27 @@ describe('patchedTimetable', () => {
     const added = patchedTimetable(data, overrides, now).filter((s) => s.synthetic);
     expect(added.map((s) => s.date)).toEqual(['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07']);
     expect(added.every((s) => s.periods.length === 2)).toBe(true);
+  });
+});
+
+describe('pastOverridesFromAnswers', () => {
+  const single = session({ date: '2026-09-09', periods: [1], subjectName: 'Software Engineering' });
+  const double = session({ date: '2026-09-09', fromTime: '13:00:00', toTime: '15:00:00', periods: [4, 5], subjectName: 'Node JS Lab' });
+
+  it('counts a double period as 2 periods, not 1 session', () => {
+    expect(periodCount(double)).toBe(2);
+    const answers = { [answerKey(single)]: 'attended' as const, [answerKey(double)]: 'bunked' as const };
+    expect(pastOverridesFromAnswers([single, double], answers)).toEqual({ attended: 1, bunked: 2 });
+  });
+
+  it('ignores sessions without an answer', () => {
+    expect(pastOverridesFromAnswers([single, double], { [answerKey(double)]: 'attended' })).toEqual({ attended: 2, bunked: 0 });
+  });
+
+  it('adds every answered period to held (portal 348 + 1 + 2 = 351, not 350)', () => {
+    const portal = { ...data, primaryAttendance: { ...data.primaryAttendance, numberOfClasses: 348, present: 277 } };
+    const overrides = pastOverridesFromAnswers([single, double], { [answerKey(single)]: 'attended', [answerKey(double)]: 'bunked' });
+    const input = buildCalculationInput(portal, 75, overrides, now);
+    expect(input.exactCounts).toEqual({ held: 351, attended: 278 });
   });
 });

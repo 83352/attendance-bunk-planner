@@ -5,6 +5,7 @@ import { currentIstDate } from '@/domain/schedule/calendar';
 import type { CalendarOverrides } from '@/lib/portal/calendar-overrides';
 import type { PortalTimetableSession } from '@/lib/portal/campx-client';
 import { portalMonthData, semesterBounds } from '@/lib/portal/month-data';
+import type { Answer } from '@/lib/portal/saved-answers';
 import { CalendarLegend, MONTH_NAMES, MonthGrid } from './MonthGrid';
 
 /** Encodes a year+month pair as one comparable integer for clamping/stepping. */
@@ -22,7 +23,17 @@ function clamp(value: number, min: number, max: number): number {
  * Shows the current month, highlighting today, with Prev/Next arrows clamped
  * to the semester's range.
  */
-export function MonthCalendar({ timetable, overrides }: { timetable: PortalTimetableSession[]; overrides: CalendarOverrides | null }) {
+type MonthCalendarProps = {
+  timetable: PortalTimetableSession[];
+  overrides: CalendarOverrides | null;
+  /** Days with a past period still waiting for the student's answer: marked with a "?". */
+  needsAnswerDates?: ReadonlySet<string>;
+  /** Keys (see answerKey) of periods the student can answer from a tapped day, and the handler. */
+  answerableKeys?: ReadonlySet<string>;
+  onAnswer?: (session: PortalTimetableSession, answer: Answer) => void;
+};
+
+export function MonthCalendar({ timetable, overrides, needsAnswerDates, answerableKeys, onAnswer }: MonthCalendarProps) {
   const bounds = semesterBounds(timetable, overrides);
   const todayIso = currentIstDate(new Date());
   const [viewKey, setViewKey] = useState<number | null>(null);
@@ -40,11 +51,12 @@ export function MonthCalendar({ timetable, overrides }: { timetable: PortalTimet
   const startKey = monthKey(startDate.getUTCFullYear(), startDate.getUTCMonth());
   const endKey = monthKey(endDate.getUTCFullYear(), endDate.getUTCMonth());
   const today = new Date(`${todayIso}T00:00:00Z`);
-  const clampedKey = clamp(viewKey ?? monthKey(today.getUTCFullYear(), today.getUTCMonth()), startKey, endKey);
+  const todayKey = clamp(monthKey(today.getUTCFullYear(), today.getUTCMonth()), startKey, endKey);
+  const clampedKey = clamp(viewKey ?? todayKey, startKey, endKey);
   const viewYear = Math.floor(clampedKey / 12);
   const viewMonth = ((clampedKey % 12) + 12) % 12;
 
-  const data = portalMonthData(timetable, overrides, bounds, viewYear, viewMonth, todayIso);
+  const data = portalMonthData(timetable, overrides, bounds, viewYear, viewMonth, todayIso, needsAnswerDates);
   const animateClass = direction === 'next' ? 'animate-month-in-next' : 'animate-month-in-prev';
   const goTo = (nextKey: number, dir: 'next' | 'prev') => {
     setDirection(dir);
@@ -60,6 +72,9 @@ export function MonthCalendar({ timetable, overrides }: { timetable: PortalTimet
           <h2 key={clampedKey} className={`m-0 heading text-[20px] leading-none ${animateClass}`}>{MONTH_NAMES[viewMonth]} {viewYear}</h2>
         </div>
         <div className="flex shrink-0 gap-2">
+          {clampedKey !== todayKey && (
+            <button type="button" onClick={() => goTo(todayKey, clampedKey > todayKey ? 'prev' : 'next')} className="chip">Today</button>
+          )}
           <button type="button" onClick={() => goTo(clampedKey - 1, 'prev')} disabled={clampedKey <= startKey} className="chip !px-0 text-[16px]" aria-label="Previous month">‹</button>
           <button type="button" onClick={() => goTo(clampedKey + 1, 'next')} disabled={clampedKey >= endKey} className="chip !px-0 text-[16px]" aria-label="Next month">›</button>
         </div>
@@ -71,6 +86,8 @@ export function MonthCalendar({ timetable, overrides }: { timetable: PortalTimet
           sessionsByDate={sessionsByDate}
           expandedDay={expandedDay}
           onDayClick={(iso) => setExpandedDay((prev) => (prev === iso ? null : iso))}
+          answerableKeys={answerableKeys}
+          onAnswer={onAnswer}
         />
       </div>
       <CalendarLegend />

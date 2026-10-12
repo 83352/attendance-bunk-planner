@@ -57,3 +57,11 @@ describe('day attendance colour', () => {
     expect(cellFor([marked('2026-09-01', true), marked('2026-09-01', null, true)]).attendance).toBe('attended');
   });
 });
+
+describe('needs-answer marker', () => {
+  it('flags only the dates passed in', () => {
+    const cells = portalMonthData([], null, { start: '2026-09-01', end: '2026-09-30' }, 2026, 8, '2026-09-30', new Set(['2026-09-03'])).dayCells;
+    expect(cells[2].needsAnswer).toBe(true);
+    expect(cells[0].needsAnswer).toBe(false);
+  });
+});

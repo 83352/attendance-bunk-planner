@@ -141,6 +141,8 @@ export type MonthDayCell = {
    * (every period bunked). Undefined for future days or days not fully marked.
    */
   attendance?: 'attended' | 'bunked' | 'absent';
+  /** A period that already ended is waiting for the student to say whether they attended it (portal-fed calendar only). */
+  needsAnswer?: boolean;
 };
 
 export type MonthCalendarData = {

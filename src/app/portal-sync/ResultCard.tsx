@@ -27,10 +27,10 @@ function daysRangeTip(result: AttendanceResult): string {
   return `It depends on which days you skip. Your longest day is ${WEEKDAY_NAMES[longest.weekday]} (${longest.periods} periods) and your shortest is ${WEEKDAY_NAMES[shortest.weekday]} (${shortest.periods}). Skipping the longest days first uses your ${result.maximumBunks} bunks up fastest: ${min} full ${min === 1 ? 'day' : 'days'}. Skipping the shortest first stretches them to ${max}. Based on the classes left in your timetable, not counting exam days.`;
 }
 
-/** The headline answer plus the numbers behind it. `tier` is judged against 75%, whatever target was typed. */
+/** The headline answer plus the numbers behind it. Everything is measured against 75%, the college minimum. */
 export function ResultCard({ result, tier }: { result: AttendanceResult; tier: Tier }) {
   const target = result.targetPercentage;
-  // Below the typed target: the useful number is how many classes in a row get you there.
+  // Below 75%: the useful number is how many classes in a row get you back.
   const needsRecovery = (result.recoveryToTarget.periodsRequired ?? 0) > 0;
   const recovery = result.recoveryToTarget;
   const headline = needsRecovery ? (recovery.periodsRequired ?? 0) : result.maximumBunks;
@@ -38,23 +38,27 @@ export function ResultCard({ result, tier }: { result: AttendanceResult; tier: T
   const { min, max } = result.fullDaysRange;
 
   return (
-    <section aria-live="polite" className="card animate-pop">
+    // relative z-10: lets the info tip inside open over the calendar card below instead of being clipped by it.
+    <section aria-live="polite" aria-labelledby="result-heading" className="card animate-pop relative z-10">
       <div className={`p-5 phone:p-6 ${TIER_STYLES[tier]}`}>
         <div className="mb-3 flex items-center justify-between gap-2">
-          <p className="m-0 font-term text-[13px] font-bold">{needsRecovery ? 'Attendance recovery' : 'Your bunk budget'}</p>
+          <h2 id="result-heading" className="m-0 font-term text-[14px] font-bold">{needsRecovery ? `Get back to ${target}%` : 'Your bunk budget'}</h2>
           <span className="rounded-full border border-current px-2.5 py-0.5 font-term text-[12px] font-bold">{TIER_LABELS[tier]}</span>
         </div>
         <div className="heading text-[72px] leading-[.85] tabular-nums phone:text-[88px]">{Math.round(shownHeadline)}</div>
-        <p className="m-0 mt-3 font-term text-[14px] leading-[1.45] font-bold">
+        <p className="m-0 mt-3 text-[16px] leading-[1.45] font-bold">
           {needsRecovery ? (
             recovery.reachable ? (
-              <>classes in a row to reach {target}% (about {recovery.minimumCollegeDays} college days)</>
+              <>classes in a row to get back to {target}% (about {recovery.minimumCollegeDays} college days)</>
             ) : (
-              <>Not reachable this semester — best finish is {recovery.bestAchievablePercentage.toFixed(2)}%</>
+              <>{target}% isn&rsquo;t reachable this semester. Best possible finish: {recovery.bestAchievablePercentage.toFixed(2)}%</>
             )
           ) : (
-            <>periods you can bunk and still land at {result.finalPercentageAtMaximumBunks.toFixed(2)}%</>
+            <>periods you can bunk and still finish at {result.finalPercentageAtMaximumBunks.toFixed(2)}%</>
           )}
+        </p>
+        <p className="m-0 mt-2 text-[14px] leading-[1.45]">
+          You&rsquo;re at <strong className="tabular-nums">{result.updatedCurrentPercentage.toFixed(2)}%</strong> now · {target}% is the college minimum
         </p>
       </div>
       <div className="grid grid-cols-2 gap-px border-t border-edge bg-edge phone:grid-cols-4">
@@ -85,7 +89,7 @@ function Stat({ label, value, note, tip }: { label: string; value: React.ReactNo
     <div className="bg-paper p-3">
       <span className="eyebrow-text flex items-center gap-1.5 text-[12px] text-muted">{label}{tip}</span>
       <strong className="heading mt-1 block text-[24px] tabular-nums">{value}</strong>
-      <small className="block font-term text-[12px] text-muted">{note}</small>
+      <small className="block font-term text-[13px] text-muted">{note}</small>
     </div>
   );
 }
