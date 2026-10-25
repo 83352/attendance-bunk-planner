@@ -34,7 +34,7 @@ export function LoginCard({ formAction, pending, error, timings, notice }: { for
   return (
     <section className="card animate-rise p-5 phone:p-6">
       {notice && (
-        <p role="status" className="m-0 mb-4 rounded-[var(--ui-radius-sm)] border border-present bg-present-bg p-2.5 text-[14px] font-bold text-present">
+        <p role="status" className="animate-rise m-0 mb-4 rounded-[var(--ui-radius-sm)] border border-present bg-present-bg p-2.5 text-[14px] font-bold text-present">
           {notice}
         </p>
       )}
@@ -68,7 +68,7 @@ export function LoginCard({ formAction, pending, error, timings, notice }: { for
             }}
             className={`field ${errors.rollNumber ? 'input-error' : ''}`}
           />
-          {errors.rollNumber && <span id="rollNumberError" role="alert" className="font-term text-[13px] text-error">{errors.rollNumber}</span>}
+          {errors.rollNumber && <span id="rollNumberError" role="alert" className="animate-rise font-term text-[13px] text-error">{errors.rollNumber}</span>}
         </div>
         <div className="grid gap-1.5 text-[14px] font-bold text-black">
           <label htmlFor="password">CampX password</label>
@@ -89,16 +89,16 @@ export function LoginCard({ formAction, pending, error, timings, notice }: { for
               onClick={() => setShowPassword((value) => !value)}
               aria-pressed={showPassword}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
-              className="absolute inset-y-0 right-0 min-w-14 cursor-pointer font-term text-[12px] font-bold text-link"
+              className="absolute inset-y-0 right-0 min-w-14 cursor-pointer font-term text-[12px] font-bold text-link transition-opacity hover:opacity-70"
             >
               {showPassword ? 'Hide' : 'Show'}
             </button>
           </div>
-          {errors.password && <span id="passwordError" role="alert" className="font-term text-[13px] text-error">{errors.password}</span>}
+          {errors.password && <span id="passwordError" role="alert" className="animate-rise font-term text-[13px] text-error">{errors.password}</span>}
         </div>
 
         {error && (
-          <p role="alert" className="m-0 rounded-[var(--ui-radius-sm)] border border-error bg-danger-bg p-2.5 font-term text-[13px] font-bold text-error">
+          <p role="alert" className="animate-rise m-0 rounded-[var(--ui-radius-sm)] border border-error bg-danger-bg p-2.5 font-term text-[13px] font-bold text-error">
             {error}
           </p>
         )}
@@ -114,7 +114,7 @@ export function LoginCard({ formAction, pending, error, timings, notice }: { for
         )}
 
         <button type="submit" disabled={pending} className="btn-calculate btn-calculate-hover">
-          {pending ? 'Signing in…' : 'Sign in'}
+          {pending ? <>Signing in<i aria-hidden="true" className="ml-2 inline-flex gap-1 align-middle"><i className="dot-pulse" /><i className="dot-pulse" style={{ animationDelay: '.15s' }} /><i className="dot-pulse" style={{ animationDelay: '.3s' }} /></i></> : 'Sign in'}
         </button>
       </form>
 

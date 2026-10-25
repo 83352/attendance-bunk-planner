@@ -5,14 +5,17 @@ import { useEffect, useRef } from 'react';
 /**
  * Blocks the whole site when the portal stops answering the way dontbunk
  * expects. A native modal dialog: the page behind it is inert, and it can't be
- * dismissed (Escape is swallowed, there is no close button).
+ * dismissed (no close button, and Escape or any other close reopens it).
  */
 export function MaintenanceNotice() {
   const dialog = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     const element = dialog.current;
-    if (element && !element.open) element.showModal();
+    if (!element) return;
+    // Browsers that support it ignore Escape and other close requests outright.
+    element.setAttribute('closedby', 'none');
+    if (!element.open) element.showModal();
   }, []);
 
   return (
@@ -21,6 +24,8 @@ export function MaintenanceNotice() {
       aria-labelledby="maintenance-title"
       aria-describedby="maintenance-body"
       onCancel={(event) => event.preventDefault()}
+      // Escape can't always be stopped (browsers allow it before the visitor has interacted), so a close just reopens it.
+      onClose={(event) => event.currentTarget.showModal()}
       className="m-auto w-[min(440px,calc(100vw-32px))] rounded-[var(--ui-radius)] border-[length:var(--ui-border)] border-edge bg-paper p-0 text-black shadow-hard backdrop:bg-black/80"
     >
       <div role="alert" className="grid gap-3 p-5 text-[15px] leading-[1.55] phone:p-6">

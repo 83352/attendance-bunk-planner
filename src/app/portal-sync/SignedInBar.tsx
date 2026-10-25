@@ -16,7 +16,7 @@ export function SignedInBar({ semester, rollNumber, formAction, pending }: { sem
         </div>
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1.5 font-term text-[13px] text-muted">
-            <span aria-hidden="true" className="size-2 rounded-full bg-present" />
+            <span aria-hidden="true" className="size-2 rounded-full bg-present animate-status-ping" />
             Signed in{rollNumber && <> as <strong className="font-bold text-black">{rollNumber}</strong></>}
           </span>
           {!confirming && (
@@ -27,7 +27,7 @@ export function SignedInBar({ semester, rollNumber, formAction, pending }: { sem
         </div>
       </div>
       {confirming && (
-        <div role="alertdialog" aria-labelledby="logout-question" className="card flex flex-wrap items-center justify-between gap-3 p-3">
+        <div role="alertdialog" aria-labelledby="logout-question" className="card animate-calendar-pop flex flex-wrap items-center justify-between gap-3 p-3">
           <p id="logout-question" className="m-0 text-[15px] leading-[1.4]">Log out? Your saved answers on this device will be cleared.</p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setConfirming(false)} className="chip">Cancel</button>
@@ -40,7 +40,7 @@ export function SignedInBar({ semester, rollNumber, formAction, pending }: { sem
               onClick={() => clearSavedAnswers()}
               className="chip !border-error !text-error"
             >
-              {pending ? 'Logging out…' : 'Log out'}
+              {pending ? <>Logging out<i aria-hidden="true" className="ml-1.5 inline-flex gap-1 align-middle"><i className="dot-pulse" /><i className="dot-pulse" style={{ animationDelay: '.15s' }} /><i className="dot-pulse" style={{ animationDelay: '.3s' }} /></i></> : 'Log out'}
             </button>
           </div>
         </div>

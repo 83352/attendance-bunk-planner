@@ -55,7 +55,7 @@ export function InfoTip({ label, anchor = 'self', children }: { label: string; /
           id={id}
           role="note"
           ref={anchor === 'self' ? keepOnScreen : undefined}
-          className={`absolute z-30 mt-2 block rounded-[var(--ui-radius-sm)] border border-edge bg-paper p-3 font-term text-[13px] leading-[1.5] font-normal normal-case tracking-normal text-black shadow-[var(--shadow-hard-md)] ${
+          className={`animate-tip absolute z-30 mt-2 block rounded-[var(--ui-radius-sm)] border border-edge bg-paper p-3 font-term text-[13px] leading-[1.5] font-normal normal-case tracking-normal text-black shadow-[var(--shadow-hard-md)] ${
             anchor === 'self' ? 'left-0 top-full w-[min(320px,calc(100vw-32px))]' : 'inset-x-0 top-full'
           }`}
         >

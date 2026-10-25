@@ -61,7 +61,7 @@ const SECTIONS: { title: string; body: string[] }[] = [
   {
     title: 'Reading the calendar',
     body: [
-      'The number under a date is how many periods that day has. The mark in the corner is your attendance: a green tick means you attended every period, an amber half circle means you bunked at least one, and a red cross means you were absent all day. A dashed amber outline with a “?” means a class that day still needs your answer. Holidays, exam days and working Saturdays are tinted and labelled H, E and W. Tap a day to see each class; holidays show their name. “Today” jumps back to this month.',
+      'The mark in the corner is your attendance: a green tick means you attended every period, an amber half circle means you bunked at least one, and a red cross means you were absent all day. A dashed amber outline with a “?” means a class that day still needs your answer. Holidays, exam days and working Saturdays are tinted and labelled H, E and W. Tap a day to see each class; holidays show their name. “Today” jumps back to this month.',
     ],
   },
   {
@@ -81,7 +81,7 @@ export function HowItWorks() {
       <button
         type="button"
         onClick={() => dialog.current?.showModal()}
-        className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-[var(--ui-radius-sm)] border border-header-ink/40 bg-transparent px-3 font-term text-[13px] font-bold text-header-ink"
+        className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-[var(--ui-radius-sm)] border border-header-ink/40 bg-transparent px-3 font-term text-[13px] font-bold text-header-ink transition-[border-color,background-color,transform] duration-150 hover:border-header-ink hover:bg-header-ink/10 active:scale-[.97]"
       >
         <span aria-hidden="true" className="grid size-5 place-items-center rounded-full border border-current text-[12px] leading-none">?</span>
         <span className="hidden min-[400px]:inline">How it works</span>

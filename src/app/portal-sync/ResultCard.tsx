@@ -40,7 +40,8 @@ export function ResultCard({ result, tier }: { result: AttendanceResult; tier: T
   return (
     // relative z-10: lets the info tip inside open over the calendar card below instead of being clipped by it.
     <section aria-live="polite" aria-labelledby="result-heading" className="card animate-pop relative z-10">
-      <div className={`p-5 phone:p-6 ${TIER_STYLES[tier]}`}>
+      {/* Re-mounted when the answer changes, so the flash marks the new number. */}
+      <div key={`${tier}-${headline}`} className={`animate-flash p-5 phone:p-6 ${TIER_STYLES[tier]}`}>
         <div className="mb-3 flex items-center justify-between gap-2">
           <h2 id="result-heading" className="m-0 font-term text-[14px] font-bold">{needsRecovery ? `Get back to ${target}%` : 'Your bunk budget'}</h2>
           <span className="rounded-full border border-current px-2.5 py-0.5 font-term text-[12px] font-bold">{TIER_LABELS[tier]}</span>

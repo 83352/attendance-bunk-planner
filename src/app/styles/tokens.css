@@ -4,6 +4,13 @@
   :root {
     interpolate-size: allow-keywords;
   }
+  /* No grey flash on tap (every control has its own press state) and no double-tap zoom delay. */
+  button, summary, a, [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  /* Fewer one-word last lines in body copy. */
+  p { text-wrap: pretty; }
 }
 
 /* ---------------------------------------------------------------------------
@@ -123,6 +130,19 @@
     from { opacity: 0; transform: translateX(16px); }
     to { opacity: 1; transform: translateX(0); }
   }
+  /* Popovers (info tips): the individual translate/scale properties, so the
+     inline transform that keeps a tip on screen isn't overridden. */
+  --animate-tip: tip-in 0.14s ease-out both;
+  @keyframes tip-in {
+    from { translate: 0 -4px; scale: .97; }
+    to { translate: 0 0; scale: 1; }
+  }
+  /* "Signed in" dot: a soft ring that goes out a few times on arrival, then rests. */
+  --animate-status-ping: status-ping 1.8s ease-out 3;
+  @keyframes status-ping {
+    from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-present) 45%, transparent); }
+    to { box-shadow: 0 0 0 7px transparent; }
+  }
   --animate-month-in-prev: month-in-prev 0.22s ease-out both;
   @keyframes month-in-prev {
     from { opacity: 0; transform: translateX(-16px); }
@@ -150,6 +170,22 @@
 html { color-scheme: light; }
 /* The page itself needs a colour: every card, label and heading assumes ink on cream, and without this they inherit whatever the browser's canvas is. */
 body { background: var(--color-cream); color: var(--color-black); }
+
+/* Every dialog settles in (transform only, never a fade on the panel itself) over a backdrop that dims in. */
+dialog[open] { animation: var(--animate-pop); }
+dialog[open]::backdrop { animation: backdrop-in .2s ease-out both; }
+@keyframes backdrop-in {
+  from { opacity: 0; }
+}
+
+/* Dropdowns (<details>) slide open and closed instead of snapping. Browsers
+   without ::details-content just open instantly, as before. */
+details::details-content {
+  block-size: 0;
+  overflow-y: clip;
+  transition: block-size .26s cubic-bezier(.2, .7, .2, 1), content-visibility .26s allow-discrete;
+}
+details[open]::details-content { block-size: auto; }
 
 /* ---------------------------------------------------------------------------
    Repeated multi-property patterns, promoted to utilities so JSX stays
@@ -209,6 +245,7 @@ body { background: var(--color-cream); color: var(--color-black); }
   font-weight: var(--display-weight);
   letter-spacing: var(--display-tracking);
   text-transform: var(--display-transform);
+  text-wrap: balance;
 }
 @utility card {
   border: var(--ui-border) solid var(--color-edge);
@@ -240,7 +277,14 @@ body { background: var(--color-cream); color: var(--color-black); }
   font-family: var(--font-term);
   font-size: 13px;
   font-weight: 700;
-  transition: background .12s ease-out, transform .12s ease-out;
+  transition: background-color .14s ease-out, border-color .14s ease-out, color .14s ease-out, transform .12s ease-out, opacity .14s ease-out;
+  /* Hover only where a real pointer hovers: on touch screens :hover sticks after a tap. */
+  @media (hover: hover) and (pointer: fine) {
+    &:hover:not(:disabled):not([aria-pressed="true"]) { background-color: var(--color-cream); }
+  }
+  &:active:not(:disabled) { transform: translateY(1px) scale(.97); }
+  /* A choice that has just been picked gives a small bounce. */
+  &[aria-pressed="true"] { animation: var(--animate-chip-pop); }
   &:disabled { cursor: not-allowed; opacity: .5; }
 }
 @utility skeleton {

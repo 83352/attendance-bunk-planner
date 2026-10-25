@@ -99,7 +99,7 @@ type DayCellProps = {
 function DayCell({ cell, isExpanded, isTappable, onDayClick }: DayCellProps) {
   const { day, iso, count, inSemester, isHoliday, isExam, isSpecialSaturday, isToday, holidayName, examName, attendance, needsAnswer } = cell;
 
-  let className = 'relative flex h-[44px] flex-col items-center justify-center rounded-[var(--ui-radius-sm)] border-[length:var(--ui-border-sm)] text-[12px] transition-transform';
+  let className = 'relative flex h-[44px] flex-col items-center justify-center rounded-[var(--ui-radius-sm)] border-[length:var(--ui-border-sm)] text-[12px] transition-[transform,border-color,box-shadow] duration-150';
   if (!inSemester || (count === 0 && !isHoliday && !isExam && !isSpecialSaturday)) className += ' border-transparent bg-transparent text-muted opacity-40';
   else if (isHoliday) className += ' bg-holiday-bg border-edge text-holiday-ink';
   else if (isExam) className += ' bg-exam-bg border-edge text-exam-ink';
@@ -136,7 +136,6 @@ function DayCell({ cell, isExpanded, isTappable, onDayClick }: DayCellProps) {
       aria-label={srDetail}
     >
       <span className="text-[13px] leading-none font-bold">{day}</span>
-      {inSemester && count > 0 && <span className="mt-0.5 font-term text-[11px] leading-none font-bold opacity-70">{count}</span>}
       {detailKind === 'holiday' && <DayTypeMark letter="H" className="absolute bottom-[2px] left-[3px] text-holiday-ink" />}
       {detailKind === 'exam' && <DayTypeMark letter="E" className="absolute bottom-[2px] left-[3px] text-exam-ink" />}
       {detailKind === 'special' && <DayTypeMark letter="W" className="absolute bottom-[2px] left-[3px] text-special-ink" />}
@@ -219,7 +218,6 @@ export function CalendarLegend() {
         <span className={item}><span aria-hidden="true" className={`${tile} bg-special-bg text-special-ink`}>W</span> Working Saturday</span>
         <span className={item}><span aria-hidden="true" className="inline-grid size-[16px] place-items-center rounded-[3px] border border-dashed border-amber text-[11px] leading-none text-bunked-ink">?</span> Needs your answer</span>
       </div>
-      <p className="m-0 text-center font-normal">The number under a date is how many periods that day has.</p>
     </div>
   );
 }

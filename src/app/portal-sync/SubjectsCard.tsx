@@ -15,7 +15,7 @@ const SLOW_NOTICE_MS = 8_000;
  * lately), so it is only fetched when the student opens this, never with the
  * first screen.
  */
-export function SubjectsCard({ semNo, target, onLateIssue }: { semNo: number; target: number; onLateIssue: (kind: 'no-cookie' | 'rejected' | 'maintenance') => void }) {
+export function SubjectsCard({ semNo, target, onLateIssue, delayMs = 0 }: { semNo: number; target: number; /** Entrance delay, so it arrives just after the result. */ delayMs?: number; onLateIssue: (kind: 'no-cookie' | 'rejected' | 'maintenance') => void }) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [subjects, setSubjects] = useState<Extract<SubjectsState, { status: 'ready' }>['subjects']>([]);
   const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -38,13 +38,15 @@ export function SubjectsCard({ semNo, target, onLateIssue }: { semNo: number; ta
 
   return (
     <details
-      className="card animate-rise"
+      className="group card animate-rise"
+      style={{ animationDelay: `${delayMs}ms` }}
       onToggle={(event) => { if ((event.currentTarget as HTMLDetailsElement).open && phase === 'idle') void load(); }}
     >
       <summary className="flex cursor-pointer flex-wrap items-baseline justify-between gap-2 p-4 phone:px-5">
         <span className="heading text-[17px]">Subjects</span>
         <span className={`font-term text-[12px] font-bold ${phase === 'ready' ? (below > 0 ? 'text-error' : 'text-success') : 'text-muted'}`}>
           {phase === 'ready' ? (below > 0 ? `${below} below ${target}%` : `All at or above ${target}%`) : 'See each subject'}
+          <span aria-hidden="true" className="ml-2 inline-block transition-transform duration-200 group-open:rotate-180">▾</span>
         </span>
       </summary>
 
@@ -68,7 +70,7 @@ export function SubjectsCard({ semNo, target, onLateIssue }: { semNo: number; ta
         )}
 
         {(phase === 'slow' || phase === 'error') && (
-          <div role="alert" className="grid justify-items-start gap-3 font-term text-[13px] leading-[1.5]">
+          <div role="alert" className="animate-rise grid justify-items-start gap-3 font-term text-[13px] leading-[1.5]">
             <p className="m-0">{phase === 'slow' ? 'CampX didn’t answer in time. Their subject summary is very slow right now.' : 'Couldn’t load the subjects.'}</p>
             <button type="button" onClick={() => void load()} className="chip">Try again</button>
           </div>
@@ -76,8 +78,8 @@ export function SubjectsCard({ semNo, target, onLateIssue }: { semNo: number; ta
 
         {phase === 'ready' && (
           <ul className="m-0 grid list-none gap-2 p-0">
-            {rows.map((row) => (
-              <li key={row.name} className={`rounded-[var(--ui-radius-sm)] border p-3 ${row.belowTarget ? 'border-error bg-danger-bg' : 'border-edge'}`}>
+            {rows.map((row, index) => (
+              <li key={row.name} style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }} className={`animate-rise rounded-[var(--ui-radius-sm)] border p-3 ${row.belowTarget ? 'border-error bg-danger-bg' : 'border-edge'}`}>
                 <div className="flex items-baseline justify-between gap-3">
                   <span className={`font-term text-[14px] font-bold leading-[1.3] ${row.belowTarget ? 'text-error' : ''}`}>{row.name}</span>
                   <span className={`shrink-0 font-term text-[14px] font-bold tabular-nums ${row.belowTarget ? 'text-error' : ''}`}>{row.percentage.toFixed(1)}%</span>

@@ -90,10 +90,10 @@ export function SyncedResult({ data, overrides, onLateIssue }: { data: PortalSyn
         </section>
       )}
 
-      <SubjectsCard semNo={data.currentSemNo} target={TARGET} onLateIssue={onLateIssue} />
+      <SubjectsCard semNo={data.currentSemNo} target={TARGET} onLateIssue={onLateIssue} delayMs={60} />
 
       {result && headsUp.length > 0 && (
-        <section className="card animate-rise border-l-[length:6px] !border-l-orange bg-warning-bg p-4" role="note">
+        <section className="card animate-rise border-l-[length:6px] !border-l-orange bg-warning-bg p-4" role="note" style={{ animationDelay: '90ms' }}>
           <h2 className="heading m-0 mb-2 text-[15px]">Heads up</h2>
           <ul className="m-0 grid list-disc gap-1 pl-5 font-term text-[13px] leading-[1.5]">
             {headsUp.map((note) => <li key={note}>{note}</li>)}
@@ -101,7 +101,7 @@ export function SyncedResult({ data, overrides, onLateIssue }: { data: PortalSyn
         </section>
       )}
 
-      <section className="card animate-rise p-4 phone:p-5" style={{ animationDelay: '120ms' }}>
+      <section className="card animate-rise p-4 phone:p-5" style={{ animationDelay: '140ms' }}>
         <MonthCalendar
           timetable={calendarTimetable}
           overrides={overrides}

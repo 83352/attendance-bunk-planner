@@ -20,7 +20,7 @@ export function UngradedList({ sessions, periodCount, answers, onAnswer }: { ses
 
   if (complete && !editing) {
     return (
-      <section className="card animate-rise flex flex-wrap items-center justify-between gap-3 p-4">
+      <section key="summary" className="card animate-rise flex flex-wrap items-center justify-between gap-3 p-4">
         <p className="m-0 flex items-center gap-2 text-[15px] leading-[1.4]">
           <span aria-hidden="true" className="font-bold text-success">✓</span>
           <span><strong>{what}</strong> the portal hasn&rsquo;t marked yet: answered</span>
@@ -31,10 +31,10 @@ export function UngradedList({ sessions, periodCount, answers, onAnswer }: { ses
   }
 
   return (
-    <section className="card animate-rise p-4 phone:p-5">
+    <section key="questions" className="card animate-rise p-4 phone:p-5">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="heading m-0 text-[18px]">Required: did you attend these?</h2>
-        <span className={`font-term text-[13px] font-bold ${complete ? 'text-success' : 'text-muted'}`}>{answered} of {sessions.length} answered</span>
+        <span className={`font-term text-[13px] font-bold transition-colors ${complete ? 'text-success' : 'text-muted'}`}>{answered} of {sessions.length} answered</span>
       </div>
       <p className="m-0 mb-3 text-[15px] leading-[1.5] text-muted">
         The portal hasn&rsquo;t marked {what} yet. Your result unlocks once you answer {sessions.length === 1 ? 'it' : 'all of them'}, so the number is exact. Answers stay on this device.
@@ -45,7 +45,7 @@ export function UngradedList({ sessions, periodCount, answers, onAnswer }: { ses
         ))}
       </div>
       {complete && (
-        <button type="button" onClick={() => setEditing(false)} className="chip mt-3" aria-expanded>Done</button>
+        <button type="button" onClick={() => setEditing(false)} className="chip animate-rise mt-3" aria-expanded>Done</button>
       )}
     </section>
   );
