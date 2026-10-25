@@ -4,7 +4,8 @@ import { headers } from 'next/headers';
 import { SITE_UNDER_MAINTENANCE } from '@/lib/maintenance';
 import { PortalContractError } from '@/lib/portal/contract';
 import type { CalendarOverrides } from '@/lib/portal/calendar-overrides';
-import { loadSubjects, PortalSessionExpiredError, PortalSlowError, signIn, signOut, type CallTiming, type PortalSubjectAttendance, type PortalSyncResult } from '@/lib/portal/campx-client';
+import { cachedSubjects, forgetSession } from '@/lib/portal/portal-cache';
+import { PortalSessionExpiredError, PortalSlowError, signIn, signOut, type CallTiming, type PortalSubjectAttendance, type PortalSyncResult } from '@/lib/portal/campx-client';
 import { createRateLimiter } from './rate-limit';
 import { clearStoredSession, loadSyncState, readStoredSession, storeSession } from './session';
 
@@ -36,7 +37,10 @@ export async function syncFromPortal(_: PortalSyncState, formData: FormData): Pr
 
   if (intent === 'logout') {
     const stored = await readStoredSession();
-    if (stored) await signOut(stored);
+    if (stored) {
+      forgetSession(stored);
+      await signOut(stored);
+    }
     await clearStoredSession();
     return { status: 'idle', notice: 'You’re logged out. Your saved answers were cleared from this device.' };
   }
@@ -105,11 +109,12 @@ export async function fetchSubjects(semNo: number): Promise<SubjectsState> {
     return { status: 'expired', why: 'no-cookie' };
   }
   try {
-    return { status: 'ready', subjects: await loadSubjects(stored, semNo) };
+    return { status: 'ready', subjects: await cachedSubjects(stored, semNo) };
   } catch (error) {
     if (error instanceof PortalSlowError) return { status: 'slow' };
     if (error instanceof PortalSessionExpiredError) {
       console.error('[portal] subjects: CampX rejected the session.');
+      forgetSession(stored);
       await clearStoredSession();
       return { status: 'expired', why: 'rejected' };
     }

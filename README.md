@@ -37,7 +37,7 @@ Open http://localhost:3000. Signing in needs a real CampX account.
 | `NEXT_PUBLIC_SITE_URL` | Optional | Public URL for metadata, `robots.txt` and the sitemap. Defaults to `https://dontbunk.vercel.app`. |
 | `MAINTENANCE_MODE` | Optional | `off` lets a deployment through while the maintenance switch is on (e.g. previews); `on` forces maintenance. See below. |
 | `NEXT_PUBLIC_SHOW_DATA_CHECK` | Optional | `1` shows the "Data check" panel and per-call portal timings, for debugging against the portal. |
-| `PORTAL_TIMING_LOG` | Optional | `1` logs each portal call's status and duration in production (always on in development). |
+| `PORTAL_TIMING_LOG` | Optional | `1` (or `true`) logs each portal call's status and duration in production (always on in development). |
 
 Locally, put them in `.env.local`. Never commit it. On Vercel, environment changes apply on the next deploy.
 

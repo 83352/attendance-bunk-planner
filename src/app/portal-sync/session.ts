@@ -3,7 +3,8 @@ import { deflateRawSync, inflateRawSync } from 'node:zlib';
 import { cookies } from 'next/headers';
 import { loadCalendarOverrides, yearOfSemester } from '@/lib/portal/calendar-overrides';
 import { PortalContractError } from '@/lib/portal/contract';
-import { loadPortalData, PortalSessionExpiredError, PortalSlowError, type CallTiming, type PortalSession } from '@/lib/portal/campx-client';
+import { PortalSessionExpiredError, PortalSlowError, type CallTiming, type PortalSession } from '@/lib/portal/campx-client';
+import { cachedPortalData, forgetSession } from '@/lib/portal/portal-cache';
 import type { PortalSyncState } from './actions';
 
 /**
@@ -110,7 +111,7 @@ export async function clearStoredSession(): Promise<void> {
 /** Everything the page shows, for an already-signed-in session. Never throws: failures come back as an error state. */
 export async function loadSyncState(session: PortalSession, log: CallTiming[] = []): Promise<PortalSyncState> {
   try {
-    const data = await loadPortalData(session, log);
+    const data = await cachedPortalData(session, log);
     return { status: 'success', data, overrides: loadCalendarOverrides(yearOfSemester(data.currentSemNo)), rollNumber: session.rollNumber ?? null };
   } catch (error) {
     if (error instanceof PortalContractError) {
@@ -119,7 +120,10 @@ export async function loadSyncState(session: PortalSession, log: CallTiming[] = 
       return { status: 'maintenance' };
     }
     if (error instanceof PortalSlowError) return { status: 'error', message: 'CampX is taking too long to answer right now. Try again in a minute.', timings: log };
-    if (error instanceof PortalSessionExpiredError) return { status: 'error', message: 'Your session expired. Sign in again.', sessionExpired: true };
+    if (error instanceof PortalSessionExpiredError) {
+      forgetSession(session);
+      return { status: 'error', message: 'Your session expired. Sign in again.', sessionExpired: true };
+    }
     return { status: 'error', message: "Couldn't reach the portal. Try again in a moment.", timings: log };
   }
 }

@@ -30,7 +30,7 @@ const PLAIN_HEADERS = {
  * seen. On in development; in production set PORTAL_TIMING_LOG=1. Never logs
  * credentials, tokens or response bodies.
  */
-const LOG_TIMING = process.env.NODE_ENV !== 'production' || process.env.PORTAL_TIMING_LOG === '1';
+const LOG_TIMING = process.env.NODE_ENV !== 'production' || ['1', 'true'].includes((process.env.PORTAL_TIMING_LOG ?? '').trim().toLowerCase());
 
 /** One portal call's outcome, shown in the Data check panel so a slow or failing call can be spotted from the browser. */
 export type CallTiming = { label: string; status: number | 'failed'; ms: number };
@@ -307,18 +307,26 @@ export type PortalSyncResult = {
 };
 
 /**
+ * The student's current semester. Never asked for or guessed:
+ * `my-all-semester-attendance` reports the real `currentSemNo` regardless of
+ * which semNo the query asks for, so a cheap call (semNo=1, which always exists)
+ * finds it.
+ */
+export async function loadCurrentSemester(session: PortalSession, log: CallTiming[] = []): Promise<number> {
+  const probe = await getJson(session, '/student-api/student-attendance/my-all-semester-attendance?semNo=1', (body) => checkCurrentSemester(body), log);
+  return probe.currentSemNo;
+}
+
+/**
  * Fetches what the result needs, using an already-signed-in session (throws
  * `PortalSessionExpiredError` if the portal rejects it, `PortalSlowError` if it
- * doesn't answer in time). The semester is never asked for or guessed:
- * `my-all-semester-attendance` reports the student's real `currentSemNo`
- * regardless of which semNo the query asks for, so a cheap call (semNo=1, which
- * always exists) finds it. The heavy per-subject summary and the day-by-day
+ * doesn't answer in time). Pass `semNo` when it's already known to skip the
+ * lookup (see portal-cache.ts). The heavy per-subject summary and the day-by-day
  * attendance are deliberately not fetched here: they were by far the slowest
  * calls and nothing on the first screen needs them (see `loadSubjects`).
  */
-export async function loadPortalData(session: PortalSession, log: CallTiming[] = []): Promise<PortalSyncResult> {
-  const probe = await getJson(session, '/student-api/student-attendance/my-all-semester-attendance?semNo=1', (body) => checkCurrentSemester(body), log);
-  const semNo = probe.currentSemNo;
+export async function loadPortalData(session: PortalSession, log: CallTiming[] = [], knownSemNo?: number): Promise<PortalSyncResult> {
+  const semNo = knownSemNo ?? (await loadCurrentSemester(session, log));
 
   const [primaryAttendance, timetableRows] = await Promise.all([
     getJson(session, `/student-api/student-attendance/my-secondary-attendance?semNo=${semNo}`, (body) => checkPrimaryAttendance(body), log),

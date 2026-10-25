@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useState } from 'react';
+import { actionFailureMessage } from '@/lib/action-errors';
 import { syncFromPortal, type PortalSyncState } from './actions';
 import { LoginCard } from './LoginCard';
 import { MaintenanceNotice } from './MaintenanceNotice';
@@ -13,7 +14,14 @@ import { SyncedResult } from './SyncedResult';
  * computed from what the portal already knows — see SyncedResult.
  */
 export function PortalSyncForm({ initialState }: { initialState: PortalSyncState }) {
-  const [state, formAction, pending] = useActionState(syncFromPortal, initialState);
+  const [state, formAction, pending] = useActionState(async (previous: PortalSyncState, formData: FormData): Promise<PortalSyncState> => {
+    // A failed call (a tab from before a deploy, a dropped connection) becomes a message on the form instead of the error page.
+    try {
+      return await syncFromPortal(previous, formData);
+    } catch (error) {
+      return { status: 'error', message: actionFailureMessage(error) };
+    }
+  }, initialState);
   // Raised by something loaded later (the subjects list). Tied to the state it
   // happened in, so signing in again (a new state) clears it.
   const [lateIssue, setLateIssue] = useState<{ during: PortalSyncState; kind: 'no-cookie' | 'rejected' | 'maintenance' } | null>(null);

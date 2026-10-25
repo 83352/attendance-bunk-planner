@@ -1,10 +1,12 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { isStalePage } from '@/lib/action-errors';
 import { subjectRows } from '@/lib/portal/subject-status';
 import { fetchSubjects, type SubjectsState } from './actions';
 
-type Phase = 'idle' | 'loading' | 'waiting' | SubjectsState['status'];
+/** `stale`: this tab is from before a deploy and can't reach the new server until it's reloaded. */
+type Phase = 'idle' | 'loading' | 'waiting' | 'stale' | SubjectsState['status'];
 
 /** After this long we stop showing a plain loader and say CampX is being slow. */
 const SLOW_NOTICE_MS = 8_000;
@@ -23,7 +25,15 @@ export function SubjectsCard({ semNo, target, onLateIssue, delayMs = 0 }: { semN
   const load = async () => {
     setPhase('loading');
     slowTimer.current = setTimeout(() => setPhase((current) => (current === 'loading' ? 'waiting' : current)), SLOW_NOTICE_MS);
-    const result = await fetchSubjects(semNo);
+    let result: SubjectsState;
+    try {
+      result = await fetchSubjects(semNo);
+    } catch (error) {
+      // Not CampX: the call to our own server failed, so don't let the "CampX is slow" notice run on.
+      if (slowTimer.current) clearTimeout(slowTimer.current);
+      setPhase(isStalePage(error) ? 'stale' : 'error');
+      return;
+    }
     if (slowTimer.current) clearTimeout(slowTimer.current);
     if (result.status === 'ready') setSubjects(result.subjects);
     // These two replace the whole page (back to sign-in, or the maintenance notice), so they're handed up.
@@ -66,6 +76,13 @@ export function SubjectsCard({ semNo, target, onLateIssue, delayMs = 0 }: { semN
             <div className="grid gap-2" aria-hidden="true">
               {[0, 1, 2].map((index) => <div key={index} className="shimmer h-[58px]" style={{ animationDelay: `${index * 0.12}s` }} />)}
             </div>
+          </div>
+        )}
+
+        {phase === 'stale' && (
+          <div role="alert" className="animate-rise grid justify-items-start gap-3 font-term text-[13px] leading-[1.5]">
+            <p className="m-0">dontbunk was just updated. Reload the page to see your subjects.</p>
+            <button type="button" onClick={() => window.location.reload()} className="chip">Reload</button>
           </div>
         )}
 
