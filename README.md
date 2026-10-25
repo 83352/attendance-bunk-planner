@@ -35,7 +35,7 @@ Open http://localhost:3000. Signing in needs a real CampX account.
 | --- | --- | --- |
 | `SESSION_SECRET` | Production | Long random string used to encrypt the sign-in cookie. Without it, sign-in still works but students are asked again on every visit. Changing it signs everyone out. |
 | `NEXT_PUBLIC_SITE_URL` | Optional | Public URL for metadata, `robots.txt` and the sitemap. Defaults to `https://dontbunk.vercel.app`. |
-| `MAINTENANCE_MODE` | Optional | `off` lets a deployment through while the maintenance switch is on (e.g. previews); `on` forces maintenance. See below. |
+| `MAINTENANCE_MODE` | Optional | `off` lets a deployment through while the maintenance switch is on; `on` forces maintenance. See below. |
 | `NEXT_PUBLIC_SHOW_DATA_CHECK` | Optional | `1` shows the "Data check" panel and per-call portal timings, for debugging against the portal. |
 | `PORTAL_TIMING_LOG` | Optional | `1` (or `true`) logs each portal call's status and duration in production (always on in development). |
 
@@ -103,6 +103,8 @@ CI runs the same steps on every push to `main` and on pull requests.
 ## Deployment
 
 Vercel, in the Mumbai region (`bom1`, see `vercel.json`). Set `SESSION_SECRET` for Production and Preview.
+
+`vercel.json` also redirects every other address a deployment answers on (its own URL, the branch and team URLs) to the same path on `dontbunk.vercel.app`, so students only ever use the production site. It applies to deployments built from this code; previews of other branches follow their own `vercel.json`.
 
 ## Branches
 

@@ -1,4 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "regions": ["bom1"]
+  "regions": ["bom1"],
+  "redirects": [
+    {
+      "source": "/:path*",
+      "missing": [{ "type": "host", "value": "dontbunk.vercel.app" }],
+      "destination": "https://dontbunk.vercel.app/:path*",
+      "permanent": false
+    }
+  ]
 }
