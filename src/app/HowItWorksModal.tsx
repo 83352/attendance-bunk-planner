@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
+import { MadeBy } from './MadeBy';
 
 const SECTIONS: { title: string; body: string[] }[] = [
   {
@@ -107,6 +108,7 @@ export function HowItWorks() {
               </div>
             </section>
           ))}
+          <MadeBy />
         </div>
       </dialog>
     </>
