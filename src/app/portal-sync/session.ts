@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
+import { deflateRawSync, inflateRawSync } from 'node:zlib';
 import { cookies } from 'next/headers';
 import { loadCalendarOverrides, yearOfSemester } from '@/lib/portal/calendar-overrides';
 import { PortalContractError } from '@/lib/portal/contract';
@@ -18,6 +19,20 @@ import type { PortalSyncState } from './actions';
 const COOKIE_NAME = 'dontbunk_portal';
 const THIRTY_DAYS = 60 * 60 * 24 * 30;
 
+/**
+ * Browsers silently drop a cookie over about 4 KB, and the portal's session
+ * can be that big once encrypted, so the value is compressed and split across
+ * several cookies (`dontbunk_portal.0`, `.1`, …) of at most this many characters.
+ */
+const CHUNK_SIZE = 3000;
+const chunkName = (index: number) => `${COOKIE_NAME}.${index}`;
+
+export function splitIntoChunks(value: string): string[] {
+  const chunks: string[] = [];
+  for (let at = 0; at < value.length; at += CHUNK_SIZE) chunks.push(value.slice(at, at + CHUNK_SIZE));
+  return chunks;
+}
+
 /** Without SESSION_SECRET nothing is stored in production, so a misconfigured deploy fails loudly instead of leaving tokens unprotected. */
 function encryptionKey(): Buffer | null {
   const secret = process.env.SESSION_SECRET ?? (process.env.NODE_ENV === 'production' ? null : 'dontbunk-local-development-secret');
@@ -27,7 +42,7 @@ function encryptionKey(): Buffer | null {
 export function encryptSession(session: PortalSession, key: Buffer): string {
   const iv = randomBytes(12);
   const cipher = createCipheriv('aes-256-gcm', key, iv);
-  const encrypted = Buffer.concat([cipher.update(JSON.stringify(session), 'utf8'), cipher.final()]);
+  const encrypted = Buffer.concat([cipher.update(deflateRawSync(JSON.stringify(session))), cipher.final()]);
   return Buffer.concat([iv, cipher.getAuthTag(), encrypted]).toString('base64url');
 }
 
@@ -38,7 +53,7 @@ export function decryptSession(raw: string, key: Buffer): PortalSession | null {
     if (bytes.length < 28) return null;
     const decipher = createDecipheriv('aes-256-gcm', key, bytes.subarray(0, 12));
     decipher.setAuthTag(bytes.subarray(12, 28));
-    const json = Buffer.concat([decipher.update(bytes.subarray(28)), decipher.final()]).toString('utf8');
+    const json = inflateRawSync(Buffer.concat([decipher.update(bytes.subarray(28)), decipher.final()])).toString('utf8');
     const parsed = JSON.parse(json) as Partial<PortalSession>;
     if (typeof parsed.cookie !== 'string' || (parsed.bearer !== null && typeof parsed.bearer !== 'string')) return null;
     return { cookie: parsed.cookie, bearer: parsed.bearer ?? null, ...(typeof parsed.rollNumber === 'string' ? { rollNumber: parsed.rollNumber } : {}) };
@@ -48,9 +63,16 @@ export function decryptSession(raw: string, key: Buffer): PortalSession | null {
 }
 
 export async function readStoredSession(): Promise<PortalSession | null> {
-  const raw = (await cookies()).get(COOKIE_NAME)?.value;
   const key = encryptionKey();
-  return raw && key ? decryptSession(raw, key) : null;
+  if (!key) return null;
+  const store = await cookies();
+  let raw = '';
+  for (let index = 0; ; index++) {
+    const chunk = store.get(chunkName(index))?.value;
+    if (chunk === undefined) break;
+    raw += chunk;
+  }
+  return raw ? decryptSession(raw, key) : null;
 }
 
 /** Returns false when the session couldn't be stored (no SESSION_SECRET in production); the student then stays signed in for this visit only. */
@@ -60,18 +82,29 @@ export async function storeSession(session: PortalSession): Promise<boolean> {
     console.error('[session] SESSION_SECRET is not set, so the sign-in was not stored.');
     return false;
   }
-  (await cookies()).set(COOKIE_NAME, encryptSession(session, key), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/portal-sync',
-    maxAge: THIRTY_DAYS,
+  await clearStoredSession();
+  const store = await cookies();
+  const chunks = splitIntoChunks(encryptSession(session, key));
+  chunks.forEach((chunk, index) => {
+    store.set(chunkName(index), chunk, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/portal-sync',
+      maxAge: THIRTY_DAYS,
+    });
   });
+  // Sizes only, never the value.
+  console.log(`[session] stored sign-in in ${chunks.length} cookie(s), ${chunks.reduce((sum, chunk) => sum + chunk.length, 0)} characters`);
   return true;
 }
 
+/** Deletes every chunk, and the single cookie older versions used. */
 export async function clearStoredSession(): Promise<void> {
-  (await cookies()).delete({ name: COOKIE_NAME, path: '/portal-sync' });
+  const store = await cookies();
+  for (const { name } of store.getAll()) {
+    if (name === COOKIE_NAME || name.startsWith(`${COOKIE_NAME}.`)) store.delete({ name, path: '/portal-sync' });
+  }
 }
 
 /** Everything the page shows, for an already-signed-in session. Never throws: failures come back as an error state. */
