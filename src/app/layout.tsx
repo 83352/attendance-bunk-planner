@@ -2,10 +2,13 @@ import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./styles/tokens.css";
+import { SITE_UNDER_MAINTENANCE } from "@/lib/maintenance";
+import { MaintenanceNotice } from "./portal-sync/MaintenanceNotice";
+import { SiteHeader } from "./SiteHeader";
 
-// This branch is a standalone vertical slice for the portal-sync feature
-// only — the full dontbunk product (calculator, admin panel) lives on
-// improved-main. Metadata is deliberately minimal here.
+// The site is the portal-sync app; the earlier section-picker calculator and
+// admin panel live on the improved-main and portal branches. Metadata is
+// deliberately minimal here.
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://dontbunk.vercel.app"),
   title: "dontbunk — Can I bunk today?",
@@ -28,7 +31,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en-GB" className={`${fontDisplay.variable} ${fontSans.variable} ${fontTerm.variable}`}>
       <body>
-        {children}
+        {SITE_UNDER_MAINTENANCE ? (
+          <>
+            <SiteHeader />
+            <MaintenanceNotice reason="planned" />
+          </>
+        ) : children}
         <Analytics />
         <SpeedInsights />
       </body>
