@@ -20,7 +20,7 @@ export type PortalSyncState =
   /** The portal no longer answers the way dontbunk expects (see contract.ts): the whole site is blocked until it is fixed. */
   | { status: 'maintenance' }
   | { status: 'error'; message: string; /** Which portal calls ran and how long each took, shown under the error when something was slow or failed. */ timings?: CallTiming[]; /** The stored sign-in is no longer valid, so the form should be shown. */ sessionExpired?: boolean }
-  | { status: 'success'; data: PortalSyncResult; overrides: CalendarOverrides | null };
+  | { status: 'success'; data: PortalSyncResult; overrides: CalendarOverrides | null; /** The signed-in student's roll number, if known. */ rollNumber: string | null };
 
 /**
  * One action for the whole signed-in lifecycle, picked by the form's `intent`:
@@ -80,8 +80,10 @@ export async function syncFromPortal(_: PortalSyncState, formData: FormData): Pr
   }
 
   byRollNumber.clear(rollNumber);
-  if (!(await storeSession(login.session))) return { status: 'error', message: 'dontbunk couldn’t keep you signed in because of a server setup problem. Please tell the developer.' };
-  return loadSyncState(login.session, log);
+  // If it can't be stored (no SESSION_SECRET), sign-in still works for this visit; they'll just be asked again next time.
+  const session = { ...login.session, rollNumber };
+  await storeSession(session);
+  return loadSyncState(session, log);
 }
 
 export type SubjectsState =

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { clearSavedAnswers } from '@/lib/portal/saved-answers';
 
 /** Slim status row shown above the result: which semester, that you're signed in, and the way out (confirmed, since it clears saved answers). */
-export function SignedInBar({ semester, formAction, pending }: { semester: number; formAction: (formData: FormData) => void; pending: boolean }) {
+export function SignedInBar({ semester, rollNumber, formAction, pending }: { semester: number; rollNumber: string | null; formAction: (formData: FormData) => void; pending: boolean }) {
   const [confirming, setConfirming] = useState(false);
 
   return (
@@ -17,7 +17,7 @@ export function SignedInBar({ semester, formAction, pending }: { semester: numbe
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1.5 font-term text-[13px] text-muted">
             <span aria-hidden="true" className="size-2 rounded-full bg-present" />
-            Signed in
+            Signed in{rollNumber && <> as <strong className="font-bold text-black">{rollNumber}</strong></>}
           </span>
           {!confirming && (
             <button type="button" onClick={() => setConfirming(true)} disabled={pending} className="chip">

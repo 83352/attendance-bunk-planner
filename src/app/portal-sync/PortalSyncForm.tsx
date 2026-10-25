@@ -28,7 +28,7 @@ export function PortalSyncForm({ initialState }: { initialState: PortalSyncState
 
   return (
     <div className="grid gap-5">
-      <SignedInBar semester={state.data.currentSemNo} formAction={formAction} pending={pending} />
+      <SignedInBar semester={state.data.currentSemNo} rollNumber={state.rollNumber} formAction={formAction} pending={pending} />
       <SyncedResult
         key={`${state.data.primaryAttendance.numberOfClasses}-${state.data.primaryAttendance.present}-${state.data.timetable.length}`}
         data={state.data}

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { decryptSession, encryptSession } from './session';
 
 const key = createHash('sha256').update('test-secret').digest();
-const session = { cookie: 'sid=abc123', bearer: 'token-xyz' };
+const session = { cookie: 'sid=abc123', bearer: 'token-xyz', rollNumber: '24261A05A1' };
 
 describe('stored sign-in encryption', () => {
   it('round-trips a session', () => {

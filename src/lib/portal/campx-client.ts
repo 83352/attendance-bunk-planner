@@ -89,7 +89,7 @@ export type PortalLoginFailure =
   | { ok: false; reason: 'network-error'; message: string };
 
 /** What the portal hands back at login — enough to make further requests as the student, but not their password. */
-export type PortalSession = { cookie: string; bearer: string | null };
+export type PortalSession = { cookie: string; bearer: string | null; /** Who is signed in, kept with the session so it can be shown after a reload. */ rollNumber?: string };
 
 /** The portal no longer accepts this session (expired, or logged out elsewhere). */
 export class PortalSessionExpiredError extends Error {}

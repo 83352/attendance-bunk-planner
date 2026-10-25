@@ -41,7 +41,7 @@ export function decryptSession(raw: string, key: Buffer): PortalSession | null {
     const json = Buffer.concat([decipher.update(bytes.subarray(28)), decipher.final()]).toString('utf8');
     const parsed = JSON.parse(json) as Partial<PortalSession>;
     if (typeof parsed.cookie !== 'string' || (parsed.bearer !== null && typeof parsed.bearer !== 'string')) return null;
-    return { cookie: parsed.cookie, bearer: parsed.bearer ?? null };
+    return { cookie: parsed.cookie, bearer: parsed.bearer ?? null, ...(typeof parsed.rollNumber === 'string' ? { rollNumber: parsed.rollNumber } : {}) };
   } catch {
     return null;
   }
@@ -53,7 +53,7 @@ export async function readStoredSession(): Promise<PortalSession | null> {
   return raw && key ? decryptSession(raw, key) : null;
 }
 
-/** Returns false when the session couldn't be stored (no SESSION_SECRET in production). */
+/** Returns false when the session couldn't be stored (no SESSION_SECRET in production); the student then stays signed in for this visit only. */
 export async function storeSession(session: PortalSession): Promise<boolean> {
   const key = encryptionKey();
   if (!key) {
@@ -78,7 +78,7 @@ export async function clearStoredSession(): Promise<void> {
 export async function loadSyncState(session: PortalSession, log: CallTiming[] = []): Promise<PortalSyncState> {
   try {
     const data = await loadPortalData(session, log);
-    return { status: 'success', data, overrides: loadCalendarOverrides(yearOfSemester(data.currentSemNo)) };
+    return { status: 'success', data, overrides: loadCalendarOverrides(yearOfSemester(data.currentSemNo)), rollNumber: session.rollNumber ?? null };
   } catch (error) {
     if (error instanceof PortalContractError) {
       // Names the endpoint and field only, never any of the student's data.
