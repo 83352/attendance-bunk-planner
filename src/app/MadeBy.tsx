@@ -17,9 +17,8 @@ export function MadeBy() {
         </a>
       </p>
       <p className="m-0">
-        Found a problem?{' '}
         <a href={MAKER.whatsapp} target="_blank" rel="noopener noreferrer" className={LINK}>
-          Message on WhatsApp<span className="sr-only"> (opens in a new tab)</span>
+          Found a problem?<span className="sr-only"> Message on WhatsApp (opens in a new tab)</span>
         </a>
       </p>
     </div>
