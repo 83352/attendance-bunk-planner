@@ -25,7 +25,7 @@ import { UngradedList } from './UngradedList';
 const TARGET = 75;
 
 /** Everything that happens once we have real portal data: ask about ungraded past sessions, then compute and show the result. */
-export function SyncedResult({ data, overrides, onLateIssue }: { data: PortalSyncResult; overrides: CalendarOverrides | null; /** The subjects list found the sign-in expired, or the portal changed shape. */ onLateIssue: (kind: 'expired' | 'maintenance') => void }) {
+export function SyncedResult({ data, overrides, onLateIssue }: { data: PortalSyncResult; overrides: CalendarOverrides | null; /** The subjects list found the sign-in expired, or the portal changed shape. */ onLateIssue: (kind: 'no-cookie' | 'rejected' | 'maintenance') => void }) {
   const now = useMemo(() => new Date(), []);
   const ungraded = useMemo(() => findUngradedPastSessions(data, now, overrides), [data, now, overrides]);
   const patched = useMemo(() => patchedTimetable(data, overrides, now), [data, overrides, now]);

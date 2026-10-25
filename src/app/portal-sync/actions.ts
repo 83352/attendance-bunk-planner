@@ -89,21 +89,26 @@ export async function syncFromPortal(_: PortalSyncState, formData: FormData): Pr
 export type SubjectsState =
   | { status: 'ready'; subjects: PortalSubjectAttendance[] }
   | { status: 'slow' }
-  | { status: 'expired' }
+  /** `no-cookie`: this server never got the stored sign-in back; otherwise CampX itself refused the session. */
+  | { status: 'expired'; why: 'no-cookie' | 'rejected' }
   | { status: 'maintenance' }
   | { status: 'error' };
 
 /** Loads the per-subject summary on demand, with the signed-in student's stored session. */
 export async function fetchSubjects(semNo: number): Promise<SubjectsState> {
   const stored = await readStoredSession();
-  if (!stored) return { status: 'expired' };
+  if (!stored) {
+    console.error('[portal] subjects: no readable sign-in cookie (SESSION_SECRET unset or changed, or the browser did not send it).');
+    return { status: 'expired', why: 'no-cookie' };
+  }
   try {
     return { status: 'ready', subjects: await loadSubjects(stored, semNo) };
   } catch (error) {
     if (error instanceof PortalSlowError) return { status: 'slow' };
     if (error instanceof PortalSessionExpiredError) {
+      console.error('[portal] subjects: CampX rejected the session.');
       await clearStoredSession();
-      return { status: 'expired' };
+      return { status: 'expired', why: 'rejected' };
     }
     if (error instanceof PortalContractError) {
       console.error(`[portal] contract check failed: ${error.message}`);
