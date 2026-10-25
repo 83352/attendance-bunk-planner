@@ -1,11 +1,24 @@
 'use server';
 
+import { headers } from 'next/headers';
+import { PortalContractError } from '@/lib/portal/contract';
 import type { CalendarOverrides } from '@/lib/portal/calendar-overrides';
 import { loadSubjects, PortalSessionExpiredError, PortalSlowError, signIn, signOut, type CallTiming, type PortalSubjectAttendance, type PortalSyncResult } from '@/lib/portal/campx-client';
+import { createRateLimiter } from './rate-limit';
 import { clearStoredSession, loadSyncState, readStoredSession, storeSession } from './session';
+
+// Failed sign-ins only: five wrong passwords for one roll number, or twenty
+// from one address, pause further attempts for 15 minutes (see rate-limit.ts).
+const WINDOW_MS = 15 * 60 * 1000;
+const byRollNumber = createRateLimiter({ max: 5, windowMs: WINDOW_MS });
+const byAddress = createRateLimiter({ max: 20, windowMs: WINDOW_MS });
+
+const waitMessage = (seconds: number) => `Too many failed sign-ins. Try again in ${Math.ceil(seconds / 60)} ${Math.ceil(seconds / 60) === 1 ? 'minute' : 'minutes'}.`;
 
 export type PortalSyncState =
   | { status: 'idle'; /** Shown above the sign-in form, e.g. after logging out. */ notice?: string }
+  /** The portal no longer answers the way dontbunk expects (see contract.ts): the whole site is blocked until it is fixed. */
+  | { status: 'maintenance' }
   | { status: 'error'; message: string; /** Which portal calls ran and how long each took, shown under the error when something was slow or failed. */ timings?: CallTiming[]; /** The stored sign-in is no longer valid, so the form should be shown. */ sessionExpired?: boolean }
   | { status: 'success'; data: PortalSyncResult; overrides: CalendarOverrides | null };
 
@@ -34,12 +47,31 @@ export async function syncFromPortal(_: PortalSyncState, formData: FormData): Pr
   if (!rollNumber) return { status: 'error', message: 'Enter your roll number.' };
   if (!password) return { status: 'error', message: 'Enter your CampX password.' };
 
+  const address = (await headers()).get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+  const wait = Math.max(byRollNumber.retryAfter(rollNumber), byAddress.retryAfter(address));
+  if (wait > 0) return { status: 'error', message: waitMessage(wait) };
+
   const log: CallTiming[] = [];
-  const login = await signIn(rollNumber, password, log);
+  let login: Awaited<ReturnType<typeof signIn>>;
+  try {
+    login = await signIn(rollNumber, password, log);
+  } catch (error) {
+    if (error instanceof PortalContractError) {
+      console.error(`[portal] contract check failed: ${error.message}`);
+      return { status: 'maintenance' };
+    }
+    throw error;
+  }
   if (!login.ok) {
     switch (login.reason) {
       case 'wrong-password':
+        byRollNumber.fail(rollNumber);
+        byAddress.fail(address);
         return { status: 'error', message: 'Wrong roll number or password.' };
+      case 'rate-limited':
+        return { status: 'error', message: 'CampX is limiting sign-ins right now. Wait a few minutes and try again.' };
+      case 'portal-error':
+        return { status: 'error', message: 'CampX is having trouble right now. Try again in a few minutes.' };
       case 'mfa-required':
         return { status: 'error', message: "This account has two-step verification (MFA) turned on. dontbunk doesn't support MFA accounts yet." };
       case 'network-error':
@@ -47,7 +79,8 @@ export async function syncFromPortal(_: PortalSyncState, formData: FormData): Pr
     }
   }
 
-  await storeSession(login.session);
+  byRollNumber.clear(rollNumber);
+  if (!(await storeSession(login.session))) return { status: 'error', message: 'dontbunk couldn’t keep you signed in because of a server setup problem. Please tell the developer.' };
   return loadSyncState(login.session, log);
 }
 
@@ -55,6 +88,7 @@ export type SubjectsState =
   | { status: 'ready'; subjects: PortalSubjectAttendance[] }
   | { status: 'slow' }
   | { status: 'expired' }
+  | { status: 'maintenance' }
   | { status: 'error' };
 
 /** Loads the per-subject summary on demand, with the signed-in student's stored session. */
@@ -65,7 +99,14 @@ export async function fetchSubjects(semNo: number): Promise<SubjectsState> {
     return { status: 'ready', subjects: await loadSubjects(stored, semNo) };
   } catch (error) {
     if (error instanceof PortalSlowError) return { status: 'slow' };
-    if (error instanceof PortalSessionExpiredError) return { status: 'expired' };
+    if (error instanceof PortalSessionExpiredError) {
+      await clearStoredSession();
+      return { status: 'expired' };
+    }
+    if (error instanceof PortalContractError) {
+      console.error(`[portal] contract check failed: ${error.message}`);
+      return { status: 'maintenance' };
+    }
     return { status: 'error' };
   }
 }

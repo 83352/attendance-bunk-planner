@@ -1,8 +1,9 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import { syncFromPortal, type PortalSyncState } from './actions';
 import { LoginCard } from './LoginCard';
+import { MaintenanceNotice } from './MaintenanceNotice';
 import { SignedInBar } from './SignedInBar';
 import { SyncedResult } from './SyncedResult';
 
@@ -13,9 +14,16 @@ import { SyncedResult } from './SyncedResult';
  */
 export function PortalSyncForm({ initialState }: { initialState: PortalSyncState }) {
   const [state, formAction, pending] = useActionState(syncFromPortal, initialState);
+  // Raised by something loaded later (the subjects list). Tied to the state it
+  // happened in, so signing in again (a new state) clears it.
+  const [lateIssue, setLateIssue] = useState<{ during: PortalSyncState; kind: 'expired' | 'maintenance' } | null>(null);
+  const late = lateIssue?.during === state ? lateIssue.kind : null;
 
-  if (state.status !== 'success') {
-    return <LoginCard formAction={formAction} pending={pending} error={state.status === 'error' ? state.message : null} timings={state.status === 'error' ? state.timings : undefined} notice={state.status === 'idle' ? state.notice : null} />;
+  if (state.status === 'maintenance' || late === 'maintenance') return <MaintenanceNotice />;
+
+  if (state.status !== 'success' || late === 'expired') {
+    const error = late === 'expired' ? 'Your session expired. Sign in again.' : state.status === 'error' ? state.message : null;
+    return <LoginCard formAction={formAction} pending={pending} error={error} timings={state.status === 'error' ? state.timings : undefined} notice={state.status === 'idle' ? state.notice : null} />;
   }
 
   return (
@@ -25,6 +33,7 @@ export function PortalSyncForm({ initialState }: { initialState: PortalSyncState
         key={`${state.data.primaryAttendance.numberOfClasses}-${state.data.primaryAttendance.present}-${state.data.timetable.length}`}
         data={state.data}
         overrides={state.overrides}
+        onLateIssue={(kind) => setLateIssue({ during: state, kind })}
       />
     </div>
   );

@@ -13,6 +13,8 @@
  *     "Log out" revokes it at the portal and deletes the cookie.
  */
 
+import { checkCurrentSemester, checkPrimaryAttendance, checkSemesterSummary, checkTimetableRows, PortalContractError } from './contract';
+
 const API_BASE = 'https://api.campx.in';
 // This client is specific to MGIT's CampX workspace, matching the rest of
 // the app (BRANCH_GROUPS, section names, etc. are all MGIT-specific too).
@@ -82,6 +84,8 @@ export type PortalPrimaryAttendance = {
 export type PortalLoginFailure =
   | { ok: false; reason: 'wrong-password' }
   | { ok: false; reason: 'mfa-required' }
+  | { ok: false; reason: 'rate-limited' }
+  | { ok: false; reason: 'portal-error' }
   | { ok: false; reason: 'network-error'; message: string };
 
 /** What the portal hands back at login — enough to make further requests as the student, but not their password. */
@@ -136,6 +140,10 @@ export async function signIn(rollNumber: string, password: string, log?: CallTim
     return { ok: false, reason: 'network-error', message: err instanceof Error ? err.message : 'Could not reach the portal.' };
   }
 
+  // Only the statuses a bad login really produces count as a wrong password;
+  // a throttle or an outage must not tell students their password is wrong.
+  if (res.status === 429) return { ok: false, reason: 'rate-limited' };
+  if (res.status >= 500) return { ok: false, reason: 'portal-error' };
   if (res.status >= 400) return { ok: false, reason: 'wrong-password' };
 
   let body: unknown = null;
@@ -150,6 +158,9 @@ export async function signIn(rollNumber: string, password: string, log?: CallTim
     return { ok: false, reason: 'mfa-required' };
   }
 
+  // A successful login that hands back nothing to sign later requests with means the login flow changed.
+  if (!session.cookie && !session.bearer) throw new PortalContractError('login gave neither a session cookie nor a token');
+
   return { ok: true, session };
 }
 
@@ -160,11 +171,19 @@ export async function signOut(session: PortalSession): Promise<void> {
   }
 }
 
-async function getJson<T>(session: PortalSession, path: string, log?: CallTiming[], timeoutMs?: number): Promise<T> {
+/**
+ * Fetches and validates one endpoint. `check` throws `PortalContractError` when
+ * the response isn't the shape dontbunk was built for; an endpoint that has
+ * gone (404/405/410) or a body that isn't JSON counts as the same thing.
+ */
+async function getJson<T>(session: PortalSession, path: string, check: (body: unknown) => T, log?: CallTiming[], timeoutMs?: number): Promise<T> {
   const res = await timedFetch(`GET ${path.split('?')[0]}`, `${API_BASE}${path}`, { headers: authHeaders(session) }, log, timeoutMs);
   if (res.status === 401 || res.status === 403) throw new PortalSessionExpiredError(`Portal rejected the session for ${path}.`);
+  if (res.status === 404 || res.status === 405 || res.status === 410) throw new PortalContractError(`${path.split('?')[0]} no longer exists (status ${res.status})`);
   if (!res.ok) throw new Error(`Portal request to ${path} failed with status ${res.status}.`);
-  return res.json() as Promise<T>;
+  let body: unknown;
+  try { body = await res.json(); } catch { throw new PortalContractError(`${path.split('?')[0]} did not return JSON`); }
+  return check(body);
 }
 
 /**
@@ -298,15 +317,14 @@ export type PortalSyncResult = {
  * calls and nothing on the first screen needs them (see `loadSubjects`).
  */
 export async function loadPortalData(session: PortalSession, log: CallTiming[] = []): Promise<PortalSyncResult> {
-  const probe = await getJson<{ currentSemNo: number }>(session, '/student-api/student-attendance/my-all-semester-attendance?semNo=1', log);
+  const probe = await getJson(session, '/student-api/student-attendance/my-all-semester-attendance?semNo=1', (body) => checkCurrentSemester(body), log);
   const semNo = probe.currentSemNo;
 
   const [primaryAttendance, timetableRows] = await Promise.all([
-    getJson<{ primaryAttendance: PortalPrimaryAttendance }>(session, `/student-api/student-attendance/my-secondary-attendance?semNo=${semNo}`, log)
-      .then((body) => body.primaryAttendance),
+    getJson(session, `/student-api/student-attendance/my-secondary-attendance?semNo=${semNo}`, (body) => checkPrimaryAttendance(body), log),
     // The classroom's full multi-semester timetable in one call, filtered
     // to this semester, then resolved down to this student's own sessions.
-    getJson<RawClassroomTimetableRow[]>(session, '/student-api/classroom-timetables', log),
+    getJson(session, '/student-api/classroom-timetables', (body) => checkTimetableRows(body) as RawClassroomTimetableRow[], log),
   ]);
 
   const timetable = resolveOwnSessions(timetableRows.filter((row) => row.semNo === semNo));
@@ -319,6 +337,6 @@ const SUBJECTS_TIMEOUT_MS = 50_000;
 
 /** Per-subject attendance for the semester. Slow on the portal's side, so it's loaded on demand, never with the first screen. */
 export async function loadSubjects(session: PortalSession, semNo: number, log: CallTiming[] = []): Promise<PortalSubjectAttendance[]> {
-  const summary = await getJson<PortalSemesterSummary>(session, `/student-api/student-attendance/my-all-semester-attendance?semNo=${semNo}`, log, SUBJECTS_TIMEOUT_MS);
+  const summary = await getJson(session, `/student-api/student-attendance/my-all-semester-attendance?semNo=${semNo}`, (body) => checkSemesterSummary(body), log, SUBJECTS_TIMEOUT_MS);
   return summary.subjects;
 }

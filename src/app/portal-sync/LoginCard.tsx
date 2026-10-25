@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState, type FormEvent } from 'react';
+import { SHOW_DATA_CHECK } from '@/lib/data-check';
 
 /** Roll numbers look like 24261A05A1: 5 digits, a letter, 2 digits, then 2 letters or digits. */
 const ROLL_NUMBER = /^\d{5}[A-Z]\d{2}[A-Z0-9]{2}$/;
@@ -101,7 +102,7 @@ export function LoginCard({ formAction, pending, error, timings, notice }: { for
             {error}
           </p>
         )}
-        {error && timings && timings.length > 0 && (
+        {SHOW_DATA_CHECK && error && timings && timings.length > 0 && (
           <details className="font-term text-[12px] text-muted">
             <summary className="cursor-pointer">What took the time</summary>
             <ul className="m-0 mt-1.5 grid list-none gap-0.5 p-0">

@@ -15,7 +15,7 @@ const SLOW_NOTICE_MS = 8_000;
  * lately), so it is only fetched when the student opens this, never with the
  * first screen.
  */
-export function SubjectsCard({ semNo, target }: { semNo: number; target: number }) {
+export function SubjectsCard({ semNo, target, onLateIssue }: { semNo: number; target: number; onLateIssue: (kind: 'expired' | 'maintenance') => void }) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [subjects, setSubjects] = useState<Extract<SubjectsState, { status: 'ready' }>['subjects']>([]);
   const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -26,6 +26,8 @@ export function SubjectsCard({ semNo, target }: { semNo: number; target: number 
     const result = await fetchSubjects(semNo);
     if (slowTimer.current) clearTimeout(slowTimer.current);
     if (result.status === 'ready') setSubjects(result.subjects);
+    // These two replace the whole page (back to sign-in, or the maintenance notice), so they're handed up.
+    if (result.status === 'expired' || result.status === 'maintenance') return onLateIssue(result.status);
     setPhase(result.status);
   };
 
@@ -70,8 +72,6 @@ export function SubjectsCard({ semNo, target }: { semNo: number; target: number 
             <button type="button" onClick={() => void load()} className="chip">Try again</button>
           </div>
         )}
-
-        {phase === 'expired' && <p role="alert" className="m-0 font-term text-[13px]">Your sign-in expired. Reload the page and sign in again.</p>}
 
         {phase === 'ready' && (
           <ul className="m-0 grid list-none gap-2 p-0">

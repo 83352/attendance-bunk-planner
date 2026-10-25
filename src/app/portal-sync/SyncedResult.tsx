@@ -13,6 +13,7 @@ import {
   pastOverridesFromAnswers,
   patchedTimetable,
 } from '@/lib/portal/to-calculation-input';
+import { SHOW_DATA_CHECK } from '@/lib/data-check';
 import { MonthCalendar } from '../MonthCalendar';
 import { RawDataDump } from './RawDataDump';
 import { SubjectsCard } from './SubjectsCard';
@@ -24,7 +25,7 @@ import { UngradedList } from './UngradedList';
 const TARGET = 75;
 
 /** Everything that happens once we have real portal data: ask about ungraded past sessions, then compute and show the result. */
-export function SyncedResult({ data, overrides }: { data: PortalSyncResult; overrides: CalendarOverrides | null }) {
+export function SyncedResult({ data, overrides, onLateIssue }: { data: PortalSyncResult; overrides: CalendarOverrides | null; /** The subjects list found the sign-in expired, or the portal changed shape. */ onLateIssue: (kind: 'expired' | 'maintenance') => void }) {
   const now = useMemo(() => new Date(), []);
   const ungraded = useMemo(() => findUngradedPastSessions(data, now, overrides), [data, now, overrides]);
   const patched = useMemo(() => patchedTimetable(data, overrides, now), [data, overrides, now]);
@@ -89,7 +90,7 @@ export function SyncedResult({ data, overrides }: { data: PortalSyncResult; over
         </section>
       )}
 
-      <SubjectsCard semNo={data.currentSemNo} target={TARGET} />
+      <SubjectsCard semNo={data.currentSemNo} target={TARGET} onLateIssue={onLateIssue} />
 
       {result && headsUp.length > 0 && (
         <section className="card animate-rise border-l-[length:6px] !border-l-orange bg-warning-bg p-4" role="note">
@@ -110,12 +111,12 @@ export function SyncedResult({ data, overrides }: { data: PortalSyncResult; over
         />
       </section>
 
-      <details className="card">
+      {SHOW_DATA_CHECK && <details className="card">
         <summary className="heading cursor-pointer p-4 text-[15px]">Data check <span className="font-term text-[12px] font-normal normal-case text-muted">· compare with the portal</span></summary>
         <div className="border-t border-edge p-4">
           <RawDataDump data={data} />
         </div>
-      </details>
+      </details>}
     </div>
   );
 }

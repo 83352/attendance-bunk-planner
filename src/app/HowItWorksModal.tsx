@@ -66,7 +66,7 @@ const SECTIONS: { title: string; body: string[] }[] = [
   {
     title: 'If a number looks wrong',
     body: [
-      'Open “Data check” at the bottom to compare dontbunk’s data with what the portal shows. If they differ, trust the portal.',
+      'Compare it with what CampX shows. If they differ, trust CampX.',
     ],
   },
 ];
