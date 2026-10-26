@@ -2,9 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./styles/tokens.css";
-import { SITE_UNDER_MAINTENANCE } from "@/lib/maintenance";
-import { MaintenanceNotice } from "./portal-sync/MaintenanceNotice";
-import { SiteHeader } from "./SiteHeader";
 
 // The site is the portal-sync app; the earlier section-picker calculator and
 // admin panel live on the improved-main and portal branches. Metadata is
@@ -31,12 +28,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en-GB" className={`${fontDisplay.variable} ${fontSans.variable} ${fontTerm.variable}`}>
       <body>
-        {SITE_UNDER_MAINTENANCE ? (
-          <>
-            <SiteHeader />
-            <MaintenanceNotice reason="planned" />
-          </>
-        ) : children}
+        {children}
         <Analytics />
         <SpeedInsights />
       </body>

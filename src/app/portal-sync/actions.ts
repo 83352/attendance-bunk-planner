@@ -1,7 +1,6 @@
 'use server';
 
 import { headers } from 'next/headers';
-import { SITE_UNDER_MAINTENANCE } from '@/lib/maintenance';
 import { PortalContractError } from '@/lib/portal/contract';
 import type { CalendarOverrides } from '@/lib/portal/calendar-overrides';
 import { cachedSubjects, forgetSession } from '@/lib/portal/portal-cache';
@@ -32,7 +31,6 @@ export type PortalSyncState =
  *  - `logout`: revoke the session at the portal and delete the cookie.
  */
 export async function syncFromPortal(_: PortalSyncState, formData: FormData): Promise<PortalSyncState> {
-  if (SITE_UNDER_MAINTENANCE) return { status: 'maintenance' };
   const intent = String(formData.get('intent') ?? 'login');
 
   if (intent === 'logout') {
@@ -102,7 +100,6 @@ export type SubjectsState =
 
 /** Loads the per-subject summary on demand, with the signed-in student's stored session. */
 export async function fetchSubjects(semNo: number): Promise<SubjectsState> {
-  if (SITE_UNDER_MAINTENANCE) return { status: 'maintenance' };
   const stored = await readStoredSession();
   if (!stored) {
     console.error('[portal] subjects: no readable sign-in cookie (SESSION_SECRET unset or changed, or the browser did not send it).');

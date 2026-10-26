@@ -35,17 +35,14 @@ Open http://localhost:3000. Signing in needs a real CampX account.
 | --- | --- | --- |
 | `SESSION_SECRET` | Production | Long random string used to encrypt the sign-in cookie. Without it, sign-in still works but students are asked again on every visit. Changing it signs everyone out. |
 | `NEXT_PUBLIC_SITE_URL` | Optional | Public URL for metadata, `robots.txt` and the sitemap. Defaults to `https://dontbunk.vercel.app`. |
-| `MAINTENANCE_MODE` | Optional | `off` lets a deployment through while the maintenance switch is on; `on` forces maintenance. See below. |
 | `NEXT_PUBLIC_SHOW_DATA_CHECK` | Optional | `1` shows the "Data check" panel and per-call portal timings, for debugging against the portal. |
 | `PORTAL_TIMING_LOG` | Optional | `1` (or `true`) logs each portal call's status and duration in production (always on in development). |
 
 Locally, put them in `.env.local`. Never commit it. On Vercel, environment changes apply on the next deploy.
 
-## Maintenance switch
+## When CampX changes
 
-`src/lib/maintenance.ts` turns the whole site off: every page shows "dontbunk will be back soon" and sign-in is refused on the server. It is **on** right now. To reopen the site, set `ON_BY_DEFAULT` to `false` and push. `MAINTENANCE_MODE` overrides it per deployment, as above.
-
-Separately, the site switches itself off for a student whose portal responses no longer match what dontbunk expects (`src/lib/portal/contract.ts`), so a changed portal shows a maintenance notice instead of a wrong number. The server logs which endpoint and field failed, never any student data.
+The site switches itself off for a student whose portal responses no longer match what dontbunk expects (`src/lib/portal/contract.ts`), so a changed portal shows a maintenance notice instead of a wrong number. The server logs which endpoint and field failed, never any student data.
 
 ## Updating the calendar
 
@@ -86,7 +83,6 @@ src/app/                 Pages and UI components
 src/app/portal-sync/     Sign-in, server actions, session cookie, result screens
 src/domain/              Calendar and attendance business logic (framework-free)
 src/lib/portal/          CampX client, response checks, calendar overrides, portal-to-domain mapping
-src/lib/maintenance.ts   Site-wide maintenance switch
 ```
 
 ## Validation
