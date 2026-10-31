@@ -21,6 +21,7 @@
     "exams": [
       { "name": "Lab Internal", "start": "2026-08-29", "end": "2026-08-29", "periodsPerDay": 2 },
       { "name": "Mid 1", "start": "2026-08-31", "end": "2026-09-05", "periodsPerDay": 2 },
+      { "name": "Environmental Science (Mid 1)", "start": "2026-10-31", "end": "2026-10-31", "periodsPerDay": 2 },
       { "name": "Mid 2", "start": "2026-11-02", "end": "2026-11-07", "periodsPerDay": 2 }
     ]
   }
