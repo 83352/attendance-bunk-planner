@@ -3,6 +3,7 @@
 import { currentIstDate, type MonthCalendarData } from '@/domain/schedule/calendar';
 import { formatDay } from '@/lib/format-date';
 import type { PortalTimetableSession } from '@/lib/portal/campx-client';
+import { dayHasDetails } from '@/lib/portal/month-data';
 import { answerKey, type Answer } from '@/lib/portal/saved-answers';
 
 export const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -72,7 +73,7 @@ export function MonthGrid({ data, showHeading = true, sessionsByDate, expandedDa
                     key={cell.day}
                     cell={cell}
                     isExpanded={cell.iso === expandedDay}
-                    isTappable={!!onDayClick && cell.inSemester && (cell.count > 0 || cell.isHoliday || (sessionsByDate?.get(cell.iso)?.length ?? 0) > 0)}
+                    isTappable={!!onDayClick && dayHasDetails(cell, sessionsByDate?.get(cell.iso)?.length ?? 0)}
                     onDayClick={onDayClick}
                   />
                 ) : (
@@ -112,7 +113,7 @@ function DayCell({ cell, isExpanded, isTappable, onDayClick }: DayCellProps) {
 
   const detailKind: 'holiday' | 'exam' | 'special' | null = isHoliday ? 'holiday' : isExam ? 'exam' : isSpecialSaturday ? 'special' : null;
   const srDetail = [
-    `${formatDay(iso)}: ${count} period${count !== 1 ? 's' : ''}`,
+    count > 0 ? `${formatDay(iso)}: ${count} period${count !== 1 ? 's' : ''}` : formatDay(iso),
     detailKind === 'holiday' ? `Holiday — ${holidayName ?? 'Holiday'}` : null,
     detailKind === 'exam' ? `Exam — ${examName ?? 'Exam'}` : null,
     detailKind === 'special' ? 'Working Saturday' : null,
@@ -162,7 +163,7 @@ function DayExpansion({ cell, sessions, answerableKeys, onAnswer }: { cell: Mont
     <div className="my-1.5 rounded-[var(--ui-radius-sm)] border border-edge bg-paper p-3 shadow-[var(--shadow-hard-sm)] [animation:var(--animate-calendar-pop)]">
       <div className="mb-2 flex items-center justify-between">
         <p className="m-0 font-term text-[12px] font-bold uppercase tracking-[.4px] text-black">{dayLabel}</p>
-        <p className="m-0 font-term text-[12px] leading-[1.3] text-muted">{cell.count} period{cell.count !== 1 ? 's' : ''}</p>
+        {cell.count > 0 && <p className="m-0 font-term text-[12px] leading-[1.3] text-muted">{cell.count} period{cell.count !== 1 ? 's' : ''}</p>}
       </div>
       {cell.isHoliday && <p className="m-0 mb-2 font-term text-[12px] font-bold text-holiday-ink">{cell.holidayName ?? 'Holiday'}</p>}
       {cell.isExam && <p className="m-0 mb-2 font-term text-[12px] font-bold text-exam-ink">{cell.examName ?? 'Exam'}</p>}
@@ -196,7 +197,7 @@ function DayExpansion({ cell, sessions, answerableKeys, onAnswer }: { cell: Mont
             </div>
           );
         })}
-        {sessions.length === 0 && <p className="m-0 font-term text-[13px] text-muted">{cell.isHoliday ? 'No classes: holiday.' : 'No classes on the portal for this day.'}</p>}
+        {sessions.length === 0 && <p className="m-0 font-term text-[13px] text-muted">{cell.isHoliday ? 'No classes: holiday.' : cell.isExam ? 'The portal hasn’t listed this exam’s sessions.' : 'No classes on the portal for this day.'}</p>}
       </div>
     </div>
   );

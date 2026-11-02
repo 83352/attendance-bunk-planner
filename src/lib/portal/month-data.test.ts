@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PortalTimetableSession } from './campx-client';
 import type { CalendarOverrides } from './calendar-overrides';
-import { portalMonthData, semesterBounds } from './month-data';
+import { dayHasDetails, portalMonthData, semesterBounds } from './month-data';
 
 const s = (date: string, periods: number[], isSuspended = false): PortalTimetableSession => ({
   date, day: 'X', fromTime: '09:00:00', toTime: '10:00:00', periods, subjectName: 'S', subjectCode: 'S1',
@@ -63,5 +63,22 @@ describe('needs-answer marker', () => {
     const cells = portalMonthData([], null, { start: '2026-09-01', end: '2026-09-30' }, 2026, 8, '2026-09-30', new Set(['2026-09-03'])).dayCells;
     expect(cells[2].needsAnswer).toBe(true);
     expect(cells[0].needsAnswer).toBe(false);
+  });
+});
+
+describe('which days open when tapped', () => {
+  const day = { inSemester: true, count: 0, isHoliday: false, isExam: false, isSpecialSaturday: false };
+
+  it('opens days with classes, holidays, exams and working Saturdays, even with no portal rows', () => {
+    expect(dayHasDetails({ ...day, count: 2 }, 1)).toBe(true);
+    expect(dayHasDetails(day, 1)).toBe(true);
+    expect(dayHasDetails({ ...day, isHoliday: true }, 0)).toBe(true);
+    expect(dayHasDetails({ ...day, isExam: true }, 0)).toBe(true);
+    expect(dayHasDetails({ ...day, isSpecialSaturday: true }, 0)).toBe(true);
+  });
+
+  it('leaves empty days and days outside the semester closed', () => {
+    expect(dayHasDetails(day, 0)).toBe(false);
+    expect(dayHasDetails({ ...day, inSemester: false, isExam: true }, 0)).toBe(false);
   });
 });

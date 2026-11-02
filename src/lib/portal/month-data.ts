@@ -8,6 +8,18 @@ export function semesterBounds(timetable: PortalTimetableSession[], overrides: C
   return dates.length === 0 ? null : { start: dates[0], end: dates[dates.length - 1] };
 }
 
+/**
+ * Whether tapping a day opens its details: when it has classes, or is a
+ * holiday, exam day or working Saturday, even if the portal hasn't listed
+ * any sessions for it (a hand-added exam often isn't on the portal).
+ */
+export function dayHasDetails(
+  cell: Pick<MonthCalendarData['dayCells'][number], 'inSemester' | 'count' | 'isHoliday' | 'isExam' | 'isSpecialSaturday'>,
+  sessionCount: number,
+): boolean {
+  return cell.inSemester && (cell.count > 0 || sessionCount > 0 || cell.isHoliday || cell.isExam || cell.isSpecialSaturday);
+}
+
 /** Only once every class that day is marked (suspended ones aside), so a half-marked day never shows a misleading colour. */
 function dayAttendance(sessions: PortalTimetableSession[]): 'attended' | 'bunked' | 'absent' | undefined {
   const held = sessions.filter((s) => !s.isSuspended);
